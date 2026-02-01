@@ -1,0 +1,18 @@
+# 排除 IDEA 配置目录
+.idea/
+
+# 排除编译输出
+target/
+out/
+*.class
+
+# 排除 Maven wrapper
+.mvn/
+
+# 排除日志文件
+*.log
+
+# 排除临时文件
+*.tmp
+*.swp
+*~

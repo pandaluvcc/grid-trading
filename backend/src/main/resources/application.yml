@@ -1,0 +1,34 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: grid-trading
+
+  datasource:
+    url: jdbc:h2:mem:grid_trading
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: true
+
+# 安装 MySQL 后使用以下配置
+#  datasource:
+#    url: jdbc:mysql://localhost:3306/grid_trading
+#    username: root
+#    password: root
+#    driver-class-name: com.mysql.cj.jdbc.Driver
+#  jpa:
+#    hibernate:
+#      ddl-auto: update
+#    properties:
+#      hibernate:
+#        dialect: org.hibernate.dialect.MySQLDialect
+
+logging:
+  level:
+    com.gridtrading: INFO
