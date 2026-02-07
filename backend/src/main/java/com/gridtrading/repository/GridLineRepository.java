@@ -21,11 +21,21 @@ public interface GridLineRepository extends JpaRepository<GridLine, Long> {
      * 查询等待买入的网格线（按买入价从高到低排序）
      */
     List<GridLine> findByStrategyAndStateOrderByBuyPriceDesc(Strategy strategy, GridLineState state);
+    
+    /**
+     * 查询等待买入的网格线（按level从小到大排序，用于固定模板网格）
+     */
+    List<GridLine> findByStrategyAndStateOrderByLevelAsc(Strategy strategy, GridLineState state);
 
     /**
      * 查询等待卖出的网格线（按卖出价从低到高排序）
      */
     List<GridLine> findByStrategyAndStateOrderBySellPriceAsc(Strategy strategy, GridLineState state);
+    
+    /**
+     * 统计指定策略和状态的网格线数量
+     */
+    long countByStrategyAndState(Strategy strategy, GridLineState state);
 
     /**
      * 查询策略的最低买入网格价格

@@ -73,7 +73,7 @@ public class GridEngine {
     }
 
     /**
-     * Step 1: 买入处理
+     * Step 1: 买入处理（固定模板网格）
      * <p>
      * 状态机：WAIT_BUY → BOUGHT
      * <p>
@@ -82,8 +82,9 @@ public class GridEngine {
      * 2. GridLine.state == WAIT_BUY （严格过滤）
      * 3. price <= gridLine.buyPrice
      * 4. availableCash >= amountPerGrid
+     * 5. 已买入网格数量 < 19（固定模板硬风控）
      * <p>
-     * 排序：按 buyPrice 从高到低（靠近当前价的优先）
+     * 排序：按 level 从小到大（按顺序买入）
      * <p>
      * 禁止：同一个 GridLine 在一次 processPrice 中 BUY 两次
      */
@@ -93,12 +94,26 @@ public class GridEngine {
             return;
         }
 
+        // 【固定模板风控】检查已买入网格数量
+        long boughtCount = gridLineRepository.countByStrategyAndState(strategy, GridLineState.BOUGHT);
+        if (boughtCount >= 19) {
+            log.info("[BUY-STOP] 已买入网格数量达到19条，禁止继续买入");
+            return;
+        }
+
         // 查询等待买入的网格线（严格过滤 state = WAIT_BUY）
         List<GridLine> waitBuyLines = gridLineRepository
-                .findByStrategyAndStateOrderByBuyPriceDesc(strategy, GridLineState.WAIT_BUY);
+                .findByStrategyAndStateOrderByLevelAsc(strategy, GridLineState.WAIT_BUY);
 
         // 遍历所有等待买入的网格线（支持"一网打尽"）
         for (GridLine gridLine : waitBuyLines) {
+            // 【固定模板风控】再次检查已买入数量（防止在循环中超出限制）
+            boughtCount = gridLineRepository.countByStrategyAndState(strategy, GridLineState.BOUGHT);
+            if (boughtCount >= 19) {
+                log.info("[BUY-STOP] 已买入网格数量达到19条，停止买入");
+                break;
+            }
+
             // 二次确认状态（防止并发或重复）
             if (gridLine.getState() != GridLineState.WAIT_BUY) {
                 log.warn("[BUY-SKIP] gridLineId={}, level={}, state={} (不是 WAIT_BUY)",
@@ -157,9 +172,9 @@ public class GridEngine {
     }
 
     /**
-     * Step 2: 卖出处理
+     * Step 2: 卖出处理（固定模板网格）
      * <p>
-     * 状态机：BOUGHT → SOLD → WAIT_BUY
+     * 状态机：BOUGHT → WAIT_BUY （循环网格）
      * <p>
      * 触发条件：
      * 1. GridLine.state == BOUGHT （严格过滤，兼容旧的 WAIT_SELL）

@@ -63,6 +63,36 @@ public class Strategy {
     private BigDecimal amountPerGrid;
 
     /**
+     * 网格模型版本（固定 v2.0）
+     */
+    @Column(name = "grid_model_version", length = 20)
+    private String gridModelVersion;
+
+    /**
+     * 网格分布摘要（如：小网13/中网4/大网2）
+     */
+    @Column(name = "grid_summary", length = 100)
+    private String gridSummary;
+
+    /**
+     * 小网价差
+     */
+    @Column(name = "small_gap", precision = 20, scale = 8)
+    private BigDecimal smallGap;
+
+    /**
+     * 中网价差
+     */
+    @Column(name = "medium_gap", precision = 20, scale = 8)
+    private BigDecimal mediumGap;
+
+    /**
+     * 大网价差
+     */
+    @Column(name = "large_gap", precision = 20, scale = 8)
+    private BigDecimal largeGap;
+
+    /**
      * 最大投入资金
      */
     @Column(nullable = false, precision = 20, scale = 2)
@@ -205,6 +235,30 @@ public class Strategy {
         this.amountPerGrid = amountPerGrid;
     }
 
+    public BigDecimal getSmallGap() {
+        return smallGap;
+    }
+
+    public void setSmallGap(BigDecimal smallGap) {
+        this.smallGap = smallGap;
+    }
+
+    public BigDecimal getMediumGap() {
+        return mediumGap;
+    }
+
+    public void setMediumGap(BigDecimal mediumGap) {
+        this.mediumGap = mediumGap;
+    }
+
+    public BigDecimal getLargeGap() {
+        return largeGap;
+    }
+
+    public void setLargeGap(BigDecimal largeGap) {
+        this.largeGap = largeGap;
+    }
+
     public BigDecimal getMaxCapital() {
         return maxCapital;
     }
@@ -283,5 +337,21 @@ public class Strategy {
 
     public void setTradeRecords(List<TradeRecord> tradeRecords) {
         this.tradeRecords = tradeRecords;
+    }
+
+    public String getGridModelVersion() {
+        return gridModelVersion;
+    }
+
+    public void setGridModelVersion(String gridModelVersion) {
+        this.gridModelVersion = gridModelVersion;
+    }
+
+    public String getGridSummary() {
+        return gridSummary;
+    }
+
+    public void setGridSummary(String gridSummary) {
+        this.gridSummary = gridSummary;
     }
 }

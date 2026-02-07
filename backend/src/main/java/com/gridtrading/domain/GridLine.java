@@ -27,16 +27,47 @@ public class GridLine {
     private Strategy strategy;
 
     /**
-     * 买入价格
+     * 买入价格（触发价格）
+     */
+    @Column(name = "buy_trigger_price", nullable = false, precision = 20, scale = 8)
+    private BigDecimal buyTriggerPrice;
+
+    /**
+     * 买入价格（实际成交价，兼容字段）
      */
     @Column(nullable = false, precision = 20, scale = 8)
     private BigDecimal buyPrice;
 
     /**
-     * 卖出价格
+     * 卖出价格（触发价格）
+     */
+    @Column(name = "sell_trigger_price", nullable = false, precision = 20, scale = 8)
+    private BigDecimal sellTriggerPrice;
+
+    /**
+     * 卖出价格（兼容字段）
      */
     @Column(nullable = false, precision = 20, scale = 8)
     private BigDecimal sellPrice;
+
+    /**
+     * 实际买入价（用户可编辑，可为空表示未成交）
+     */
+    @Column(name = "actual_buy_price", precision = 20, scale = 8)
+    private BigDecimal actualBuyPrice;
+
+    /**
+     * 实际卖出价（实际成交价，可为空表示未卖出）
+     */
+    @Column(name = "actual_sell_price", precision = 20, scale = 8)
+    private BigDecimal actualSellPrice;
+
+    /**
+     * 网格类型（小网/中网/大网）
+     */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "grid_type", nullable = false, length = 20)
+    private GridType gridType;
 
     /**
      * 网格线状态
@@ -50,6 +81,36 @@ public class GridLine {
      */
     @Column(nullable = false)
     private Integer level;
+
+    /**
+     * 买入金额
+     */
+    @Column(name = "buy_amount", nullable = false, precision = 20, scale = 2)
+    private BigDecimal buyAmount;
+
+    /**
+     * 买入数量
+     */
+    @Column(name = "buy_quantity", nullable = false, precision = 20, scale = 8)
+    private BigDecimal buyQuantity;
+
+    /**
+     * 卖出金额
+     */
+    @Column(name = "sell_amount", nullable = false, precision = 20, scale = 2)
+    private BigDecimal sellAmount;
+
+    /**
+     * 毛利润
+     */
+    @Column(name = "profit", nullable = false, precision = 20, scale = 2)
+    private BigDecimal profit;
+
+    /**
+     * 利润率
+     */
+    @Column(name = "profit_rate", nullable = false, precision = 10, scale = 6)
+    private BigDecimal profitRate;
 
     /**
      * JPA 要求的无参构造器
@@ -105,5 +166,85 @@ public class GridLine {
 
     public void setLevel(Integer level) {
         this.level = level;
+    }
+
+    public BigDecimal getBuyTriggerPrice() {
+        return buyTriggerPrice;
+    }
+
+    public void setBuyTriggerPrice(BigDecimal buyTriggerPrice) {
+        this.buyTriggerPrice = buyTriggerPrice;
+    }
+
+    public BigDecimal getSellTriggerPrice() {
+        return sellTriggerPrice;
+    }
+
+    public void setSellTriggerPrice(BigDecimal sellTriggerPrice) {
+        this.sellTriggerPrice = sellTriggerPrice;
+    }
+
+    public GridType getGridType() {
+        return gridType;
+    }
+
+    public void setGridType(GridType gridType) {
+        this.gridType = gridType;
+    }
+
+    public BigDecimal getBuyAmount() {
+        return buyAmount;
+    }
+
+    public void setBuyAmount(BigDecimal buyAmount) {
+        this.buyAmount = buyAmount;
+    }
+
+    public BigDecimal getBuyQuantity() {
+        return buyQuantity;
+    }
+
+    public void setBuyQuantity(BigDecimal buyQuantity) {
+        this.buyQuantity = buyQuantity;
+    }
+
+    public BigDecimal getSellAmount() {
+        return sellAmount;
+    }
+
+    public void setSellAmount(BigDecimal sellAmount) {
+        this.sellAmount = sellAmount;
+    }
+
+    public BigDecimal getProfit() {
+        return profit;
+    }
+
+    public void setProfit(BigDecimal profit) {
+        this.profit = profit;
+    }
+
+    public BigDecimal getProfitRate() {
+        return profitRate;
+    }
+
+    public void setProfitRate(BigDecimal profitRate) {
+        this.profitRate = profitRate;
+    }
+
+    public BigDecimal getActualBuyPrice() {
+        return actualBuyPrice;
+    }
+
+    public void setActualBuyPrice(BigDecimal actualBuyPrice) {
+        this.actualBuyPrice = actualBuyPrice;
+    }
+
+    public BigDecimal getActualSellPrice() {
+        return actualSellPrice;
+    }
+
+    public void setActualSellPrice(BigDecimal actualSellPrice) {
+        this.actualSellPrice = actualSellPrice;
     }
 }
