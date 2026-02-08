@@ -41,13 +41,18 @@
         <el-descriptions-item label="可用资金">
           <span>{{ formatAmount(strategy.availableCash) }}</span>
         </el-descriptions-item>
-        <el-descriptions-item label="已投入">
-          <span>{{ formatAmount(strategy.investedAmount) }}</span>
-        </el-descriptions-item>
         <el-descriptions-item label="已实现收益">
           <span :class="{'profit-positive': strategy.realizedProfit > 0, 'profit-negative': strategy.realizedProfit < 0}">
             {{ formatAmount(strategy.realizedProfit) }}
           </span>
+        </el-descriptions-item>
+        <el-descriptions-item label="预计收益">
+          <span style="font-weight: 600; color: #67c23a">
+            {{ formatAmount(strategy.expectedProfit) }}
+          </span>
+        </el-descriptions-item>
+        <el-descriptions-item label="已投入">
+          <span>{{ formatAmount(strategy.investedAmount) }}</span>
         </el-descriptions-item>
       </el-descriptions>
 
@@ -105,6 +110,7 @@
         :grid-lines="gridLines" 
         :loading="gridLinesLoading" 
         @update-actual-buy-price="handleUpdateActualBuyPrice"
+        @plan-price-updated="handlePlanPriceUpdated"
       />
     </el-card>
 
@@ -210,6 +216,12 @@ const handleUpdateActualBuyPrice = async ({ gridLineId, actualBuyPrice }) => {
     console.error('更新实际买入价失败:', error)
     ElMessage.error(error.response?.data?.message || '更新实际买入价失败')
   }
+}
+
+// 处理计划买入价更新
+const handlePlanPriceUpdated = async () => {
+  // 重新加载网格计划以显示更新后的数据
+  await loadGridLines()
 }
 
 // 执行一次

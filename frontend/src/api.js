@@ -54,6 +54,15 @@ export function executeTick(strategyId, price) {
 }
 
 /**
+ * 更新网格计划买入价（计划阶段调整）
+ */
+export function updatePlanBuyPrice(gridLineId, newBuyPrice) {
+  return api.put(`/strategies/grid-lines/${gridLineId}/update-plan-buy-price`, null, {
+    params: { newBuyPrice }
+  })
+}
+
+/**
  * 更新网格实际买入价
  */
 export function updateActualBuyPrice(gridLineId, actualBuyPrice) {

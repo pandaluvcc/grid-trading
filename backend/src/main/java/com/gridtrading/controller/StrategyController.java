@@ -38,6 +38,11 @@ public class StrategyController {
     private static final BigDecimal MEDIUM_PERCENT = new BigDecimal("0.15");  // 15%
     private static final BigDecimal LARGE_PERCENT = new BigDecimal("0.30");   // 30%
     
+    // 固定步长（用于计划阶段价格联动）
+    private static final BigDecimal SMALL_STEP = new BigDecimal("0.05");   // 小网步长
+    private static final BigDecimal MEDIUM_STEP = new BigDecimal("0.15");  // 中网步长
+    private static final BigDecimal LARGE_STEP = new BigDecimal("0.30");   // 大网步长
+    
     // 固定的19条网格顺序（level从1到19，按顺序排列）
     private static final GridType[] GRID_TEMPLATE = {
         GridType.SMALL,   // 1
@@ -304,8 +309,9 @@ public class StrategyController {
         // 价格信息
         gridLine.setBuyPrice(buyPrice);
         gridLine.setSellPrice(sellPrice);
-        gridLine.setBuyTriggerPrice(buyPrice); // 兼容字段
-        gridLine.setSellTriggerPrice(sellPrice); // 兼容字段
+        // 触发价计算：买入触发价 = 买入价 + 0.02，卖出触发价 = 卖出价 - 0.02
+        gridLine.setBuyTriggerPrice(buyPrice.add(new BigDecimal("0.02")));
+        gridLine.setSellTriggerPrice(sellPrice.subtract(new BigDecimal("0.02")));
 
         // 买入金额
         gridLine.setBuyAmount(buyAmount);
@@ -381,9 +387,171 @@ public class StrategyController {
      */
     @GetMapping("/{id}/detail")
     public StrategyDetailDTO getStrategyDetail(@PathVariable Long id) {
-        Strategy strategy = strategyRepository.findById(id)
+        Strategy strategy = strategyRepository.findByIdWithGridLines(id)
                 .orElseThrow(() -> new RuntimeException("策略不存在: " + id));
-        return StrategyDetailDTO.fromEntity(strategy);
+        
+        StrategyDetailDTO dto = StrategyDetailDTO.fromEntity(strategy);
+        
+        // 计算预计收益（所有网格的收益总和）
+        BigDecimal expectedProfit = strategy.getGridLines().stream()
+                .map(gl -> gl.getProfit() != null ? gl.getProfit() : BigDecimal.ZERO)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        dto.setExpectedProfit(expectedProfit);
+        
+        return dto;
+    }
+
+    /**
+     * 更新网格计划买入价（计划阶段调整）
+     * 功能：修改买入价后，自动重新计算该网格及所有后续网格
+     */
+    @PutMapping("/grid-lines/{gridLineId}/update-plan-buy-price")
+    public void updatePlanBuyPrice(
+            @PathVariable Long gridLineId,
+            @RequestParam BigDecimal newBuyPrice
+    ) {
+        if (newBuyPrice == null || newBuyPrice.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new IllegalArgumentException("买入价必须大于 0");
+        }
+
+        // 查询网格线
+        GridLine gridLine = gridLineRepository.findById(gridLineId)
+                .orElseThrow(() -> new RuntimeException("网格线不存在: " + gridLineId));
+
+        // 验证状态：只有等待买入状态才能修改计划买入价
+        if (gridLine.getState() != GridLineState.WAIT_BUY) {
+            throw new IllegalArgumentException("只有等待买入状态的网格才能修改计划买入价");
+        }
+
+        // 查询策略及所有网格线
+        Strategy strategy = gridLine.getStrategy();
+        strategy = strategyRepository.findByIdWithGridLines(strategy.getId())
+                .orElseThrow(() -> new RuntimeException("策略不存在"));
+
+        // 如果修改的是第1格，更新 base_price
+        if (gridLine.getLevel() == 1) {
+            strategy.setBasePrice(newBuyPrice);
+        }
+
+        // 重新计算从当前网格开始的所有后续网格
+        recalculatePlanGrids(strategy, gridLine.getLevel(), newBuyPrice);
+
+        // 保存策略（级联保存所有网格线）
+        strategyRepository.save(strategy);
+    }
+
+    /**
+     * 重新计算计划阶段的网格（使用固定步长）
+     * @param strategy 策略实体
+     * @param fromLevel 从哪一格开始重新计算（包含该格）
+     * @param startBuyPrice 起始买入价（修改格的新买入价）
+     */
+    private void recalculatePlanGrids(Strategy strategy, int fromLevel, BigDecimal startBuyPrice) {
+        BigDecimal basePrice = strategy.getBasePrice();
+        List<GridLine> gridLines = strategy.getGridLines();
+        
+        // 按 level 排序
+        gridLines.sort((a, b) -> a.getLevel().compareTo(b.getLevel()));
+        
+        // 找到需要重新计算的网格（fromLevel 到 19）
+        GridLine previousSmallGrid = null;  // 上一个小网（用于小网向上回溯）
+        GridLine previousMediumGrid = null; // 上一个中网（用于中网向上回溯）
+        GridLine previousLargeGrid = null;  // 上一个大网（用于大网向上回溯）
+        
+        // 先找到 fromLevel 之前最近的小网、中网、大网（用于回溯）
+        for (GridLine gl : gridLines) {
+            if (gl.getLevel() < fromLevel) {
+                if (gl.getGridType() == GridType.SMALL) {
+                    previousSmallGrid = gl;
+                } else if (gl.getGridType() == GridType.MEDIUM) {
+                    previousMediumGrid = gl;
+                } else if (gl.getGridType() == GridType.LARGE) {
+                    previousLargeGrid = gl;
+                }
+            }
+        }
+        
+        // 重新计算 fromLevel 到第19格
+        for (GridLine gl : gridLines) {
+            if (gl.getLevel() < fromLevel) {
+                continue; // 跳过之前的网格
+            }
+            
+            BigDecimal buyPrice;
+            BigDecimal sellPrice;
+            
+            if (gl.getLevel() == fromLevel) {
+                // 当前修改的网格，使用新的买入价
+                buyPrice = startBuyPrice;
+            } else {
+                // 后续网格，根据类型回溯计算
+                if (gl.getGridType() == GridType.SMALL) {
+                    // 小网：向上找最近的小网，buyPrice = 上一小网 - 0.05
+                    if (previousSmallGrid != null) {
+                        buyPrice = previousSmallGrid.getBuyPrice().subtract(SMALL_STEP);
+                    } else {
+                        // 如果没有前置小网（理论上不会发生），使用 base_price
+                        buyPrice = basePrice.subtract(SMALL_STEP.multiply(new BigDecimal(gl.getLevel() - 1)));
+                    }
+                } else if (gl.getGridType() == GridType.MEDIUM) {
+                    // 中网：向上找最近的中网，buyPrice = 上一中网 - 0.15
+                    if (previousMediumGrid != null) {
+                        buyPrice = previousMediumGrid.getBuyPrice().subtract(MEDIUM_STEP);
+                    } else {
+                        // 如果没有前置中网，使用 base_price - 0.15
+                        buyPrice = basePrice.subtract(MEDIUM_STEP);
+                    }
+                } else { // LARGE
+                    // 大网：向上找最近的大网，buyPrice = 上一大网 - 0.30
+                    if (previousLargeGrid != null) {
+                        buyPrice = previousLargeGrid.getBuyPrice().subtract(LARGE_STEP);
+                    } else {
+                        // 如果没有前置大网，使用 base_price - 0.30
+                        buyPrice = basePrice.subtract(LARGE_STEP);
+                    }
+                }
+            }
+            
+            // 计算卖出价（使用固定步长加法）
+            if (gl.getGridType() == GridType.SMALL) {
+                sellPrice = buyPrice.add(SMALL_STEP);
+            } else if (gl.getGridType() == GridType.MEDIUM) {
+                sellPrice = buyPrice.add(MEDIUM_STEP);
+            } else { // LARGE
+                sellPrice = buyPrice.add(LARGE_STEP);
+            }
+            
+            // 更新网格线的价格
+            gl.setBuyPrice(buyPrice.setScale(2, RoundingMode.HALF_UP));
+            gl.setSellPrice(sellPrice.setScale(2, RoundingMode.HALF_UP));
+            
+            // 重新计算触发价
+            gl.setBuyTriggerPrice(gl.getBuyPrice().add(new BigDecimal("0.02")));
+            gl.setSellTriggerPrice(gl.getSellPrice().subtract(new BigDecimal("0.02")));
+            
+            // 重新计算其他字段
+            BigDecimal buyAmount = gl.getBuyAmount();
+            BigDecimal buyQuantity = buyAmount.divide(gl.getBuyPrice(), 8, RoundingMode.DOWN);
+            gl.setBuyQuantity(buyQuantity);
+            
+            BigDecimal sellAmount = buyQuantity.multiply(gl.getSellPrice()).setScale(2, RoundingMode.DOWN);
+            gl.setSellAmount(sellAmount);
+            
+            BigDecimal profit = sellAmount.subtract(buyAmount);
+            gl.setProfit(profit);
+            
+            BigDecimal profitRate = profit.divide(buyAmount, 6, RoundingMode.HALF_UP);
+            gl.setProfitRate(profitRate);
+            
+            // 更新回溯变量
+            if (gl.getGridType() == GridType.SMALL) {
+                previousSmallGrid = gl;
+            } else if (gl.getGridType() == GridType.MEDIUM) {
+                previousMediumGrid = gl;
+            } else if (gl.getGridType() == GridType.LARGE) {
+                previousLargeGrid = gl;
+            }
+        }
     }
 
     /**
@@ -534,8 +702,9 @@ public class StrategyController {
             // 更新价格
             gridLine.setBuyPrice(newBuyPrice);
             gridLine.setSellPrice(newSellPrice);
-            gridLine.setBuyTriggerPrice(newBuyPrice);
-            gridLine.setSellTriggerPrice(newSellPrice);
+            // 触发价计算：买入触发价 = 买入价 + 0.02，卖出触发价 = 卖出价 - 0.02
+            gridLine.setBuyTriggerPrice(newBuyPrice.add(new BigDecimal("0.02")));
+            gridLine.setSellTriggerPrice(newSellPrice.subtract(new BigDecimal("0.02")));
 
             // 重算数量和金额
             BigDecimal buyAmount = gridLine.getBuyAmount();
@@ -576,10 +745,13 @@ public class StrategyController {
         List<GridPlanResponse.GridPlanItem> gridPlans = strategy.getGridLines().stream()
                 .map(gridLine -> {
                     GridPlanResponse.GridPlanItem item = new GridPlanResponse.GridPlanItem();
+                    item.setId(gridLine.getId());
                     item.setGridType(gridLine.getGridType());
                     item.setLevel(gridLine.getLevel());
                     item.setBuyPrice(gridLine.getBuyPrice());
                     item.setSellPrice(gridLine.getSellPrice());
+                    item.setBuyTriggerPrice(gridLine.getBuyTriggerPrice());
+                    item.setSellTriggerPrice(gridLine.getSellTriggerPrice());
                     item.setQuantity(gridLine.getBuyQuantity());
                     item.setBuyAmount(gridLine.getBuyAmount());
                     item.setSellAmount(gridLine.getSellAmount());

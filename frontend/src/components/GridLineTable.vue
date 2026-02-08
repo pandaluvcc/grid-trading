@@ -41,24 +41,15 @@
         </template>
       </el-table-column>
 
-      <!-- 3. 买入触发价（可编辑） -->
+      <!-- 3. 买入触发价（只读） -->
       <el-table-column prop="buyTriggerPrice" label="买入触发价" width="130" align="right">
         <template #header>
-          <el-tooltip content="触发价用于策略监听，不等于实际成交价" placement="top">
+          <el-tooltip content="触发价用于策略监听，由后端自动计算" placement="top">
             <span>买入触发价 <el-icon><InfoFilled /></el-icon></span>
           </el-tooltip>
         </template>
         <template #default="scope">
-          <el-input-number
-            v-model="scope.row.buyTriggerPrice"
-            :precision="3"
-            :step="0.001"
-            :min="0.001"
-            size="small"
-            :class="{ 'edited-field': scope.row._buyTriggerEdited }"
-            @change="handleFieldEdit(scope.row, 'buyTrigger')"
-            style="width: 110px"
-          />
+          <span class="readonly-field">{{ formatPrice(scope.row.buyTriggerPrice) }}</span>
         </template>
       </el-table-column>
 
@@ -78,40 +69,27 @@
         </template>
       </el-table-column>
 
-      <!-- 5. 卖出触发价（可编辑） -->
+      <!-- 5. 卖出触发价（只读） -->
       <el-table-column prop="sellTriggerPrice" label="卖出触发价" width="130" align="right">
         <template #header>
-          <el-tooltip content="触发价用于策略监听，不等于实际成交价" placement="top">
+          <el-tooltip content="触发价用于策略监听，由后端自动计算" placement="top">
             <span>卖出触发价 <el-icon><InfoFilled /></el-icon></span>
           </el-tooltip>
         </template>
         <template #default="scope">
-          <el-input-number
-            v-model="scope.row.sellTriggerPrice"
-            :precision="3"
-            :step="0.001"
-            :min="0.001"
-            size="small"
-            :class="{ 'edited-field': scope.row._sellTriggerEdited }"
-            @change="handleFieldEdit(scope.row, 'sellTrigger')"
-            style="width: 110px"
-          />
+          <span class="readonly-field">{{ formatPrice(scope.row.sellTriggerPrice) }}</span>
         </template>
       </el-table-column>
 
-      <!-- 6. 卖出价（可编辑） -->
+      <!-- 6. 卖出价（只读） -->
       <el-table-column prop="sellPrice" label="卖出价" width="130" align="right">
+        <template #header>
+          <el-tooltip content="卖出价由系统根据买入价和网格类型自动计算" placement="top">
+            <span>卖出价 <el-icon><InfoFilled /></el-icon></span>
+          </el-tooltip>
+        </template>
         <template #default="scope">
-          <el-input-number
-            v-model="scope.row.sellPrice"
-            :precision="3"
-            :step="0.001"
-            :min="0.001"
-            size="small"
-            :class="{ 'edited-field': scope.row._sellPriceEdited }"
-            @change="handleFieldEdit(scope.row, 'sellPrice')"
-            style="width: 110px"
-          />
+          <span class="readonly-field">{{ formatPrice(scope.row.sellPrice) }}</span>
         </template>
       </el-table-column>
 
@@ -170,8 +148,10 @@
 </template>
 
 <script setup>
-import { defineProps, computed, ref } from 'vue'
+import { defineProps, defineEmits, computed, ref } from 'vue'
 import { InfoFilled } from '@element-plus/icons-vue'
+import { ElMessage } from 'element-plus'
+import { updatePlanBuyPrice } from '../api'
 
 const props = defineProps({
   gridLines: {
@@ -183,6 +163,8 @@ const props = defineProps({
     default: false
   }
 })
+
+const emit = defineEmits(['plan-price-updated'])
 
 // 创建可编辑的展示数据（深拷贝）
 const displayGridLines = computed(() => {
@@ -199,41 +181,26 @@ const displayGridLines = computed(() => {
   }))
 })
 
-// 处理字段编辑（前端实时计算）
-const handleFieldEdit = (row, fieldType) => {
+// 处理字段编辑（调用后端API）
+const handleFieldEdit = async (row, fieldType) => {
   // 标记字段被编辑过
-  if (fieldType === 'buyTrigger') {
-    row._buyTriggerEdited = true
-  } else if (fieldType === 'buyPrice') {
+  if (fieldType === 'buyPrice') {
     row._buyPriceEdited = true
-    // 买入价变化，重新计算相关字段
-    recalculateRow(row)
-  } else if (fieldType === 'sellTrigger') {
-    row._sellTriggerEdited = true
+    
+    // 调用后端API更新买入价
+    try {
+      await updatePlanBuyPrice(row.id, row.buyPrice)
+      ElMessage.success('买入价更新成功')
+      // 通知父组件重新加载数据
+      emit('plan-price-updated')
+    } catch (error) {
+      ElMessage.error(error.response?.data?.message || '更新买入价失败')
+      console.error('更新买入价失败:', error)
+    }
   } else if (fieldType === 'sellPrice') {
     row._sellPriceEdited = true
-    // 卖出价变化，重新计算相关字段
-    recalculateRow(row)
+    ElMessage.warning('卖出价由系统自动计算，无需手动修改')
   }
-}
-
-// 重新计算单行数据（前端计算）
-const recalculateRow = (row) => {
-  if (!row.buyPrice || !row.sellPrice || !row.buyAmount) {
-    return
-  }
-  
-  // 买入数量 = 买入金额 ÷ 买入价
-  row.quantity = (row.buyAmount / row.buyPrice).toFixed(2)
-  
-  // 卖出金额 = 买入数量 × 卖出价
-  row.sellAmount = (row.quantity * row.sellPrice).toFixed(2)
-  
-  // 预期收益 = 卖出金额 - 买入金额
-  row.profit = (row.sellAmount - row.buyAmount).toFixed(2)
-  
-  // 收益率 = 预期收益 ÷ 买入金额
-  row.profitRate = (row.profit / row.buyAmount).toFixed(6)
 }
 
 // 格式化网格类型
@@ -286,6 +253,12 @@ const getRowClassName = ({ row }) => {
     return 'medium-grid-row'
   }
   return 'small-grid-row'
+}
+
+// 格式化价格（保留2位小数）
+const formatPrice = (value) => {
+  if (value == null || value === '' || isNaN(value)) return '-'
+  return Number(value).toFixed(2)
 }
 
 // 格式化金额（整数）

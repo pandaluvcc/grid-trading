@@ -45,16 +45,27 @@ public class GridPlanResponse {
     }
 
     public static class GridPlanItem {
+        private Long id;
         private GridType gridType;
         private Integer level;
         private BigDecimal buyPrice;
         private BigDecimal sellPrice;
+        private BigDecimal buyTriggerPrice;
+        private BigDecimal sellTriggerPrice;
         private BigDecimal quantity;
         private BigDecimal buyAmount;
         private BigDecimal sellAmount;
         private BigDecimal profit;
         private BigDecimal profitRate;
         private GridLineState state;
+
+        public Long getId() {
+            return id;
+        }
+
+        public void setId(Long id) {
+            this.id = id;
+        }
 
         public GridType getGridType() {
             return gridType;
@@ -86,6 +97,22 @@ public class GridPlanResponse {
 
         public void setSellPrice(BigDecimal sellPrice) {
             this.sellPrice = sellPrice;
+        }
+
+        public BigDecimal getBuyTriggerPrice() {
+            return buyTriggerPrice;
+        }
+
+        public void setBuyTriggerPrice(BigDecimal buyTriggerPrice) {
+            this.buyTriggerPrice = buyTriggerPrice;
+        }
+
+        public BigDecimal getSellTriggerPrice() {
+            return sellTriggerPrice;
+        }
+
+        public void setSellTriggerPrice(BigDecimal sellTriggerPrice) {
+            this.sellTriggerPrice = sellTriggerPrice;
         }
 
         public BigDecimal getQuantity() {

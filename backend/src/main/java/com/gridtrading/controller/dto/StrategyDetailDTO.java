@@ -28,6 +28,7 @@ public class StrategyDetailDTO {
     private BigDecimal position;
     private BigDecimal realizedProfit;
     private BigDecimal lastPrice;
+    private BigDecimal expectedProfit;  // 预计收益（所有网格收益总和）
 
     // 网格模型说明（固定文案）
     private String gridModelDescription;
@@ -203,5 +204,13 @@ public class StrategyDetailDTO {
 
     public void setTotalGridCount(Integer totalGridCount) {
         this.totalGridCount = totalGridCount;
+    }
+
+    public BigDecimal getExpectedProfit() {
+        return expectedProfit;
+    }
+
+    public void setExpectedProfit(BigDecimal expectedProfit) {
+        this.expectedProfit = expectedProfit;
     }
 }
