@@ -97,7 +97,7 @@ const form = ref({
 
 // 返回列表页
 const goBack = () => {
-  router.push('/')
+  router.push('/pc')
 }
 
 // 提交创建

@@ -3,12 +3,7 @@ package com.gridtrading.controller.dto;
 import java.math.BigDecimal;
 
 /**
- * 创建策略请求 DTO
- * <p>
- * 固定模板网格策略：不需要传入网格比例参数
- * - 网格类型固定：SMALL=5%, MEDIUM=15%, LARGE=30%
- * - 网格数量固定：19条
- * - 网格顺序固定（见策略文档）
+B
  */
 public class CreateStrategyRequest {
 
@@ -16,6 +11,7 @@ public class CreateStrategyRequest {
     private String symbol;
     private BigDecimal basePrice;
     private BigDecimal amountPerGrid;
+    private BigDecimal quantityPerGrid;  // 按数量创建时使用
 
     public String getName() {
         return name;
@@ -48,4 +44,13 @@ public class CreateStrategyRequest {
     public void setAmountPerGrid(BigDecimal amountPerGrid) {
         this.amountPerGrid = amountPerGrid;
     }
+
+    public BigDecimal getQuantityPerGrid() {
+        return quantityPerGrid;
+    }
+
+    public void setQuantityPerGrid(BigDecimal quantityPerGrid) {
+        this.quantityPerGrid = quantityPerGrid;
+    }
 }
+

@@ -16,6 +16,7 @@ public class TradeRecordDto {
     private BigDecimal price;
     private BigDecimal quantity;
     private BigDecimal amount;
+    private BigDecimal fee;
     private LocalDateTime executedAt;
 
     public static TradeRecordDto fromEntity(TradeRecord record) {
@@ -25,6 +26,7 @@ public class TradeRecordDto {
         dto.setPrice(record.getPrice());
         dto.setQuantity(record.getQuantity());
         dto.setAmount(record.getAmount());
+        dto.setFee(record.getFee());
         dto.setExecutedAt(record.getTradeTime());
         return dto;
     }
@@ -67,6 +69,14 @@ public class TradeRecordDto {
 
     public void setAmount(BigDecimal amount) {
         this.amount = amount;
+    }
+
+    public BigDecimal getFee() {
+        return fee;
+    }
+
+    public void setFee(BigDecimal fee) {
+        this.fee = fee;
     }
 
     public LocalDateTime getExecutedAt() {

@@ -1,8 +1,14 @@
 import axios from 'axios'
 
+// 动态获取后端地址：与前端同主机，端口8080
+const getBaseURL = () => {
+  const host = window.location.hostname || 'localhost'
+  return `http://${host}:8080/api`
+}
+
 // 创建 axios 实例
 const api = axios.create({
-  baseURL: 'http://localhost:8080/api',
+  baseURL: getBaseURL(),
   timeout: 10000,
   headers: {
     'Content-Type': 'application/json'
@@ -77,6 +83,20 @@ export function updateActualBuyPrice(gridLineId, actualBuyPrice) {
  */
 export function getTradeRecords(strategyId) {
   return api.get(`/strategies/${strategyId}/trades`)
+}
+
+/**
+ * 更新成交记录的手续费
+ */
+export function updateTradeFee(tradeId, fee) {
+  return api.put(`/trades/${tradeId}/fee`, { fee })
+}
+
+/**
+ * 获取策略的累计手续费
+ */
+export function getStrategyTotalFee(strategyId) {
+  return api.get(`/strategies/${strategyId}/total-fee`)
 }
 
 export default api

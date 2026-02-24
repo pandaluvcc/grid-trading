@@ -78,7 +78,7 @@ const formatDate = (dateString) => {
 // 格式化价格
 const formatPrice = (value) => {
   if (value == null) return '-'
-  return Number(value).toFixed(2)
+  return Number(value).toFixed(3)
 }
 
 // 格式化金额

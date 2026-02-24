@@ -146,7 +146,7 @@ const executing = ref(false)
 
 // 返回列表
 const goBack = () => {
-  router.push('/')
+  router.push('/pc')
 }
 
 // 加载策略详情
@@ -255,7 +255,7 @@ const formatPrice = (value) => {
   if (value == null || value === '' || isNaN(value)) return '-'
   const num = Number(value)
   if (isNaN(num)) return '-'
-  return num.toFixed(2)
+  return num.toFixed(3)
 }
 
 // 格式化金额

@@ -90,6 +90,9 @@ public class StrategyController {
 
     /**
      * 创建新策略（固定模板网格）
+     * 支持两种模式：
+     * - 按金额：传入 amountPerGrid
+     * - 按数量：传入 quantityPerGrid（根据 basePrice 计算 amountPerGrid）
      */
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
@@ -101,8 +104,20 @@ public class StrategyController {
         if (request.getBasePrice() == null || request.getBasePrice().compareTo(BigDecimal.ZERO) <= 0) {
             throw new IllegalArgumentException("basePrice 必须大于 0");
         }
-        if (request.getAmountPerGrid() == null || request.getAmountPerGrid().compareTo(BigDecimal.ZERO) <= 0) {
-            throw new IllegalArgumentException("amountPerGrid 必须大于 0");
+        
+        // 计算 amountPerGrid（支持按金额或按数量）
+        BigDecimal amountPerGrid;
+        BigDecimal quantityPerGrid = null;
+        
+        if (request.getQuantityPerGrid() != null && request.getQuantityPerGrid().compareTo(BigDecimal.ZERO) > 0) {
+            // 按数量模式：amountPerGrid = basePrice × quantityPerGrid
+            quantityPerGrid = request.getQuantityPerGrid();
+            amountPerGrid = request.getBasePrice().multiply(quantityPerGrid);
+        } else if (request.getAmountPerGrid() != null && request.getAmountPerGrid().compareTo(BigDecimal.ZERO) > 0) {
+            // 按金额模式
+            amountPerGrid = request.getAmountPerGrid();
+        } else {
+            throw new IllegalArgumentException("amountPerGrid 或 quantityPerGrid 必须提供一个且大于 0");
         }
 
         // 创建策略实体
@@ -110,7 +125,7 @@ public class StrategyController {
         strategy.setName(request.getName() != null ? request.getName() : "固定模板网格策略");
         strategy.setSymbol(request.getSymbol());
         strategy.setBasePrice(request.getBasePrice());
-        strategy.setAmountPerGrid(request.getAmountPerGrid());
+        strategy.setAmountPerGrid(amountPerGrid);
         
         // 固定网格参数（基于百分比计算价差）
         BigDecimal smallGap = request.getBasePrice().multiply(SMALL_PERCENT);
@@ -129,7 +144,7 @@ public class StrategyController {
         strategy.setGridPercent(SMALL_PERCENT);
 
         // 计算最大投入资金（19条网格）
-        BigDecimal maxCapital = request.getAmountPerGrid().multiply(BigDecimal.valueOf(TOTAL_GRID_COUNT));
+        BigDecimal maxCapital = amountPerGrid.multiply(BigDecimal.valueOf(TOTAL_GRID_COUNT));
         strategy.setMaxCapital(maxCapital);
         strategy.setAvailableCash(maxCapital);
 

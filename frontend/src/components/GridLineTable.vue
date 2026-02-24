@@ -255,10 +255,10 @@ const getRowClassName = ({ row }) => {
   return 'small-grid-row'
 }
 
-// 格式化价格（保留2位小数）
+// 格式化价格（保留3位小数）
 const formatPrice = (value) => {
   if (value == null || value === '' || isNaN(value)) return '-'
-  return Number(value).toFixed(2)
+  return Number(value).toFixed(3)
 }
 
 // 格式化金额（整数）

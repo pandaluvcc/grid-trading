@@ -68,6 +68,12 @@ public class TradeRecord {
     private LocalDateTime tradeTime;
 
     /**
+     * 手续费（用户手动录入）
+     */
+    @Column(precision = 20, scale = 8)
+    private BigDecimal fee;
+
+    /**
      * JPA 要求的无参构造器
      */
     public TradeRecord() {
@@ -147,6 +153,14 @@ public class TradeRecord {
 
     public void setTradeTime(LocalDateTime tradeTime) {
         this.tradeTime = tradeTime;
+    }
+
+    public BigDecimal getFee() {
+        return fee;
+    }
+
+    public void setFee(BigDecimal fee) {
+        this.fee = fee;
     }
 
     /**
