@@ -356,7 +356,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, onUnmounted } from 'vue'
+import { ref, computed, watch, onUnmounted, nextTick } from 'vue'
 import { useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { Loading, Promotion, WarningFilled } from '@element-plus/icons-vue'
@@ -639,10 +639,12 @@ const handleOcrParse = async () => {
       return
     }
 
-    ocrRecords.value = (response.data.records || []).map((item) => ({
+    const records = (response.data.records || []).map((item) => ({
       ...item,
       tradeTime: item.tradeTime || ''
     }))
+    ocrRecords.value = sortOcrRecords(records)
+    await nextTick()
   } catch (error) {
     console.error('OCR解析失败:', error)
     ocrError.value = error.response?.data?.message || 'OCR解析失败'
@@ -666,10 +668,11 @@ const handleOcrRematch = async () => {
       ocrError.value = response.data?.message || '重新匹配失败'
       return
     }
-    ocrRecords.value = (response.data.records || []).map((item) => ({
+    const records = (response.data.records || []).map((item) => ({
       ...item,
       tradeTime: item.tradeTime || ''
     }))
+    ocrRecords.value = sortOcrRecords(records)
   } catch (error) {
     console.error('重新匹配失败:', error)
     ocrError.value = error.response?.data?.message || '重新匹配失败'
@@ -697,6 +700,59 @@ const handleClosingChange = (row, checked) => {
     if (item !== row) {
       item.closing = false
     }
+  })
+}
+
+const handleOcrImport = async () => {
+  if (!ocrRecords.value.length) {
+    ElMessage.warning('没有可导入的记录')
+    return
+  }
+
+  ocrImporting.value = true
+  ocrError.value = ''
+  try {
+    const response = await ocrImport({
+      strategyId: strategyId.value,
+      records: ocrRecords.value
+    })
+
+    const imported = response.data?.imported ?? 0
+    const skipped = response.data?.skipped ?? 0
+    ElMessage.success(`导入完成：成功 ${imported} 条，跳过 ${skipped} 条`)
+
+    ocrDialogVisible.value = false
+    await loadData()
+  } catch (error) {
+    console.error('导入失败:', error)
+    ocrError.value = error.response?.data?.message || '导入失败'
+    ElMessage.error(ocrError.value)
+  } finally {
+    ocrImporting.value = false
+  }
+}
+
+// 匹配状态标签类型
+const matchTagType = (status) => {
+  switch (status) {
+    case 'MATCHED':
+      return 'success'
+    case 'DUPLICATE':
+      return 'warning'
+    case 'INVALID':
+      return 'danger'
+    case 'UNMATCHED':
+      return 'info'
+    default:
+      return 'info'
+  }
+}
+
+const sortOcrRecords = (records) => {
+  return [...records].sort((a, b) => {
+    const aTime = a.tradeTime ? Date.parse(a.tradeTime.replace(' ', 'T')) : 0
+    const bTime = b.tradeTime ? Date.parse(b.tradeTime.replace(' ', 'T')) : 0
+    return aTime - bTime
   })
 }
 // ...existing code...

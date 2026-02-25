@@ -460,10 +460,11 @@ const handleOcrParse = async () => {
       return
     }
 
-    ocrRecords.value = (response.data.records || []).map((item) => ({
+    const records = (response.data.records || []).map((item) => ({
       ...item,
       tradeTime: item.tradeTime || ''
     }))
+    ocrRecords.value = sortOcrRecords(records)
   } catch (error) {
     console.error('OCR解析失败:', error)
     ocrError.value = error.response?.data?.message || 'OCR解析失败'
@@ -487,10 +488,11 @@ const handleOcrRematch = async () => {
       ocrError.value = response.data?.message || '重新匹配失败'
       return
     }
-    ocrRecords.value = (response.data.records || []).map((item) => ({
+    const records = (response.data.records || []).map((item) => ({
       ...item,
       tradeTime: item.tradeTime || ''
     }))
+    ocrRecords.value = sortOcrRecords(records)
   } catch (error) {
     console.error('重新匹配失败:', error)
     ocrError.value = error.response?.data?.message || '重新匹配失败'
@@ -537,6 +539,127 @@ const matchTagType = (status) => {
   }
 }
 
+const sortOcrRecords = (records) => {
+  return [...records].sort((a, b) => {
+    const aTime = a.tradeTime ? Date.parse(a.tradeTime.replace(' ', 'T')) : 0
+    const bTime = b.tradeTime ? Date.parse(b.tradeTime.replace(' ', 'T')) : 0
+    return aTime - bTime
+  })
+}
+
 // 格式化价格
 const formatPrice = (value) => {
-  if
+  if (value == null) return '-'
+  return Number(value).toFixed(3)
+}
+
+// 格式化金额
+const formatAmount = (value) => {
+  if (value == null) return '-'
+  return Number(value).toFixed(2)
+}
+
+// OCR批量导入
+const handleOcrImport = async () => {
+  if (!ocrRecords.value.length) {
+    ElMessage.warning('没有可导入的记录')
+    return
+  }
+
+  ocrImporting.value = true
+  ocrError.value = ''
+  try {
+    const response = await ocrImport({
+      strategyId: strategyId.value,
+      records: ocrRecords.value
+    })
+
+    const imported = response.data?.imported ?? 0
+    const skipped = response.data?.skipped ?? 0
+    ElMessage.success(`导入完成：成功 ${imported} 条，跳过 ${skipped} 条`)
+
+    ocrDialogVisible.value = false
+    await Promise.all([
+      loadStrategy(),
+      loadGridLines(),
+      loadTradeRecords()
+    ])
+  } catch (error) {
+    console.error('导入失败:', error)
+    ocrError.value = error.response?.data?.message || '导入失败'
+    ElMessage.error(ocrError.value)
+  } finally {
+    ocrImporting.value = false
+  }
+}
+
+onMounted(() => {
+  loadStrategy()
+  loadGridLines()
+  loadTradeRecords()
+})
+</script>
+
+<style scoped>
+.strategy-detail {
+  padding: 20px;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.header-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.execute-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.execute-tip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #909399;
+  font-size: 12px;
+}
+
+.grid-card,
+.trade-card {
+  margin-top: 16px;
+}
+
+.ocr-section {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+.ocr-result .match-cell {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.warn-icon {
+  color: #e6a23c;
+}
+
+.profit-positive {
+  color: #67c23a;
+  font-weight: 600;
+}
+
+.profit-negative {
+  color: #f56c6c;
+  font-weight: 600;
+}
+</style>

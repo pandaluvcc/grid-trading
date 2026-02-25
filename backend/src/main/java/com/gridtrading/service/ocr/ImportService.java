@@ -5,17 +5,20 @@ import com.gridtrading.controller.dto.OcrMatchStatus;
 import com.gridtrading.controller.dto.OcrTradeRecord;
 import com.gridtrading.domain.GridLine;
 import com.gridtrading.domain.GridLineState;
+import com.gridtrading.domain.GridType;
 import com.gridtrading.domain.Strategy;
 import com.gridtrading.domain.TradeRecord;
 import com.gridtrading.repository.GridLineRepository;
 import com.gridtrading.repository.StrategyRepository;
 import com.gridtrading.repository.TradeRecordRepository;
+import com.gridtrading.service.grid.GridPlanGenerator;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -44,7 +47,7 @@ public class ImportService {
             throw new IllegalArgumentException("strategyId is required");
         }
 
-        Strategy strategy = strategyRepository.findById(request.getStrategyId())
+        Strategy strategy = strategyRepository.findByIdWithGridLines(request.getStrategyId())
                 .orElseThrow(() -> new IllegalArgumentException("策略不存在"));
 
         List<OcrTradeRecord> records = request.getRecords();
@@ -72,8 +75,10 @@ public class ImportService {
                     continue;
                 }
 
-                GridLine gridLine = gridLineRepository.findById(record.getMatchedGridLineId())
-                        .orElse(null);
+                GridLine gridLine = strategy.getGridLines().stream()
+                    .filter(gl -> gl.getId().equals(record.getMatchedGridLineId()))
+                    .findFirst()
+                    .orElse(null);
                 if (gridLine == null || gridLine.getStrategy() == null
                         || !gridLine.getStrategy().getId().equals(strategy.getId())) {
                     skipped++;
@@ -106,7 +111,7 @@ public class ImportService {
                 entity.setTradeTime(record.getTradeTime() != null ? record.getTradeTime() : LocalDateTime.now());
                 tradeRecordRepository.save(entity);
 
-                updateGridLine(gridLine, record);
+                updateGridLine(strategy, gridLine, record);
                 imported++;
             }
         }
@@ -119,13 +124,14 @@ public class ImportService {
         return result;
     }
 
-    private void updateGridLine(GridLine gridLine, OcrTradeRecord record) {
+    private void updateGridLine(Strategy strategy, GridLine gridLine, OcrTradeRecord record) {
         switch (record.getType()) {
             case BUY -> {
                 gridLine.setActualBuyPrice(record.getPrice());
                 if (gridLine.getState() == GridLineState.WAIT_BUY) {
                     gridLine.setState(GridLineState.BOUGHT);
                 }
+                recalculateSubsequentGrids(strategy, gridLine);
             }
             case SELL -> {
                 gridLine.setActualSellPrice(record.getPrice());
@@ -134,7 +140,117 @@ public class ImportService {
                 }
             }
         }
-        gridLineRepository.save(gridLine);
+        strategyRepository.save(strategy);
+    }
+
+    private void recalculateSubsequentGrids(Strategy strategy, GridLine fromGridLine) {
+        if (strategy == null || fromGridLine == null) {
+            return;
+        }
+
+        BigDecimal basePrice = strategy.getBasePrice();
+        if (basePrice == null) {
+            return;
+        }
+
+        BigDecimal smallStep = basePrice.multiply(GridPlanGenerator.SMALL_PERCENT);
+        int startLevel = fromGridLine.getLevel() + 1;
+        if (startLevel > GridPlanGenerator.TOTAL_GRID_COUNT) {
+            return;
+        }
+
+        BigDecimal lastSmallBuyPrice = fromGridLine.getActualBuyPrice();
+        BigDecimal lastMediumBuyPrice = null;
+        BigDecimal secondMediumBuyPrice = null;
+        int mediumCount = 0;
+
+        List<GridLine> orderedGridLines = new ArrayList<>(strategy.getGridLines());
+        orderedGridLines.sort((a, b) -> Integer.compare(a.getLevel(), b.getLevel()));
+
+        for (GridLine gl : orderedGridLines) {
+            if (gl.getLevel() < startLevel && gl.getGridType() == GridType.MEDIUM) {
+                mediumCount++;
+                BigDecimal mediumBuyPrice = gl.getActualBuyPrice() != null
+                        ? gl.getActualBuyPrice()
+                        : gl.getBuyPrice();
+                lastMediumBuyPrice = mediumBuyPrice;
+                if (mediumCount == 2) {
+                    secondMediumBuyPrice = mediumBuyPrice;
+                }
+            }
+        }
+
+        for (GridLine gridLine : orderedGridLines) {
+            if (gridLine.getLevel() < startLevel) {
+                continue;
+            }
+
+            if (gridLine.getState() == GridLineState.BOUGHT || gridLine.getState() == GridLineState.SOLD) {
+                if (gridLine.getGridType() == GridType.SMALL) {
+                    lastSmallBuyPrice = gridLine.getActualBuyPrice() != null
+                            ? gridLine.getActualBuyPrice()
+                            : gridLine.getBuyPrice();
+                }
+                if (gridLine.getGridType() == GridType.MEDIUM) {
+                    mediumCount++;
+                    BigDecimal mediumBuyPrice = gridLine.getActualBuyPrice() != null
+                            ? gridLine.getActualBuyPrice()
+                            : gridLine.getBuyPrice();
+                    lastMediumBuyPrice = mediumBuyPrice;
+                    if (mediumCount == 2) {
+                        secondMediumBuyPrice = mediumBuyPrice;
+                    }
+                }
+                continue;
+            }
+
+            BigDecimal newBuyPrice;
+            BigDecimal newSellPrice;
+
+            if (gridLine.getGridType() == GridType.SMALL) {
+                newBuyPrice = lastSmallBuyPrice.subtract(smallStep)
+                        .setScale(8, RoundingMode.HALF_UP);
+                newSellPrice = lastSmallBuyPrice;
+                lastSmallBuyPrice = newBuyPrice;
+            } else if (gridLine.getGridType() == GridType.MEDIUM) {
+                mediumCount++;
+                newBuyPrice = lastSmallBuyPrice;
+                if (gridLine.getLevel() == 5) {
+                    newSellPrice = basePrice;
+                } else {
+                    newSellPrice = lastMediumBuyPrice;
+                }
+                lastMediumBuyPrice = newBuyPrice;
+                if (mediumCount == 2) {
+                    secondMediumBuyPrice = newBuyPrice;
+                }
+            } else {
+                newBuyPrice = lastSmallBuyPrice;
+                if (gridLine.getLevel() == 10) {
+                    newSellPrice = basePrice;
+                } else {
+                    newSellPrice = secondMediumBuyPrice;
+                }
+            }
+
+            gridLine.setBuyPrice(newBuyPrice);
+            gridLine.setSellPrice(newSellPrice);
+            gridLine.setBuyTriggerPrice(newBuyPrice.add(new BigDecimal("0.02")));
+            gridLine.setSellTriggerPrice(newSellPrice.subtract(new BigDecimal("0.02")));
+
+            BigDecimal buyAmount = gridLine.getBuyAmount();
+            BigDecimal buyQuantity = buyAmount.divide(newBuyPrice, 8, RoundingMode.DOWN);
+            BigDecimal sellAmount = buyQuantity.multiply(newSellPrice)
+                    .setScale(2, RoundingMode.HALF_UP);
+            BigDecimal profit = sellAmount.subtract(buyAmount)
+                    .setScale(2, RoundingMode.HALF_UP);
+            BigDecimal profitRate = profit.divide(buyAmount, 6, RoundingMode.HALF_UP);
+
+            gridLine.setBuyQuantity(buyQuantity);
+            gridLine.setSellAmount(sellAmount);
+            gridLine.setProfit(profit);
+            gridLine.setProfitRate(profitRate);
+        }
     }
 }
 

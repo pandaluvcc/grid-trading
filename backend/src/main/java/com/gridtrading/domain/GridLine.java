@@ -2,6 +2,7 @@ package com.gridtrading.domain;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
+
 import java.math.BigDecimal;
 
 /**

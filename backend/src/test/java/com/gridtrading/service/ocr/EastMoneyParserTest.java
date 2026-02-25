@@ -2,7 +2,6 @@ package com.gridtrading.service.ocr;
 
 import com.gridtrading.controller.dto.OcrTradeRecord;
 import com.gridtrading.domain.TradeType;
-import com.gridtrading.service.ocr.EastMoneyParser;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;

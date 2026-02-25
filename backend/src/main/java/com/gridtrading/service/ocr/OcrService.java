@@ -3,10 +3,10 @@ package com.gridtrading.service.ocr;
 import com.gridtrading.controller.dto.OcrMatchStatus;
 import com.gridtrading.controller.dto.OcrRecognizeResponse;
 import com.gridtrading.controller.dto.OcrTradeRecord;
-import com.gridtrading.domain.GridLineState;
-import com.gridtrading.domain.Strategy;
-import com.gridtrading.domain.TradeRecord;
-import com.gridtrading.domain.TradeType;
+import com.gridtrading.domain.*;
+import com.gridtrading.repository.GridLineRepository;
+import com.gridtrading.repository.StrategyRepository;
+import com.gridtrading.repository.TradeRecordRepository;
 import com.gridtrading.service.grid.GridPlanGenerator;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -17,13 +17,7 @@ import java.math.BigDecimal;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 /**
  * OCR识别与匹配服务
@@ -47,7 +41,7 @@ public class OcrService {
             GridLineRepository gridLineRepository,
             TradeRecordRepository tradeRecordRepository,
             @Value("${ocr.match.tolerance-percent:0.005}") BigDecimal tolerancePercent,
-            @Value("${ocr.match.time-window-seconds:30}") long timeWindowSeconds
+                @Value("${ocr.match.time-window-seconds:30}") long timeWindowSeconds
     ) {
         this.baiduOcrClient = baiduOcrClient;
         this.eastMoneyParser = eastMoneyParser;
@@ -113,6 +107,7 @@ public class OcrService {
         }
 
         records = dedupeRecords(records);
+        records = mergeSplitBuys(records);
         matchRecords(records, strategy, null);
 
         return OcrRecognizeResponse.success(rawTextBuilder.toString(), records);
@@ -194,7 +189,68 @@ public class OcrService {
         });
 
         boolean singleRecord = sorted.size() == 1;
-        for (OcrTradeRecord record : sorted) {
+        if (singleRecord) {
+            matchSingleRecord(sorted, matchLines, gridLineByLevel, existingRecords);
+            return;
+        }
+
+        matchSequentialRecords(sorted, matchLines, gridLineByLevel, existingRecords);
+    }
+
+    private void matchSingleRecord(List<OcrTradeRecord> records,
+                                   List<MatchLine> matchLines,
+                                   Map<Integer, GridLine> gridLineByLevel,
+                                   List<TradeRecord> existingRecords) {
+        for (OcrTradeRecord record : records) {
+            if (record == null) {
+                continue;
+            }
+            if (record.getType() == null || record.getPrice() == null || record.getTradeTime() == null) {
+                record.setMatchStatus(OcrMatchStatus.INVALID);
+                record.setMatchMessage("missing type/price/time");
+                continue;
+            }
+
+            if (isDuplicate(record, existingRecords)) {
+                record.setMatchStatus(OcrMatchStatus.DUPLICATE);
+                record.setMatchMessage("duplicated trade");
+                record.setForcedMatch(false);
+                record.setOutOfRange(false);
+                continue;
+            }
+
+            MatchLine matched = findClosestByPrice(matchLines, record);
+            if (matched == null) {
+                markUnmatched(record, "no grid line match");
+                continue;
+            }
+
+            GridLine actual = gridLineByLevel.get(matched.level);
+            if (actual == null) {
+                markUnmatched(record, "grid line missing");
+                continue;
+            }
+
+            BigDecimal expected = record.getType() == TradeType.BUY ? matched.buyPrice : matched.sellPrice;
+            boolean outOfRange = isOutOfRange(record.getPrice(), expected);
+
+            record.setMatchedGridLineId(actual.getId());
+            record.setMatchedLevel(matched.level);
+            record.setMatchStatus(OcrMatchStatus.MATCHED);
+            record.setForcedMatch(outOfRange);
+            record.setOutOfRange(outOfRange);
+            record.setMatchMessage(outOfRange ? "price out of range" : "matched");
+        }
+    }
+
+    private void matchSequentialRecords(List<OcrTradeRecord> records,
+                                        List<MatchLine> matchLines,
+                                        Map<Integer, GridLine> gridLineByLevel,
+                                        List<TradeRecord> existingRecords) {
+        int buyIndex = 0;
+        Deque<MatchLine> openBuys = new ArrayDeque<>();
+
+        for (OcrTradeRecord record : records) {
             if (record == null) {
                 continue;
             }
@@ -213,23 +269,22 @@ public class OcrService {
             }
 
             MatchLine matched = null;
-            boolean usedOrderMatch = false;
-
-            if (record.isOpening() && record.getType() == TradeType.BUY) {
-                matched = findFirstByState(matchLines, GridLineState.WAIT_BUY);
-                usedOrderMatch = true;
-            } else if (record.isClosing() && record.getType() == TradeType.SELL) {
-                matched = findLastByState(matchLines, GridLineState.BOUGHT, GridLineState.WAIT_SELL);
-                usedOrderMatch = true;
-            } else if (singleRecord) {
-                matched = findClosestByPrice(matchLines, record);
-            } else {
-                matched = findNextByState(matchLines, record.getType());
-                usedOrderMatch = true;
+            if (record.getType() == TradeType.BUY) {
+                if (buyIndex < matchLines.size()) {
+                    matched = matchLines.get(buyIndex);
+                    buyIndex++;
+                    openBuys.push(matched);
+                }
+            } else if (record.getType() == TradeType.SELL) {
+                if (!openBuys.isEmpty()) {
+                    matched = openBuys.pop();
+                }
             }
 
             if (matched == null) {
-                markUnmatched(record, "no grid line match");
+                markUnmatched(record, record.getType() == TradeType.BUY
+                        ? "no grid line left for buy"
+                        : "no open buy to close");
                 continue;
             }
 
@@ -245,15 +300,9 @@ public class OcrService {
             record.setMatchedGridLineId(actual.getId());
             record.setMatchedLevel(matched.level);
             record.setMatchStatus(OcrMatchStatus.MATCHED);
-            record.setForcedMatch(usedOrderMatch && outOfRange);
+            record.setForcedMatch(outOfRange);
             record.setOutOfRange(outOfRange);
-            if (outOfRange) {
-                record.setMatchMessage("price out of range");
-            } else {
-                record.setMatchMessage("matched");
-            }
-
-            advanceState(matched, record.getType());
+            record.setMatchMessage(outOfRange ? "price out of range" : "matched");
         }
     }
 
@@ -390,6 +439,108 @@ public class OcrService {
             unique.putIfAbsent(key, record);
         }
         return new ArrayList<>(unique.values());
+    }
+
+    private List<OcrTradeRecord> mergeSplitBuys(List<OcrTradeRecord> records) {
+        if (records == null || records.isEmpty()) {
+            return records;
+        }
+
+        List<OcrTradeRecord> sorted = new ArrayList<>(records);
+        sorted.sort((a, b) -> {
+            if (a == null && b == null) {
+                return 0;
+            }
+            if (a == null) {
+                return 1;
+            }
+            if (b == null) {
+                return -1;
+            }
+            LocalDateTime ta = a.getTradeTime();
+            LocalDateTime tb = b.getTradeTime();
+            if (ta == null && tb == null) {
+                return 0;
+            }
+            if (ta == null) {
+                return 1;
+            }
+            if (tb == null) {
+                return -1;
+            }
+            return ta.toInstant(ZoneOffset.UTC).compareTo(tb.toInstant(ZoneOffset.UTC));
+        });
+
+        List<OcrTradeRecord> merged = new ArrayList<>();
+        OcrTradeRecord current = null;
+
+        for (OcrTradeRecord record : sorted) {
+            if (record == null) {
+                continue;
+            }
+            if (current == null) {
+                current = record;
+                continue;
+            }
+
+            if (!canMerge(current, record)) {
+                merged.add(current);
+                current = record;
+                continue;
+            }
+
+            mergeInto(current, record);
+        }
+
+        if (current != null) {
+            merged.add(current);
+        }
+
+        return merged;
+    }
+
+    private boolean canMerge(OcrTradeRecord left, OcrTradeRecord right) {
+        if (left.getType() != TradeType.BUY || right.getType() != TradeType.BUY) {
+            return false;
+        }
+        if (left.getPrice() == null || right.getPrice() == null) {
+            return false;
+        }
+        if (left.getTradeTime() == null || right.getTradeTime() == null) {
+            return false;
+        }
+        if (left.getPrice().compareTo(right.getPrice()) != 0) {
+            return false;
+        }
+        return left.getTradeTime().toLocalDate().equals(right.getTradeTime().toLocalDate());
+    }
+
+    private void mergeInto(OcrTradeRecord base, OcrTradeRecord extra) {
+        base.setQuantity(addNullable(base.getQuantity(), extra.getQuantity()));
+        base.setAmount(addNullable(base.getAmount(), extra.getAmount()));
+        base.setFee(addNullable(base.getFee(), extra.getFee()));
+        base.setOpening(base.isOpening() || extra.isOpening());
+        base.setClosing(base.isClosing() || extra.isClosing());
+
+        if (base.getAmount() == null && base.getQuantity() != null && base.getPrice() != null) {
+            base.setAmount(base.getQuantity().multiply(base.getPrice()));
+        }
+        if (base.getQuantity() == null && base.getAmount() != null && base.getPrice() != null) {
+            base.setQuantity(base.getAmount().divide(base.getPrice(), 8, java.math.RoundingMode.DOWN));
+        }
+    }
+
+    private BigDecimal addNullable(BigDecimal left, BigDecimal right) {
+        if (left == null && right == null) {
+            return null;
+        }
+        if (left == null) {
+            return right;
+        }
+        if (right == null) {
+            return left;
+        }
+        return left.add(right);
     }
 
     private String buildRecordKey(OcrTradeRecord record) {
