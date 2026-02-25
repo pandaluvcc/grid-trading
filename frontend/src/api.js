@@ -99,4 +99,35 @@ export function getStrategyTotalFee(strategyId) {
   return api.get(`/strategies/${strategyId}/total-fee`)
 }
 
+/**
+ * OCR识别（上传截图）
+ */
+export function ocrRecognize({ files, strategyId, brokerType = 'EASTMONEY' }) {
+  const formData = new FormData()
+  const fileList = Array.isArray(files) ? files : (files ? [files] : [])
+  fileList.forEach((file) => {
+    formData.append('files', file)
+  })
+  formData.append('strategyId', strategyId)
+  formData.append('brokerType', brokerType)
+
+  return api.post('/ocr/recognize', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  })
+}
+
+/**
+ * OCR批量导入
+ */
+export function ocrImport(data) {
+  return api.post('/ocr/import', data)
+}
+
+/**
+ * OCR重新匹配
+ */
+export function ocrRematch({ strategyId, records }) {
+  return api.post('/ocr/rematch', { strategyId, records })
+}
+
 export default api

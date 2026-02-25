@@ -106,6 +106,10 @@
         </div>
       </div>
 
+      <div class="ocr-action">
+        <el-button type="primary" size="small" @click="openOcrDialog">导入成交截图</el-button>
+      </div>
+
       <!-- 网格列表 -->
       <div v-show="activeTab === 'grids'" class="grid-list">
         <MobileGridCard
@@ -143,6 +147,131 @@
           </div>
         </div>
       </div>
+
+      <!-- OCR导入弹窗 -->
+      <el-dialog v-model="ocrDialogVisible" title="OCR导入成交记录" width="95%">
+        <div class="ocr-section">
+          <el-upload
+            class="ocr-uploader"
+            :auto-upload="false"
+            :show-file-list="true"
+            :limit="5"
+            accept="image/*"
+            multiple
+            :on-change="handleOcrFileChange"
+            :on-remove="handleOcrFileChange"
+            :on-exceed="handleOcrFileExceed"
+          >
+            <el-button type="primary" size="small">选择截图（最多5张）</el-button>
+          </el-upload>
+
+          <el-button
+            type="success"
+            size="small"
+            :disabled="!ocrFiles.length"
+            :loading="ocrParsing"
+            @click="handleOcrParse"
+          >
+            解析截图
+          </el-button>
+
+          <el-button
+            size="small"
+            :disabled="!ocrRecords.length"
+            :loading="ocrRematching"
+            @click="handleOcrRematch"
+          >
+            重新匹配
+          </el-button>
+        </div>
+
+        <el-alert
+          v-if="ocrError"
+          type="error"
+          :closable="false"
+          show-icon
+          style="margin-top: 10px"
+        >
+          <template #title>{{ ocrError }}</template>
+        </el-alert>
+
+        <div v-if="ocrRecords.length" class="ocr-list">
+          <div v-for="(record, idx) in ocrRecords" :key="idx" class="ocr-item">
+            <div class="ocr-row">
+              <el-tag :type="matchTagType(record.matchStatus)" size="small">
+                {{ record.matchStatus || '-' }}
+              </el-tag>
+              <el-tooltip v-if="record.outOfRange" content="超区间匹配" placement="top">
+                <el-icon class="warn-icon"><WarningFilled /></el-icon>
+              </el-tooltip>
+              <el-select v-model="record.type" size="small" class="ocr-type">
+                <el-option label="BUY" value="BUY" />
+                <el-option label="SELL" value="SELL" />
+              </el-select>
+              <span class="ocr-level">网格: {{ record.matchedLevel ?? '-' }}</span>
+            </div>
+
+            <div class="ocr-row">
+              <el-checkbox
+                v-model="record.opening"
+                label="建仓"
+                @change="(val) => handleOpeningChange(record, val)"
+              />
+              <el-checkbox
+                v-model="record.closing"
+                label="清仓"
+                @change="(val) => handleClosingChange(record, val)"
+              />
+            </div>
+
+            <el-date-picker
+              v-model="record.tradeTime"
+              type="datetime"
+              format="YYYY-MM-DD HH:mm:ss"
+              value-format="YYYY-MM-DD HH:mm:ss"
+              size="small"
+              class="ocr-datetime"
+            />
+
+            <div class="ocr-row">
+              <div class="ocr-field">
+                <span class="ocr-label">价格</span>
+                <el-input-number v-model="record.price" :precision="3" :min="0" size="small" />
+              </div>
+              <div class="ocr-field">
+                <span class="ocr-label">数量</span>
+                <el-input-number v-model="record.quantity" :precision="0" :min="0" size="small" />
+              </div>
+            </div>
+
+            <div class="ocr-row">
+              <div class="ocr-field">
+                <span class="ocr-label">金额</span>
+                <el-input-number v-model="record.amount" :precision="2" :min="0" size="small" />
+              </div>
+              <div class="ocr-field">
+                <span class="ocr-label">费用</span>
+                <el-input-number v-model="record.fee" :precision="2" :min="0" size="small" />
+              </div>
+            </div>
+
+            <div class="ocr-message">{{ record.matchMessage || '' }}</div>
+          </div>
+        </div>
+
+        <template #footer>
+          <el-button size="small" @click="ocrDialogVisible = false">取消</el-button>
+          <el-button
+            type="primary"
+            size="small"
+            :disabled="!ocrRecords.length"
+            :loading="ocrImporting"
+            @click="handleOcrImport"
+          >
+            确认导入
+          </el-button>
+        </template>
+      </el-dialog>
 
       <!-- 费用录入弹窗 -->
       <el-dialog
@@ -230,8 +359,17 @@
 import { ref, computed, watch, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { Loading, Promotion } from '@element-plus/icons-vue'
-import { getStrategyDetail, getGridLines, executeTick, getTradeRecords, updateTradeFee } from '../../api'
+import { Loading, Promotion, WarningFilled } from '@element-plus/icons-vue'
+import {
+  getStrategyDetail,
+  getGridLines,
+  executeTick,
+  getTradeRecords,
+  updateTradeFee,
+  ocrRecognize,
+  ocrImport,
+  ocrRematch
+} from '../../api'
 import MobileLayout from './MobileLayout.vue'
 import MobileGridCard from './MobileGridCard.vue'
 
@@ -259,6 +397,15 @@ const tickFeeDialogVisible = ref(false)
 const tickTrades = ref([])  // 本次触发产生的交易
 const tickFeeInputs = ref({})  // { tradeId: feeValue }
 const savingTickFees = ref(false)
+
+// OCR导入相关
+const ocrDialogVisible = ref(false)
+const ocrFiles = ref([])
+const ocrParsing = ref(false)
+const ocrRematching = ref(false)
+const ocrImporting = ref(false)
+const ocrRecords = ref([])
+const ocrError = ref('')
 
 // 计算累计手续费
 const totalFee = computed(() => {
@@ -450,6 +597,109 @@ watch(strategyId, (newId) => {
     loadData()
   }
 }, { immediate: true })
+
+const openOcrDialog = () => {
+  ocrDialogVisible.value = true
+  ocrFiles.value = []
+  ocrRecords.value = []
+  ocrError.value = ''
+}
+
+const handleOcrFileChange = (file, fileList) => {
+  const list = Array.isArray(fileList) ? fileList : []
+  ocrFiles.value = list.map(item => item.raw).filter(Boolean)
+}
+
+const handleOcrFileExceed = () => {
+  ElMessage.warning('一次最多上传5张截图')
+}
+
+const handleOcrParse = async () => {
+  if (!ocrFiles.value.length) {
+    ElMessage.warning('请先选择截图')
+    return
+  }
+  if (ocrFiles.value.length > 5) {
+    ElMessage.warning('一次最多上传5张截图')
+    return
+  }
+
+  ocrParsing.value = true
+  ocrError.value = ''
+  try {
+    const response = await ocrRecognize({
+      files: ocrFiles.value,
+      strategyId: strategyId.value,
+      brokerType: 'EASTMONEY'
+    })
+
+    if (!response.data?.success) {
+      ocrError.value = response.data?.message || 'OCR识别失败'
+      ocrRecords.value = []
+      return
+    }
+
+    ocrRecords.value = (response.data.records || []).map((item) => ({
+      ...item,
+      tradeTime: item.tradeTime || ''
+    }))
+  } catch (error) {
+    console.error('OCR解析失败:', error)
+    ocrError.value = error.response?.data?.message || 'OCR解析失败'
+  } finally {
+    ocrParsing.value = false
+  }
+}
+
+const handleOcrRematch = async () => {
+  if (!ocrRecords.value.length) {
+    ElMessage.warning('没有可匹配的数据')
+    return
+  }
+  ocrRematching.value = true
+  try {
+    const response = await ocrRematch({
+      strategyId: strategyId.value,
+      records: ocrRecords.value
+    })
+    if (!response.data?.success) {
+      ocrError.value = response.data?.message || '重新匹配失败'
+      return
+    }
+    ocrRecords.value = (response.data.records || []).map((item) => ({
+      ...item,
+      tradeTime: item.tradeTime || ''
+    }))
+  } catch (error) {
+    console.error('重新匹配失败:', error)
+    ocrError.value = error.response?.data?.message || '重新匹配失败'
+  } finally {
+    ocrRematching.value = false
+  }
+}
+
+const handleOpeningChange = (row, checked) => {
+  if (!checked) {
+    return
+  }
+  ocrRecords.value.forEach((item) => {
+    if (item !== row) {
+      item.opening = false
+    }
+  })
+}
+
+const handleClosingChange = (row, checked) => {
+  if (!checked) {
+    return
+  }
+  ocrRecords.value.forEach((item) => {
+    if (item !== row) {
+      item.closing = false
+    }
+  })
+}
+// ...existing code...
 </script>
 
 <style scoped>
@@ -732,5 +982,73 @@ watch(strategyId, (newId) => {
 .tick-fee-input {
   width: 100px;
   flex-shrink: 0;
+}
+
+/* OCR导入样式 */
+.ocr-action {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 10px;
+}
+
+.ocr-section {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.ocr-list {
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.ocr-item {
+  background: #f9fafc;
+  border-radius: 10px;
+  padding: 10px;
+}
+
+.ocr-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+
+.ocr-type {
+  width: 90px;
+}
+
+.ocr-level {
+  font-size: 12px;
+  color: #909399;
+}
+
+.ocr-datetime {
+  width: 100%;
+  margin-bottom: 8px;
+}
+
+.ocr-field {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ocr-label {
+  font-size: 12px;
+  color: #606266;
+}
+
+.ocr-message {
+  font-size: 12px;
+  color: #909399;
+}
+
+.warn-icon {
+  color: #e6a23c;
 }
 </style>

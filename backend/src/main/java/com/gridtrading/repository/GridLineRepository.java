@@ -42,4 +42,9 @@ public interface GridLineRepository extends JpaRepository<GridLine, Long> {
      */
     @Query("SELECT MIN(g.buyPrice) FROM GridLine g WHERE g.strategy = :strategy")
     BigDecimal findLowestBuyPrice(@Param("strategy") Strategy strategy);
+
+    /**
+     * 通过策略ID查询网格线（用于OCR匹配）
+     */
+    List<GridLine> findByStrategyId(Long strategyId);
 }

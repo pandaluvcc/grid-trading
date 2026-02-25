@@ -29,4 +29,9 @@ public interface TradeRecordRepository extends JpaRepository<TradeRecord, Long> 
      * 查询策略在指定时间之后的交易记录
      */
     List<TradeRecord> findByStrategyIdAndTradeTimeAfter(Long strategyId, LocalDateTime time);
+
+    /**
+     * 通过策略ID查询交易记录（用于重复性检查）
+     */
+    List<TradeRecord> findByStrategyId(Long strategyId);
 }

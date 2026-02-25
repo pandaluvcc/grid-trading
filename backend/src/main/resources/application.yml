@@ -32,3 +32,14 @@ spring:
 logging:
   level:
     com.gridtrading: INFO
+
+baidu:
+  ocr:
+    app-id: 44973625
+    api-key: 1ixcXpfDZIEwXgup6GuYz6uP
+    secret-key: Uu6E8mHt9yscUKYfLE7zBqD7l3N96Aa7
+
+ocr:
+  match:
+    tolerance-percent: 0.005
+    time-window-seconds: 30

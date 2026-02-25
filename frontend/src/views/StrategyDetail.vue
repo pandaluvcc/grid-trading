@@ -3,7 +3,10 @@
     <!-- 头部 -->
     <div class="header">
       <h1>策略详情</h1>
-      <el-button @click="goBack">返回列表</el-button>
+      <div class="header-actions">
+        <el-button @click="goBack">返回列表</el-button>
+        <el-button type="primary" @click="openOcrDialog">导入成交截图</el-button>
+      </div>
     </div>
 
     <!-- 策略基础信息 -->
@@ -118,6 +121,151 @@
     <el-card class="trade-card">
       <TradeRecordTable :trade-records="tradeRecords" :loading="tradeRecordsLoading" />
     </el-card>
+
+    <!-- OCR导入弹窗 -->
+    <el-dialog v-model="ocrDialogVisible" title="OCR导入成交记录" width="80%">
+      <div class="ocr-section">
+        <el-upload
+          class="ocr-uploader"
+          :auto-upload="false"
+          :show-file-list="true"
+          :limit="5"
+          accept="image/*"
+          multiple
+          :on-change="handleOcrFileChange"
+          :on-remove="handleOcrFileChange"
+          :on-exceed="handleOcrFileExceed"
+        >
+          <el-button type="primary">选择截图（最多5张）</el-button>
+        </el-upload>
+
+        <el-button
+          type="success"
+          :disabled="!ocrFiles.length"
+          :loading="ocrParsing"
+          @click="handleOcrParse"
+        >
+          解析截图
+        </el-button>
+
+        <el-button
+          :disabled="!ocrRecords.length"
+          :loading="ocrRematching"
+          @click="handleOcrRematch"
+        >
+          重新匹配
+        </el-button>
+      </div>
+
+      <el-alert
+        v-if="ocrError"
+        type="error"
+        :closable="false"
+        show-icon
+        style="margin-top: 12px"
+      >
+        <template #title>{{ ocrError }}</template>
+      </el-alert>
+
+      <el-card v-if="ocrRecords.length" class="ocr-result" style="margin-top: 16px">
+        <template #header>
+          <div class="card-header">
+            <span>识别结果（可编辑）</span>
+            <el-tag type="info">共 {{ ocrRecords.length }} 条</el-tag>
+          </div>
+        </template>
+
+        <el-table :data="ocrRecords" border height="360">
+          <el-table-column prop="matchStatus" label="匹配" width="130">
+            <template #default="scope">
+              <div class="match-cell">
+                <el-tag :type="matchTagType(scope.row.matchStatus)">
+                  {{ scope.row.matchStatus || '-' }}
+                </el-tag>
+                <el-tooltip v-if="scope.row.outOfRange" content="超区间匹配" placement="top">
+                  <el-icon class="warn-icon"><WarningFilled /></el-icon>
+                </el-tooltip>
+              </div>
+            </template>
+          </el-table-column>
+          <el-table-column label="类型" width="110">
+            <template #default="scope">
+              <el-select v-model="scope.row.type" placeholder="类型" size="small">
+                <el-option label="BUY" value="BUY" />
+                <el-option label="SELL" value="SELL" />
+              </el-select>
+            </template>
+          </el-table-column>
+          <el-table-column label="标记" width="160">
+            <template #default="scope">
+              <el-checkbox
+                v-model="scope.row.opening"
+                label="建仓"
+                @change="(val) => handleOpeningChange(scope.row, val)"
+              />
+              <el-checkbox
+                v-model="scope.row.closing"
+                label="清仓"
+                @change="(val) => handleClosingChange(scope.row, val)"
+              />
+            </template>
+          </el-table-column>
+          <el-table-column label="时间" min-width="180">
+            <template #default="scope">
+              <el-date-picker
+                v-model="scope.row.tradeTime"
+                type="datetime"
+                format="YYYY-MM-DD HH:mm:ss"
+                value-format="YYYY-MM-DD HH:mm:ss"
+                size="small"
+              />
+            </template>
+          </el-table-column>
+          <el-table-column label="价格" width="120">
+            <template #default="scope">
+              <el-input-number v-model="scope.row.price" :precision="3" :min="0" size="small" />
+            </template>
+          </el-table-column>
+          <el-table-column label="数量" width="120">
+            <template #default="scope">
+              <el-input-number v-model="scope.row.quantity" :precision="0" :min="0" size="small" />
+            </template>
+          </el-table-column>
+          <el-table-column label="金额" width="140">
+            <template #default="scope">
+              <el-input-number v-model="scope.row.amount" :precision="2" :min="0" size="small" />
+            </template>
+          </el-table-column>
+          <el-table-column label="手续费" width="120">
+            <template #default="scope">
+              <el-input-number v-model="scope.row.fee" :precision="2" :min="0" size="small" />
+            </template>
+          </el-table-column>
+          <el-table-column label="网格" width="90">
+            <template #default="scope">
+              <span>{{ scope.row.matchedLevel ?? '-' }}</span>
+            </template>
+          </el-table-column>
+          <el-table-column label="备注" min-width="180">
+            <template #default="scope">
+              <span>{{ scope.row.matchMessage || '-' }}</span>
+            </template>
+          </el-table-column>
+        </el-table>
+      </el-card>
+
+      <template #footer>
+        <el-button @click="ocrDialogVisible = false">取消</el-button>
+        <el-button
+          type="primary"
+          :disabled="!ocrRecords.length"
+          :loading="ocrImporting"
+          @click="handleOcrImport"
+        >
+          确认导入
+        </el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -125,8 +273,17 @@
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { InfoFilled } from '@element-plus/icons-vue'
-import { getStrategyDetail, getGridLines, executeTick, getTradeRecords, updateActualBuyPrice } from '../api'
+import { InfoFilled, WarningFilled } from '@element-plus/icons-vue'
+import {
+  getStrategyDetail,
+  getGridLines,
+  executeTick,
+  getTradeRecords,
+  updateActualBuyPrice,
+  ocrRecognize,
+  ocrImport,
+  ocrRematch
+} from '../api'
 import GridLineTable from '../components/GridLineTable.vue'
 import TradeRecordTable from '../components/TradeRecordTable.vue'
 
@@ -143,6 +300,15 @@ const strategyLoading = ref(false)
 const gridLinesLoading = ref(false)
 const tradeRecordsLoading = ref(false)
 const executing = ref(false)
+
+// OCR相关
+const ocrDialogVisible = ref(false)
+const ocrFiles = ref([])
+const ocrParsing = ref(false)
+const ocrRematching = ref(false)
+const ocrImporting = ref(false)
+const ocrRecords = ref([])
+const ocrError = ref('')
 
 // 返回列表
 const goBack = () => {
@@ -250,92 +416,127 @@ const handleExecute = async () => {
   }
 }
 
+// 打开OCR导入弹窗
+const openOcrDialog = () => {
+  ocrDialogVisible.value = true
+  ocrFiles.value = []
+  ocrRecords.value = []
+  ocrError.value = ''
+}
+
+// 处理OCR文件选择
+const handleOcrFileChange = (file, fileList) => {
+  const list = Array.isArray(fileList) ? fileList : []
+  ocrFiles.value = list.map(item => item.raw).filter(Boolean)
+}
+
+const handleOcrFileExceed = () => {
+  ElMessage.warning('一次最多上传5张截图')
+}
+
+// 处理OCR解析
+const handleOcrParse = async () => {
+  if (!ocrFiles.value.length) {
+    ElMessage.warning('请先选择截图')
+    return
+  }
+  if (ocrFiles.value.length > 5) {
+    ElMessage.warning('一次最多上传5张截图')
+    return
+  }
+
+  ocrParsing.value = true
+  ocrError.value = ''
+  try {
+    const response = await ocrRecognize({
+      files: ocrFiles.value,
+      strategyId: strategyId.value,
+      brokerType: 'EASTMONEY'
+    })
+
+    if (!response.data?.success) {
+      ocrError.value = response.data?.message || 'OCR识别失败'
+      ocrRecords.value = []
+      return
+    }
+
+    ocrRecords.value = (response.data.records || []).map((item) => ({
+      ...item,
+      tradeTime: item.tradeTime || ''
+    }))
+  } catch (error) {
+    console.error('OCR解析失败:', error)
+    ocrError.value = error.response?.data?.message || 'OCR解析失败'
+  } finally {
+    ocrParsing.value = false
+  }
+}
+
+const handleOcrRematch = async () => {
+  if (!ocrRecords.value.length) {
+    ElMessage.warning('没有可匹配的数据')
+    return
+  }
+  ocrRematching.value = true
+  try {
+    const response = await ocrRematch({
+      strategyId: strategyId.value,
+      records: ocrRecords.value
+    })
+    if (!response.data?.success) {
+      ocrError.value = response.data?.message || '重新匹配失败'
+      return
+    }
+    ocrRecords.value = (response.data.records || []).map((item) => ({
+      ...item,
+      tradeTime: item.tradeTime || ''
+    }))
+  } catch (error) {
+    console.error('重新匹配失败:', error)
+    ocrError.value = error.response?.data?.message || '重新匹配失败'
+  } finally {
+    ocrRematching.value = false
+  }
+}
+
+const handleOpeningChange = (row, checked) => {
+  if (!checked) {
+    return
+  }
+  ocrRecords.value.forEach((item) => {
+    if (item !== row) {
+      item.opening = false
+    }
+  })
+}
+
+const handleClosingChange = (row, checked) => {
+  if (!checked) {
+    return
+  }
+  ocrRecords.value.forEach((item) => {
+    if (item !== row) {
+      item.closing = false
+    }
+  })
+}
+
+// 匹配状态标签类型
+const matchTagType = (status) => {
+  switch (status) {
+    case 'MATCHED':
+      return 'success'
+    case 'DUPLICATE':
+      return 'warning'
+    case 'INVALID':
+      return 'danger'
+    case 'UNMATCHED':
+      return 'info'
+    default:
+      return 'info'
+  }
+}
+
 // 格式化价格
 const formatPrice = (value) => {
-  if (value == null || value === '' || isNaN(value)) return '-'
-  const num = Number(value)
-  if (isNaN(num)) return '-'
-  return num.toFixed(3)
-}
-
-// 格式化金额
-const formatAmount = (value) => {
-  if (value == null || value === '' || isNaN(value)) return '0.00'
-  const num = Number(value)
-  if (isNaN(num)) return '0.00'
-  return num.toFixed(2)
-}
-
-onMounted(async () => {
-  // 并行加载所有数据
-  await Promise.all([
-    loadStrategy(),
-    loadGridLines(),
-    loadTradeRecords()
-  ])
-})
-</script>
-
-<style scoped>
-.strategy-detail {
-  padding: 20px;
-}
-
-.header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 20px;
-}
-
-.header h1 {
-  margin: 0;
-  font-size: 24px;
-}
-
-.info-card,
-.execute-card,
-.grid-card,
-.trade-card {
-  margin-bottom: 20px;
-}
-
-.card-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.execute-panel {
-  display: flex;
-  flex-direction: column;
-  gap: 15px;
-}
-
-.execute-tip {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  color: #909399;
-  font-size: 14px;
-}
-
-.profit-positive {
-  color: #67c23a;
-  font-weight: 500;
-}
-</style>
-600;
-}
-
-.profit-negative {
-  color: #f56c6c;
-  font-weight: 600;
-}
-
-:deep(.el-descriptions__label) {
-  font-weight: 500;
-}
-
-:deep(.el-descriptions__content) {
-  font-family: 'Courier New', monospace
+  if
