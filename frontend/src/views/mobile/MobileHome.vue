@@ -68,7 +68,8 @@
           @click="selectStrategy(s)"
         >
           <div class="strategy-main">
-            <div class="strategy-symbol">{{ s.symbol }}</div>
+            <div class="strategy-name">{{ s.name || s.symbol }}</div>
+            <div class="strategy-code" v-if="s.name">{{ s.symbol }}</div>
             <div class="strategy-stats">
               <span class="stat">
                 <span class="stat-label">持仓</span>
@@ -467,6 +468,19 @@ onMounted(() => {
 
 .strategy-main {
   flex: 1;
+}
+
+.strategy-name {
+  font-size: 16px;
+  font-weight: 600;
+  color: #222;
+  margin-bottom: 4px;
+}
+
+.strategy-code {
+  font-size: 12px;
+  color: #8a8f99;
+  margin-bottom: 8px;
 }
 
 .strategy-symbol {

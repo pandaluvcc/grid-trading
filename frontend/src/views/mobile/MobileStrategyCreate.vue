@@ -2,6 +2,29 @@
   <div class="mobile-create">
     <!-- 表单区域 -->
     <div class="form-area">
+      <div class="import-section">
+        <div class="section-title">成交截图导入</div>
+        <div class="section-hint">上传成交记录截图，自动创建策略并匹配前 N 条网格</div>
+        <input
+          class="file-input"
+          type="file"
+          accept="image/*"
+          multiple
+          @change="handleImportFiles"
+        />
+        <div class="file-count" v-if="importFiles.length">
+          已选择 {{ importFiles.length }} 张截图
+        </div>
+        <button
+          class="import-btn"
+          :class="{ disabled: importing || !importFiles.length }"
+          :disabled="importing || !importFiles.length"
+          @click="submitImport"
+        >
+          {{ importing ? '导入中...' : '导入成交截图创建策略' }}
+        </button>
+        <div class="section-divider"></div>
+      </div>
       <div class="form-group">
         <label class="form-label">策略名称</label>
         <input 
@@ -117,11 +140,13 @@
 import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { createStrategy } from '../../api'
+import { createStrategy, ocrCreateStrategy } from '../../api'
 
 const router = useRouter()
 const submitting = ref(false)
+const importing = ref(false)
 const mode = ref('amount')  // 'amount' 或 'quantity'
+const importFiles = ref([])
 
 const form = ref({
   name: '',
@@ -162,6 +187,37 @@ const isFormValid = computed(() => {
 // 返回
 const goBack = () => {
   router.back()
+}
+
+const handleImportFiles = (event) => {
+  const files = Array.from(event.target.files || [])
+  importFiles.value = files
+}
+
+const submitImport = async () => {
+  if (!importFiles.value.length || importing.value) return
+  importing.value = true
+  try {
+    const response = await ocrCreateStrategy({
+      files: importFiles.value,
+      name: form.value.name,
+      symbol: form.value.symbol
+    })
+    const strategyId = response.data?.id
+    if (!strategyId) {
+      ElMessage.error('导入失败：无法获取策略ID')
+      return
+    }
+    ElMessage.success('导入成功')
+    setTimeout(() => {
+      router.replace(`/m/strategy/${strategyId}`)
+    }, 300)
+  } catch (error) {
+    console.error('导入失败:', error)
+    ElMessage.error(error.response?.data?.message || '导入失败')
+  } finally {
+    importing.value = false
+  }
 }
 
 // 提交
@@ -245,6 +301,7 @@ const handleSubmit = async () => {
   transition: all 0.2s;
   box-sizing: border-box;
   -webkit-appearance: none;
+  appearance: none;
 }
 
 .form-input:focus {
@@ -323,6 +380,73 @@ const handleSubmit = async () => {
 .calc-value.highlight {
   font-size: 18px;
   color: #667eea;
+}
+
+/* 导入区 */
+.import-section {
+  margin-bottom: 24px;
+}
+
+.section-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 6px;
+}
+
+.section-hint {
+  font-size: 12px;
+  color: #999;
+  margin-bottom: 12px;
+}
+
+.file-input {
+  width: 100%;
+  font-size: 14px;
+  padding: 10px 12px;
+  border: 1px dashed #d5d8e3;
+  border-radius: 10px;
+  background: #fafbff;
+  box-sizing: border-box;
+}
+
+.file-count {
+  font-size: 12px;
+  color: #666;
+  margin-top: 8px;
+}
+
+.import-btn {
+  width: 100%;
+  height: 48px;
+  margin-top: 12px;
+  font-size: 15px;
+  font-weight: 600;
+  color: #667eea;
+  background: #eef1ff;
+  border: none;
+  border-radius: 24px;
+  cursor: pointer;
+  transition: opacity 0.2s, transform 0.1s;
+}
+
+.import-btn:active {
+  transform: scale(0.98);
+}
+
+.import-btn.disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.import-btn.disabled:active {
+  transform: none;
+}
+
+.section-divider {
+  height: 1px;
+  background: #f0f1f5;
+  margin-top: 20px;
 }
 
 /* 按钮组 */

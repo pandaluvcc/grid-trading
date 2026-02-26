@@ -14,16 +14,26 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * OCR识别与匹配服务
  */
 @Service
 public class OcrService {
+
+    private static final Pattern SYMBOL_PATTERN = Pattern.compile("(证券代码|基金代码|股票代码|代码)[:\\s]*([A-Za-z0-9./-]+)");
+    private static final Pattern NAME_PATTERN = Pattern.compile("(证券名称|基金名称|股票名称|名称|证券简称|基金简称|股票简称)[:\\s]*([\\u4e00-\\u9fa5A-Za-z0-9·._-]{2,})");
+    private static final Pattern CODE_WITH_NAME_PATTERN = Pattern.compile("(\\d{6})\\s*([\\u4e00-\\u9fa5A-Za-z0-9·._-]{2,})");
+    private static final Pattern NAME_WITH_CODE_PATTERN = Pattern.compile("([\\u4e00-\\u9fa5A-Za-z0-9·._-]{2,})\\s*(\\d{6})");
+    private static final Pattern CODE_ONLY_PATTERN = Pattern.compile("\\b(\\d{6})\\b");
 
     private final BaiduOcrClient baiduOcrClient;
     private final EastMoneyParser eastMoneyParser;
@@ -126,6 +136,90 @@ public class OcrService {
         return OcrRecognizeResponse.success("", records);
     }
 
+    public Strategy createStrategyFromOcr(List<MultipartFile> files,
+                                          String brokerType,
+                                          String name,
+                                          String symbol) {
+        if (files == null || files.isEmpty()) {
+            throw new IllegalArgumentException("files is empty");
+        }
+        if (files.size() > 5) {
+            throw new IllegalArgumentException("max 5 files per batch");
+        }
+        if (brokerType == null || brokerType.trim().isEmpty()) {
+            throw new IllegalArgumentException("brokerType is required");
+        }
+
+        List<OcrTradeRecord> records = new ArrayList<>();
+        StringBuilder rawTextBuilder = new StringBuilder();
+        for (MultipartFile file : files) {
+            if (file == null || file.isEmpty()) {
+                continue;
+            }
+            try {
+                String rawText = baiduOcrClient.recognize(file);
+                if (rawTextBuilder.length() > 0) {
+                    rawTextBuilder.append("\n");
+                }
+                rawTextBuilder.append(rawText);
+                records.addAll(parseByBroker(rawText, brokerType));
+            } catch (IOException ex) {
+                String filename = file.getOriginalFilename();
+                throw new IllegalArgumentException("OCR failed" + (filename != null ? (": " + filename) : "") + ": " + ex.getMessage());
+            }
+        }
+
+        records = dedupeRecords(records);
+        records = mergeSplitBuys(records);
+        records = sortRecords(records);
+        records = filterUsable(records);
+
+        if (records.isEmpty()) {
+            throw new IllegalArgumentException("no valid trade records");
+        }
+
+        OcrTradeRecord baseRecord = findBaseRecord(records);
+        BigDecimal basePrice = baseRecord.getPrice();
+        BigDecimal amountPerGrid = resolveAmountPerGrid(baseRecord);
+        if (basePrice == null || amountPerGrid == null) {
+            throw new IllegalArgumentException("basePrice or amountPerGrid not found");
+        }
+
+    String[] extracted = extractNameAndSymbol(rawTextBuilder.toString());
+    String resolvedName = name != null && !name.trim().isEmpty() ? name : extracted[0];
+    String resolvedSymbol = symbol != null && !symbol.trim().isEmpty() ? symbol : extracted[1];
+
+    Strategy strategy = buildStrategy(resolvedName, resolvedSymbol, basePrice, amountPerGrid);
+        strategy = strategyRepository.save(strategy);
+
+        List<GridLine> orderedGridLines = new ArrayList<>(strategy.getGridLines());
+        orderedGridLines.sort(Comparator.comparing(GridLine::getLevel));
+
+        GridLine lastMatchedLine = null;
+        for (OcrTradeRecord record : records) {
+            if (record == null || record.getType() == null || record.getPrice() == null) {
+                continue;
+            }
+            GridLine gridLine = findBestMatchLineForCreate(orderedGridLines, record);
+            if (gridLine == null) {
+                continue;
+            }
+            normalizeRecordAmounts(record);
+            applyRecordToGridLine(gridLine, record);
+
+            TradeRecord tradeRecord = buildTradeRecord(strategy, gridLine, record);
+            tradeRecordRepository.save(tradeRecord);
+
+            lastMatchedLine = gridLine;
+        }
+
+        if (lastMatchedLine != null && lastMatchedLine.getLevel() < orderedGridLines.size()) {
+            recalculateSubsequentGrids(strategy, lastMatchedLine);
+        }
+
+        return strategyRepository.save(strategy);
+    }
+
     private List<OcrTradeRecord> parseByBroker(String rawText, String brokerType) {
         if ("EASTMONEY".equalsIgnoreCase(brokerType)) {
             return eastMoneyParser.parse(rawText);
@@ -195,6 +289,396 @@ public class OcrService {
         }
 
         matchSequentialRecords(sorted, matchLines, gridLineByLevel, existingRecords);
+    }
+
+    private List<OcrTradeRecord> sortRecords(List<OcrTradeRecord> records) {
+        List<OcrTradeRecord> sorted = new ArrayList<>(records);
+        sorted.sort((a, b) -> {
+            if (a == null && b == null) {
+                return 0;
+            }
+            if (a == null) {
+                return 1;
+            }
+            if (b == null) {
+                return -1;
+            }
+            LocalDateTime ta = a.getTradeTime();
+            LocalDateTime tb = b.getTradeTime();
+            if (ta == null && tb == null) {
+                return 0;
+            }
+            if (ta == null) {
+                return 1;
+            }
+            if (tb == null) {
+                return -1;
+            }
+            return ta.toInstant(ZoneOffset.UTC).compareTo(tb.toInstant(ZoneOffset.UTC));
+        });
+        return sorted;
+    }
+
+    private List<OcrTradeRecord> filterUsable(List<OcrTradeRecord> records) {
+        List<OcrTradeRecord> usable = new ArrayList<>();
+        for (OcrTradeRecord record : records) {
+            if (record == null || record.getType() == null || record.getPrice() == null) {
+                continue;
+            }
+            usable.add(record);
+        }
+        return usable;
+    }
+
+    private OcrTradeRecord findBaseRecord(List<OcrTradeRecord> records) {
+        for (OcrTradeRecord record : records) {
+            if (record.getType() == TradeType.BUY && record.getPrice() != null) {
+                return record;
+            }
+        }
+        return records.get(0);
+    }
+
+    private BigDecimal resolveAmountPerGrid(OcrTradeRecord record) {
+        if (record == null || record.getPrice() == null) {
+            return null;
+        }
+        BigDecimal amount = record.getAmount();
+        BigDecimal quantity = record.getQuantity();
+        if (amount == null && quantity != null) {
+            amount = quantity.multiply(record.getPrice()).setScale(2, RoundingMode.DOWN);
+            record.setAmount(amount);
+        }
+        return amount;
+    }
+
+    private Strategy buildStrategy(String name,
+                                   String symbol,
+                                   BigDecimal basePrice,
+                                   BigDecimal amountPerGrid) {
+        Strategy strategy = new Strategy();
+        String safeName = name != null && !name.trim().isEmpty()
+                ? name.trim()
+                : "OCR导入策略-" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmm"));
+        String safeSymbol = symbol != null && !symbol.trim().isEmpty()
+                ? symbol.trim()
+                : "OCR-IMPORT";
+
+        strategy.setName(safeName);
+        strategy.setSymbol(safeSymbol);
+        strategy.setBasePrice(basePrice);
+        strategy.setAmountPerGrid(amountPerGrid);
+
+        BigDecimal smallGap = basePrice.multiply(GridPlanGenerator.SMALL_PERCENT);
+        BigDecimal mediumGap = basePrice.multiply(GridPlanGenerator.MEDIUM_PERCENT);
+        BigDecimal largeGap = basePrice.multiply(GridPlanGenerator.LARGE_PERCENT);
+
+        strategy.setSmallGap(smallGap);
+        strategy.setMediumGap(mediumGap);
+        strategy.setLargeGap(largeGap);
+
+        strategy.setGridCountDown(GridPlanGenerator.TOTAL_GRID_COUNT);
+        strategy.setGridCountUp(0);
+        strategy.setGridPercent(GridPlanGenerator.SMALL_PERCENT);
+
+        BigDecimal maxCapital = amountPerGrid.multiply(BigDecimal.valueOf(GridPlanGenerator.TOTAL_GRID_COUNT));
+        strategy.setMaxCapital(maxCapital);
+        strategy.setAvailableCash(maxCapital);
+        strategy.setStatus(StrategyStatus.RUNNING);
+        strategy.setGridModelVersion("v2.0");
+        strategy.setGridSummary("小网13/中网4/大网2");
+
+        GridPlanGenerator generator = new GridPlanGenerator();
+        List<GridPlanGenerator.GridPlanItem> items = generator.generate(basePrice, amountPerGrid);
+        for (GridPlanGenerator.GridPlanItem item : items) {
+            GridLine line = new GridLine();
+            line.setStrategy(strategy);
+            line.setGridType(item.getGridType());
+            line.setLevel(item.getLevel());
+            line.setBuyPrice(item.getBuyPrice());
+            line.setSellPrice(item.getSellPrice());
+            line.setBuyTriggerPrice(item.getBuyTriggerPrice());
+            line.setSellTriggerPrice(item.getSellTriggerPrice());
+            line.setBuyAmount(item.getBuyAmount());
+            line.setBuyQuantity(item.getBuyQuantity());
+            line.setSellAmount(item.getSellAmount());
+            line.setProfit(item.getProfit());
+            line.setProfitRate(item.getProfitRate());
+            line.setState(GridLineState.WAIT_BUY);
+            strategy.getGridLines().add(line);
+        }
+
+        return strategy;
+    }
+
+    private void normalizeRecordAmounts(OcrTradeRecord record) {
+        if (record == null || record.getPrice() == null) {
+            return;
+        }
+        BigDecimal amount = record.getAmount();
+        BigDecimal quantity = record.getQuantity();
+        if (quantity == null && amount != null) {
+            quantity = amount.divide(record.getPrice(), 8, RoundingMode.DOWN);
+            record.setQuantity(quantity);
+        } else if (amount == null && quantity != null) {
+            amount = quantity.multiply(record.getPrice()).setScale(2, RoundingMode.DOWN);
+            record.setAmount(amount);
+        }
+    }
+
+    private void applyRecordToGridLine(GridLine gridLine, OcrTradeRecord record) {
+        if (gridLine == null || record == null || record.getType() == null || record.getPrice() == null) {
+            return;
+        }
+        if (record.getType() == TradeType.BUY) {
+            applyBuyRecord(gridLine, record);
+            gridLine.setState(GridLineState.BOUGHT);
+        } else {
+            applySellRecord(gridLine, record);
+            gridLine.setState(GridLineState.WAIT_BUY);
+        }
+    }
+
+    private TradeRecord buildTradeRecord(Strategy strategy, GridLine gridLine, OcrTradeRecord record) {
+        TradeRecord entity = new TradeRecord();
+        entity.setStrategy(strategy);
+        entity.setGridLine(gridLine);
+        entity.setType(record.getType());
+        entity.setPrice(record.getPrice());
+        BigDecimal quantity = record.getQuantity();
+        BigDecimal amount = record.getAmount();
+        if (quantity == null) {
+            quantity = gridLine.getBuyQuantity();
+        }
+        if (amount == null && quantity != null) {
+            amount = quantity.multiply(record.getPrice()).setScale(2, RoundingMode.DOWN);
+        }
+        if (amount == null) {
+            amount = gridLine.getBuyAmount();
+        }
+        entity.setQuantity(quantity);
+        entity.setAmount(amount);
+        entity.setFee(record.getFee());
+        entity.setTradeTime(record.getTradeTime() != null ? record.getTradeTime() : LocalDateTime.now());
+        return entity;
+    }
+
+    private void applyBuyRecord(GridLine gridLine, OcrTradeRecord record) {
+        BigDecimal price = record.getPrice();
+        gridLine.setActualBuyPrice(price);
+        gridLine.setBuyPrice(price);
+        gridLine.setBuyTriggerPrice(price.add(new BigDecimal("0.02")));
+
+        if (record.getAmount() != null) {
+            gridLine.setBuyAmount(record.getAmount());
+        }
+        if (record.getQuantity() != null) {
+            gridLine.setBuyQuantity(record.getQuantity());
+        }
+        recalcLineTotals(gridLine);
+    }
+
+    private void applySellRecord(GridLine gridLine, OcrTradeRecord record) {
+        BigDecimal price = record.getPrice();
+        gridLine.setActualSellPrice(price);
+        gridLine.setSellPrice(price);
+        gridLine.setSellTriggerPrice(price.subtract(new BigDecimal("0.02")));
+        recalcLineTotals(gridLine);
+    }
+
+    private void recalcLineTotals(GridLine gridLine) {
+        BigDecimal buyPrice = gridLine.getBuyPrice();
+        BigDecimal sellPrice = gridLine.getSellPrice();
+        BigDecimal buyAmount = gridLine.getBuyAmount();
+        BigDecimal buyQuantity = gridLine.getBuyQuantity();
+
+        if (buyQuantity == null && buyAmount != null && buyPrice != null) {
+            buyQuantity = buyAmount.divide(buyPrice, 8, RoundingMode.DOWN);
+            gridLine.setBuyQuantity(buyQuantity);
+        }
+        if (buyAmount == null && buyQuantity != null && buyPrice != null) {
+            buyAmount = buyQuantity.multiply(buyPrice).setScale(2, RoundingMode.DOWN);
+            gridLine.setBuyAmount(buyAmount);
+        }
+        if (buyQuantity == null || sellPrice == null) {
+            return;
+        }
+
+        BigDecimal sellAmount = buyQuantity.multiply(sellPrice).setScale(2, RoundingMode.HALF_UP);
+        gridLine.setSellAmount(sellAmount);
+        if (buyAmount != null && buyAmount.compareTo(BigDecimal.ZERO) > 0) {
+            BigDecimal profit = sellAmount.subtract(buyAmount).setScale(2, RoundingMode.HALF_UP);
+            BigDecimal profitRate = profit.divide(buyAmount, 6, RoundingMode.HALF_UP);
+            gridLine.setProfit(profit);
+            gridLine.setProfitRate(profitRate);
+        }
+    }
+
+    private void recalculateSubsequentGrids(Strategy strategy, GridLine fromGridLine) {
+        if (strategy == null || fromGridLine == null) {
+            return;
+        }
+
+        BigDecimal basePrice = strategy.getBasePrice();
+        if (basePrice == null) {
+            return;
+        }
+
+        BigDecimal smallStep = basePrice.multiply(GridPlanGenerator.SMALL_PERCENT);
+        int startLevel = fromGridLine.getLevel() + 1;
+        if (startLevel > GridPlanGenerator.TOTAL_GRID_COUNT) {
+            return;
+        }
+
+    BigDecimal lastSmallBuyPrice = null;
+        BigDecimal lastMediumBuyPrice = null;
+        BigDecimal secondMediumBuyPrice = null;
+        int mediumCount = 0;
+
+        List<GridLine> orderedGridLines = new ArrayList<>(strategy.getGridLines());
+        orderedGridLines.sort(Comparator.comparing(GridLine::getLevel));
+
+        for (GridLine gl : orderedGridLines) {
+            if (gl.getLevel() >= startLevel) {
+                continue;
+            }
+            BigDecimal buyPrice = gl.getActualBuyPrice() != null
+                    ? gl.getActualBuyPrice()
+                    : gl.getBuyPrice();
+            if (gl.getGridType() == GridType.SMALL) {
+                lastSmallBuyPrice = buyPrice;
+            } else if (gl.getGridType() == GridType.MEDIUM) {
+                mediumCount++;
+                lastMediumBuyPrice = buyPrice;
+                if (mediumCount == 2) {
+                    secondMediumBuyPrice = buyPrice;
+                }
+            }
+        }
+        if (lastSmallBuyPrice == null) {
+            lastSmallBuyPrice = fromGridLine.getActualBuyPrice() != null
+                    ? fromGridLine.getActualBuyPrice()
+                    : fromGridLine.getBuyPrice();
+        }
+
+        for (GridLine gridLine : orderedGridLines) {
+            if (gridLine.getLevel() < startLevel) {
+                continue;
+            }
+
+            if (gridLine.getState() == GridLineState.BOUGHT || gridLine.getState() == GridLineState.SOLD) {
+                if (gridLine.getGridType() == GridType.SMALL) {
+                    lastSmallBuyPrice = gridLine.getActualBuyPrice() != null
+                            ? gridLine.getActualBuyPrice()
+                            : gridLine.getBuyPrice();
+                }
+                if (gridLine.getGridType() == GridType.MEDIUM) {
+                    mediumCount++;
+                    BigDecimal mediumBuyPrice = gridLine.getActualBuyPrice() != null
+                            ? gridLine.getActualBuyPrice()
+                            : gridLine.getBuyPrice();
+                    lastMediumBuyPrice = mediumBuyPrice;
+                    if (mediumCount == 2) {
+                        secondMediumBuyPrice = mediumBuyPrice;
+                    }
+                }
+                continue;
+            }
+
+            BigDecimal newBuyPrice;
+            BigDecimal newSellPrice;
+
+            if (gridLine.getGridType() == GridType.SMALL) {
+                newBuyPrice = lastSmallBuyPrice.subtract(smallStep)
+                        .setScale(8, RoundingMode.HALF_UP);
+                newSellPrice = lastSmallBuyPrice;
+                lastSmallBuyPrice = newBuyPrice;
+            } else if (gridLine.getGridType() == GridType.MEDIUM) {
+                mediumCount++;
+                newBuyPrice = lastSmallBuyPrice;
+                if (gridLine.getLevel() == 5) {
+                    newSellPrice = basePrice;
+                } else {
+                    newSellPrice = lastMediumBuyPrice;
+                }
+                lastMediumBuyPrice = newBuyPrice;
+                if (mediumCount == 2) {
+                    secondMediumBuyPrice = newBuyPrice;
+                }
+            } else {
+                newBuyPrice = lastSmallBuyPrice;
+                if (gridLine.getLevel() == 10) {
+                    newSellPrice = basePrice;
+                } else {
+                    newSellPrice = secondMediumBuyPrice;
+                }
+            }
+
+            gridLine.setBuyPrice(newBuyPrice);
+            gridLine.setSellPrice(newSellPrice);
+            gridLine.setBuyTriggerPrice(newBuyPrice.add(new BigDecimal("0.02")));
+            gridLine.setSellTriggerPrice(newSellPrice.subtract(new BigDecimal("0.02")));
+
+            BigDecimal buyAmount = gridLine.getBuyAmount();
+            BigDecimal buyQuantity = buyAmount.divide(newBuyPrice, 8, RoundingMode.DOWN);
+            BigDecimal sellAmount = buyQuantity.multiply(newSellPrice)
+                    .setScale(2, RoundingMode.HALF_UP);
+            BigDecimal profit = sellAmount.subtract(buyAmount)
+                    .setScale(2, RoundingMode.HALF_UP);
+            BigDecimal profitRate = profit.divide(buyAmount, 6, RoundingMode.HALF_UP);
+
+            gridLine.setBuyQuantity(buyQuantity);
+            gridLine.setSellAmount(sellAmount);
+            gridLine.setProfit(profit);
+            gridLine.setProfitRate(profitRate);
+        }
+    }
+
+    private GridLine findBestMatchLineForCreate(List<GridLine> gridLines, OcrTradeRecord record) {
+        if (gridLines == null || gridLines.isEmpty() || record == null || record.getPrice() == null) {
+            return null;
+        }
+        TradeType type = record.getType();
+        BigDecimal price = record.getPrice();
+
+        GridLine best = null;
+        BigDecimal bestDiff = null;
+
+        for (GridLine line : gridLines) {
+            if (type == TradeType.BUY && line.getState() != GridLineState.WAIT_BUY) {
+                continue;
+            }
+            if (type == TradeType.SELL && line.getState() != GridLineState.BOUGHT) {
+                continue;
+            }
+            BigDecimal target = type == TradeType.BUY ? line.getBuyPrice() : line.getSellPrice();
+            if (target == null) {
+                continue;
+            }
+            BigDecimal diff = target.subtract(price).abs();
+            if (best == null || diff.compareTo(bestDiff) < 0) {
+                best = line;
+                bestDiff = diff;
+            }
+        }
+
+        if (best == null && type == TradeType.BUY) {
+            for (GridLine line : gridLines) {
+                if (line.getState() == GridLineState.WAIT_BUY) {
+                    return line;
+                }
+            }
+        }
+        if (best == null && type == TradeType.SELL) {
+            for (int i = gridLines.size() - 1; i >= 0; i--) {
+                GridLine line = gridLines.get(i);
+                if (line.getState() == GridLineState.BOUGHT) {
+                    return line;
+                }
+            }
+        }
+
+        return best;
     }
 
     private void matchSingleRecord(List<OcrTradeRecord> records,
@@ -343,36 +827,6 @@ public class OcrService {
         return result;
     }
 
-    private MatchLine findNextByState(List<MatchLine> lines, TradeType type) {
-        if (type == TradeType.BUY) {
-            return findFirstByState(lines, GridLineState.WAIT_BUY);
-        }
-        return findFirstByState(lines, GridLineState.BOUGHT, GridLineState.WAIT_SELL);
-    }
-
-    private MatchLine findFirstByState(List<MatchLine> lines, GridLineState... states) {
-        for (MatchLine line : lines) {
-            for (GridLineState state : states) {
-                if (line.state == state) {
-                    return line;
-                }
-            }
-        }
-        return null;
-    }
-
-    private MatchLine findLastByState(List<MatchLine> lines, GridLineState... states) {
-        for (int i = lines.size() - 1; i >= 0; i--) {
-            MatchLine line = lines.get(i);
-            for (GridLineState state : states) {
-                if (line.state == state) {
-                    return line;
-                }
-            }
-        }
-        return null;
-    }
-
     private MatchLine findClosestByPrice(List<MatchLine> lines, OcrTradeRecord record) {
         BigDecimal price = record.getPrice();
         TradeType type = record.getType();
@@ -382,7 +836,7 @@ public class OcrService {
             if (type == TradeType.BUY && line.state != GridLineState.WAIT_BUY) {
                 continue;
             }
-            if (type == TradeType.SELL && line.state != GridLineState.BOUGHT && line.state != GridLineState.WAIT_SELL) {
+            if (type == TradeType.SELL && line.state != GridLineState.BOUGHT) {
                 continue;
             }
             BigDecimal target = type == TradeType.BUY ? line.buyPrice : line.sellPrice;
@@ -396,17 +850,6 @@ public class OcrService {
             }
         }
         return best;
-    }
-
-    private void advanceState(MatchLine line, TradeType type) {
-        if (line == null || type == null) {
-            return;
-        }
-        if (type == TradeType.BUY) {
-            line.state = GridLineState.BOUGHT;
-        } else {
-            line.state = GridLineState.WAIT_BUY;
-        }
     }
 
     private boolean isOutOfRange(BigDecimal actual, BigDecimal expected) {
@@ -610,6 +1053,157 @@ public class OcrService {
         }
         BigDecimal tolerance = left.multiply(tolerancePercent).abs();
         return left.subtract(right).abs().compareTo(tolerance) <= 0;
+    }
+
+    private String[] extractNameAndSymbol(String rawText) {
+        String name = null;
+        String symbol = null;
+        if (rawText == null || rawText.isBlank()) {
+            return new String[] { null, null };
+        }
+        String normalized = rawText
+                .replace('：', ':')
+                .replace('，', ',')
+                .replace("\t", " ");
+        String[] lines = normalized.split("\\r?\\n");
+
+        List<String> nonEmptyLines = new ArrayList<>();
+        for (String line : lines) {
+            if (line == null) {
+                continue;
+            }
+            String trimmed = line.trim();
+            if (!trimmed.isEmpty()) {
+                nonEmptyLines.add(trimmed);
+            }
+        }
+
+        Integer codeLineIndex = null;
+        String shortName = null;
+        if (!nonEmptyLines.isEmpty()) {
+            for (int i = 0; i < nonEmptyLines.size(); i++) {
+                String line = nonEmptyLines.get(i);
+                Matcher codeMatcher = CODE_ONLY_PATTERN.matcher(line);
+                if (codeMatcher.find()) {
+                    symbol = codeMatcher.group(1).trim();
+                    String candidate = line.replace(symbol, "")
+                            .replaceAll("[()（）\"'\\[\\]{}:：,，\\-]", " ")
+                            .trim();
+                    if (isLikelyName(candidate)) {
+                        shortName = candidate;
+                    }
+                    codeLineIndex = i;
+                    break;
+                }
+            }
+
+            if (codeLineIndex != null && codeLineIndex + 1 < nonEmptyLines.size()) {
+                String nextLine = nonEmptyLines.get(codeLineIndex + 1);
+                if (!nextLine.matches(".*\\d{6}.*") && isLikelyName(nextLine)) {
+                    name = nextLine.trim();
+                }
+            }
+            if (name == null && shortName != null) {
+                name = shortName;
+            }
+        }
+
+        for (String line : lines) {
+            if (line == null) {
+                continue;
+            }
+            String trimmed = line.trim();
+            if (trimmed.isEmpty()) {
+                continue;
+            }
+            if (symbol == null) {
+                Matcher symbolMatcher = SYMBOL_PATTERN.matcher(trimmed);
+                if (symbolMatcher.find()) {
+                    symbol = symbolMatcher.group(2).trim();
+                }
+            }
+            if (name == null) {
+                Matcher nameMatcher = NAME_PATTERN.matcher(trimmed);
+                if (nameMatcher.find()) {
+                    name = nameMatcher.group(2).trim();
+                }
+            }
+            if (name != null && symbol != null) {
+                break;
+            }
+        }
+        if (symbol == null || name == null) {
+            for (String line : lines) {
+                if (line == null) {
+                    continue;
+                }
+                String trimmed = line.trim();
+                if (trimmed.isEmpty()) {
+                    continue;
+                }
+                if (symbol == null) {
+                    Matcher codeMatcher = CODE_WITH_NAME_PATTERN.matcher(trimmed);
+                    if (codeMatcher.find()) {
+                        symbol = codeMatcher.group(1).trim();
+                        if (name == null) {
+                            name = codeMatcher.group(2).trim();
+                        }
+                    }
+                }
+                if (symbol == null || name == null) {
+                    Matcher nameCodeMatcher = NAME_WITH_CODE_PATTERN.matcher(trimmed);
+                    if (nameCodeMatcher.find()) {
+                        if (name == null) {
+                            name = nameCodeMatcher.group(1).trim();
+                        }
+                        if (symbol == null) {
+                            symbol = nameCodeMatcher.group(2).trim();
+                        }
+                    }
+                }
+                if (name != null && symbol != null) {
+                    break;
+                }
+            }
+        }
+        if (symbol == null) {
+            Matcher codeMatcher = CODE_ONLY_PATTERN.matcher(normalized);
+            if (codeMatcher.find()) {
+                symbol = codeMatcher.group(1).trim();
+            }
+        }
+        if (symbol != null && name == null) {
+            for (String line : lines) {
+                if (line == null) {
+                    continue;
+                }
+                if (!line.contains(symbol)) {
+                    continue;
+                }
+                String candidate = line.replace(symbol, "")
+                        .replaceAll("[()（）\"'\\[\\]{}:：,，\\-]", " ")
+                        .trim();
+                if (isLikelyName(candidate)) {
+                    name = candidate;
+                    break;
+                }
+            }
+        }
+        return new String[] { name, symbol };
+    }
+
+    private boolean isLikelyName(String value) {
+        if (value == null) {
+            return false;
+        }
+        String trimmed = value.trim();
+        if (trimmed.length() < 2) {
+            return false;
+        }
+        if (trimmed.matches("\\d+")) {
+            return false;
+        }
+        return trimmed.matches(".*[A-Za-z\\u4e00-\\u9fa5].*");
     }
 
     private static class MatchLine {

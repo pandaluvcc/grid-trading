@@ -1,5 +1,5 @@
 <template>
-  <MobileLayout :title="strategy?.symbol || '策略详情'" :show-back="true" :show-tab-bar="false">
+  <MobileLayout :title="strategyTitle" :show-back="true" :show-tab-bar="false">
     <!-- 加载中 -->
     <div v-if="loading" class="loading-container">
       <el-icon class="is-loading"><Loading /></el-icon>
@@ -9,7 +9,10 @@
       <!-- 顶部概览卡片 -->
       <div class="overview-card">
         <div class="overview-header">
-          <span class="symbol">{{ strategy.symbol }}</span>
+            <div class="symbol-block">
+              <span class="symbol">{{ strategy.name || strategy.symbol }}</span>
+              <span class="symbol-code" v-if="strategy.name">{{ strategy.symbol }}</span>
+            </div>
           <el-tag 
             size="small" 
             :type="strategy.status === 'RUNNING' ? 'success' : 'info'"
@@ -420,6 +423,14 @@ const netProfit = computed(() => {
   return Number(profit) - totalFee.value
 })
 
+const strategyTitle = computed(() => {
+  if (!strategy.value) return '策略详情'
+  if (strategy.value.name && strategy.value.symbol) {
+    return `${strategy.value.name} (${strategy.value.symbol})`
+  }
+  return strategy.value.name || strategy.value.symbol || '策略详情'
+})
+
 onUnmounted(() => {
   isUnmounted = true
 })
@@ -783,9 +794,20 @@ const sortOcrRecords = (records) => {
   margin-bottom: 16px;
 }
 
+.symbol-block {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
 .symbol {
   font-size: 22px;
   font-weight: 700;
+}
+
+.symbol-code {
+  font-size: 13px;
+  opacity: 0.85;
 }
 
 .overview-stats {

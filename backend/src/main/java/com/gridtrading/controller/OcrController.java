@@ -3,6 +3,7 @@ package com.gridtrading.controller;
 import com.gridtrading.controller.dto.BatchImportRequest;
 import com.gridtrading.controller.dto.OcrRecognizeResponse;
 import com.gridtrading.controller.dto.OcrRematchRequest;
+import com.gridtrading.controller.dto.StrategyResponse;
 import com.gridtrading.service.ocr.ImportService;
 import com.gridtrading.service.ocr.OcrService;
 import org.springframework.http.MediaType;
@@ -55,6 +56,29 @@ public class OcrController {
     @PostMapping("/import")
     public Map<String, Object> batchImport(@RequestBody BatchImportRequest request) {
         return importService.batchImport(request);
+    }
+
+    /**
+     * 通过成交截图创建策略
+     */
+    @PostMapping(value = "/import-create", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public StrategyResponse importCreate(
+            @RequestParam(value = "files", required = false) List<MultipartFile> files,
+            @RequestParam(value = "file", required = false) MultipartFile file,
+            @RequestParam(value = "brokerType", defaultValue = "EASTMONEY") String brokerType,
+            @RequestParam(value = "name", required = false) String name,
+            @RequestParam(value = "symbol", required = false) String symbol
+    ) {
+        List<MultipartFile> requestFiles = new ArrayList<>();
+        if (files != null && !files.isEmpty()) {
+            requestFiles.addAll(files);
+        }
+        if (file != null) {
+            requestFiles.add(file);
+        }
+        return StrategyResponse.fromEntity(
+                ocrService.createStrategyFromOcr(requestFiles, brokerType, name, symbol)
+        );
     }
 
     /**

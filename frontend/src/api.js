@@ -124,6 +124,28 @@ export function ocrImport(data) {
 }
 
 /**
+ * OCR导入并创建策略
+ */
+export function ocrCreateStrategy({ files, brokerType = 'EASTMONEY', name, symbol }) {
+  const formData = new FormData()
+  const fileList = Array.isArray(files) ? files : (files ? [files] : [])
+  fileList.forEach((file) => {
+    formData.append('files', file)
+  })
+  formData.append('brokerType', brokerType)
+  if (name) {
+    formData.append('name', name)
+  }
+  if (symbol) {
+    formData.append('symbol', symbol)
+  }
+
+  return api.post('/ocr/import-create', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  })
+}
+
+/**
  * OCR重新匹配
  */
 export function ocrRematch({ strategyId, records }) {
