@@ -76,6 +76,12 @@ public class Strategy {
     private String gridSummary;
 
     /**
+     * 网格计算模式（PRICE_LOCK=价格锁定, INDEPENDENT=独立计算）
+     */
+    @Column(name = "grid_calculation_mode", length = 20)
+    private String gridCalculationMode = "INDEPENDENT";
+
+    /**
      * 小网价差
      */
     @Column(name = "small_gap", precision = 20, scale = 8)
@@ -354,5 +360,13 @@ public class Strategy {
 
     public void setGridSummary(String gridSummary) {
         this.gridSummary = gridSummary;
+    }
+
+    public String getGridCalculationMode() {
+        return gridCalculationMode;
+    }
+
+    public void setGridCalculationMode(String gridCalculationMode) {
+        this.gridCalculationMode = gridCalculationMode;
     }
 }

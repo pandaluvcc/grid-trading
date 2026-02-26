@@ -43,24 +43,32 @@ public class ImportService {
 
     @Transactional
     public Map<String, Object> batchImport(BatchImportRequest request) {
+        System.out.println("\n========== OCR 批量导入开始 ==========");
         if (request == null || request.getStrategyId() == null) {
             throw new IllegalArgumentException("strategyId is required");
         }
 
         Strategy strategy = strategyRepository.findByIdWithGridLines(request.getStrategyId())
                 .orElseThrow(() -> new IllegalArgumentException("策略不存在"));
+        System.out.println("策略ID: " + strategy.getId() + ", 网格数: " + strategy.getGridLines().size());
 
         List<OcrTradeRecord> records = request.getRecords();
         int total = records != null ? records.size() : 0;
         int imported = 0;
         int skipped = 0;
+        
+        System.out.println("待导入记录数: " + total);
 
         if (records != null) {
+            int index = 0;
             for (OcrTradeRecord record : records) {
+                index++;
+                
                 if (record == null) {
                     skipped++;
                     continue;
                 }
+                
                 if (record.getMatchStatus() == OcrMatchStatus.DUPLICATE
                         || record.getMatchStatus() == OcrMatchStatus.INVALID) {
                     skipped++;
@@ -100,6 +108,8 @@ public class ImportService {
                     continue;
                 }
 
+                System.out.println("导入第" + index + "条: " + record.getType() + " 网格" + gridLine.getLevel() + " 价格" + price);
+                
                 TradeRecord entity = new TradeRecord();
                 entity.setStrategy(strategy);
                 entity.setGridLine(gridLine);
@@ -116,6 +126,8 @@ public class ImportService {
             }
         }
 
+        System.out.println("========== OCR 批量导入结束: 成功" + imported + "条, 跳过" + skipped + "条 ==========\n");
+
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("total", total);
         result.put("imported", imported);
@@ -125,9 +137,16 @@ public class ImportService {
     }
 
     private void updateGridLine(Strategy strategy, GridLine gridLine, OcrTradeRecord record) {
+        System.out.println("更新网格" + gridLine.getLevel() + ": " + record.getType() + 
+                         " (更新前 buyCount=" + gridLine.getBuyCount() + ", sellCount=" + gridLine.getSellCount() + ")");
+        
         switch (record.getType()) {
             case BUY -> {
                 gridLine.setActualBuyPrice(record.getPrice());
+                Integer oldBuyCount = gridLine.getBuyCount();
+                gridLine.setBuyCount(oldBuyCount + 1);
+                System.out.println("  -> buyCount: " + oldBuyCount + " → " + gridLine.getBuyCount());
+                
                 if (gridLine.getState() == GridLineState.WAIT_BUY) {
                     gridLine.setState(GridLineState.BOUGHT);
                 }
@@ -135,11 +154,16 @@ public class ImportService {
             }
             case SELL -> {
                 gridLine.setActualSellPrice(record.getPrice());
+                Integer oldSellCount = gridLine.getSellCount();
+                gridLine.setSellCount(oldSellCount + 1);
+                System.out.println("  -> sellCount: " + oldSellCount + " → " + gridLine.getSellCount());
+                
                 if (gridLine.getState() == GridLineState.BOUGHT || gridLine.getState() == GridLineState.WAIT_SELL) {
                     gridLine.setState(GridLineState.WAIT_BUY);
                 }
             }
         }
+        
         strategyRepository.save(strategy);
     }
 

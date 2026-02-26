@@ -144,6 +144,10 @@ public class GridEngine {
 
             // 【关键】先更新状态：WAIT_BUY → BOUGHT
             gridLine.setState(GridLineState.BOUGHT);
+            // 增加买入次数统计
+            gridLine.setBuyCount(gridLine.getBuyCount() + 1);
+            log.info("[BUY-COUNT] gridLineId={}, level={}, buyCount={}", 
+                    gridLine.getId(), gridLine.getLevel(), gridLine.getBuyCount());
             gridLineRepository.save(gridLine);
 
             // 生成买入交易记录（且仅一条）
@@ -230,6 +234,10 @@ public class GridEngine {
 
             // 【关键】先更新状态：BOUGHT/WAIT_SELL → WAIT_BUY（循环网格）
             gridLine.setState(GridLineState.WAIT_BUY);
+            // 增加卖出次数统计
+            gridLine.setSellCount(gridLine.getSellCount() + 1);
+            log.info("[SELL-COUNT] gridLineId={}, level={}, sellCount={}", 
+                    gridLine.getId(), gridLine.getLevel(), gridLine.getSellCount());
             gridLineRepository.save(gridLine);
 
             // 生成卖出交易记录（且仅一条）

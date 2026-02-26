@@ -768,6 +768,14 @@ public class StrategyController {
                     item.setProfit(gridLine.getProfit());
                     item.setProfitRate(gridLine.getProfitRate());
                     item.setState(gridLine.getState());
+                    
+                    Integer buyCount = gridLine.getBuyCount() != null ? gridLine.getBuyCount() : 0;
+                    Integer sellCount = gridLine.getSellCount() != null ? gridLine.getSellCount() : 0;
+                    item.setBuyCount(buyCount);
+                    item.setSellCount(sellCount);
+                    
+                    BigDecimal actualProfit = gridLine.getActualProfit() != null ? gridLine.getActualProfit() : BigDecimal.ZERO;
+                    item.setActualProfit(actualProfit);
 
                     return item;
                 })

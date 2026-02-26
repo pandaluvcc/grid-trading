@@ -34,4 +34,9 @@ public interface TradeRecordRepository extends JpaRepository<TradeRecord, Long> 
      * 通过策略ID查询交易记录（用于重复性检查）
      */
     List<TradeRecord> findByStrategyId(Long strategyId);
+
+    /**
+     * 查询某个网格的所有交易记录（按时间升序）
+     */
+    List<TradeRecord> findByGridLineIdOrderByTradeTimeAsc(Long gridLineId);
 }

@@ -67,7 +67,8 @@ public class OcrController {
             @RequestParam(value = "file", required = false) MultipartFile file,
             @RequestParam(value = "brokerType", defaultValue = "EASTMONEY") String brokerType,
             @RequestParam(value = "name", required = false) String name,
-            @RequestParam(value = "symbol", required = false) String symbol
+            @RequestParam(value = "symbol", required = false) String symbol,
+            @RequestParam(value = "gridCalculationMode", defaultValue = "INDEPENDENT") String gridCalculationMode
     ) {
         List<MultipartFile> requestFiles = new ArrayList<>();
         if (files != null && !files.isEmpty()) {
@@ -77,7 +78,7 @@ public class OcrController {
             requestFiles.add(file);
         }
         return StrategyResponse.fromEntity(
-                ocrService.createStrategyFromOcr(requestFiles, brokerType, name, symbol)
+                ocrService.createStrategyFromOcr(requestFiles, brokerType, name, symbol, gridCalculationMode)
         );
     }
 

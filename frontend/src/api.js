@@ -126,7 +126,7 @@ export function ocrImport(data) {
 /**
  * OCR导入并创建策略
  */
-export function ocrCreateStrategy({ files, brokerType = 'EASTMONEY', name, symbol }) {
+export function ocrCreateStrategy({ files, brokerType = 'EASTMONEY', name, symbol, gridCalculationMode = 'INDEPENDENT' }) {
   const formData = new FormData()
   const fileList = Array.isArray(files) ? files : (files ? [files] : [])
   fileList.forEach((file) => {
@@ -138,6 +138,9 @@ export function ocrCreateStrategy({ files, brokerType = 'EASTMONEY', name, symbo
   }
   if (symbol) {
     formData.append('symbol', symbol)
+  }
+  if (gridCalculationMode) {
+    formData.append('gridCalculationMode', gridCalculationMode)
   }
 
   return api.post('/ocr/import-create', formData, {

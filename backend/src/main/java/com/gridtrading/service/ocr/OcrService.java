@@ -139,7 +139,8 @@ public class OcrService {
     public Strategy createStrategyFromOcr(List<MultipartFile> files,
                                           String brokerType,
                                           String name,
-                                          String symbol) {
+                                          String symbol,
+                                          String gridCalculationMode) {
         if (files == null || files.isEmpty()) {
             throw new IllegalArgumentException("files is empty");
         }
@@ -189,7 +190,11 @@ public class OcrService {
     String resolvedName = name != null && !name.trim().isEmpty() ? name : extracted[0];
     String resolvedSymbol = symbol != null && !symbol.trim().isEmpty() ? symbol : extracted[1];
 
-    Strategy strategy = buildStrategy(resolvedName, resolvedSymbol, basePrice, amountPerGrid);
+    // 使用传入的网格计算模式，默认为独立计算模式
+    String calculationMode = gridCalculationMode != null && !gridCalculationMode.trim().isEmpty() 
+            ? gridCalculationMode : "INDEPENDENT";
+
+    Strategy strategy = buildStrategy(resolvedName, resolvedSymbol, basePrice, amountPerGrid, calculationMode);
         strategy = strategyRepository.save(strategy);
 
         List<GridLine> orderedGridLines = new ArrayList<>(strategy.getGridLines());
@@ -205,7 +210,7 @@ public class OcrService {
                 continue;
             }
             normalizeRecordAmounts(record);
-            applyRecordToGridLine(gridLine, record);
+            applyRecordToGridLine(gridLine, record, strategy);
 
             TradeRecord tradeRecord = buildTradeRecord(strategy, gridLine, record);
             tradeRecordRepository.save(tradeRecord);
@@ -216,6 +221,9 @@ public class OcrService {
         if (lastMatchedLine != null && lastMatchedLine.getLevel() < orderedGridLines.size()) {
             recalculateSubsequentGrids(strategy, lastMatchedLine);
         }
+
+        // 计算每个网格的真实累计收益
+        calculateActualProfits(strategy);
 
         return strategyRepository.save(strategy);
     }
@@ -355,7 +363,8 @@ public class OcrService {
     private Strategy buildStrategy(String name,
                                    String symbol,
                                    BigDecimal basePrice,
-                                   BigDecimal amountPerGrid) {
+                                   BigDecimal amountPerGrid,
+                                   String gridCalculationMode) {
         Strategy strategy = new Strategy();
         String safeName = name != null && !name.trim().isEmpty()
                 ? name.trim()
@@ -368,6 +377,7 @@ public class OcrService {
         strategy.setSymbol(safeSymbol);
         strategy.setBasePrice(basePrice);
         strategy.setAmountPerGrid(amountPerGrid);
+        strategy.setGridCalculationMode(gridCalculationMode);
 
         BigDecimal smallGap = basePrice.multiply(GridPlanGenerator.SMALL_PERCENT);
         BigDecimal mediumGap = basePrice.multiply(GridPlanGenerator.MEDIUM_PERCENT);
@@ -388,8 +398,13 @@ public class OcrService {
         strategy.setGridModelVersion("v2.0");
         strategy.setGridSummary("小网13/中网4/大网2");
 
+        // 根据模式选择生成方法
         GridPlanGenerator generator = new GridPlanGenerator();
-        List<GridPlanGenerator.GridPlanItem> items = generator.generate(basePrice, amountPerGrid);
+        GridPlanGenerator.CalculationMode mode = "INDEPENDENT".equals(gridCalculationMode)
+                ? GridPlanGenerator.CalculationMode.INDEPENDENT
+                : GridPlanGenerator.CalculationMode.PRICE_LOCK;
+        List<GridPlanGenerator.GridPlanItem> items = generator.generate(basePrice, amountPerGrid, mode);
+        
         for (GridPlanGenerator.GridPlanItem item : items) {
             GridLine line = new GridLine();
             line.setStrategy(strategy);
@@ -426,15 +441,15 @@ public class OcrService {
         }
     }
 
-    private void applyRecordToGridLine(GridLine gridLine, OcrTradeRecord record) {
+    private void applyRecordToGridLine(GridLine gridLine, OcrTradeRecord record, Strategy strategy) {
         if (gridLine == null || record == null || record.getType() == null || record.getPrice() == null) {
             return;
         }
         if (record.getType() == TradeType.BUY) {
-            applyBuyRecord(gridLine, record);
+            applyBuyRecord(gridLine, record, strategy);
             gridLine.setState(GridLineState.BOUGHT);
         } else {
-            applySellRecord(gridLine, record);
+            applySellRecord(gridLine, record, strategy);
             gridLine.setState(GridLineState.WAIT_BUY);
         }
     }
@@ -463,7 +478,7 @@ public class OcrService {
         return entity;
     }
 
-    private void applyBuyRecord(GridLine gridLine, OcrTradeRecord record) {
+    private void applyBuyRecord(GridLine gridLine, OcrTradeRecord record, Strategy strategy) {
         BigDecimal price = record.getPrice();
         gridLine.setActualBuyPrice(price);
         gridLine.setBuyPrice(price);
@@ -475,18 +490,40 @@ public class OcrService {
         if (record.getQuantity() != null) {
             gridLine.setBuyQuantity(record.getQuantity());
         }
-        recalcLineTotals(gridLine);
+        
+        // 增加买入次数统计
+        gridLine.setBuyCount(gridLine.getBuyCount() + 1);
+        System.out.println("[OCR-BUY] 网格" + gridLine.getLevel() + " buyCount -> " + gridLine.getBuyCount());
+        
+        // 在独立计算模式下，强制按固定比例计算卖出价
+        if ("INDEPENDENT".equals(strategy.getGridCalculationMode())) {
+            forceRecalcSellPrice(gridLine);
+        }
+        
+        recalcLineTotals(gridLine, strategy);
     }
 
-    private void applySellRecord(GridLine gridLine, OcrTradeRecord record) {
+    private void applySellRecord(GridLine gridLine, OcrTradeRecord record, Strategy strategy) {
         BigDecimal price = record.getPrice();
         gridLine.setActualSellPrice(price);
-        gridLine.setSellPrice(price);
-        gridLine.setSellTriggerPrice(price.subtract(new BigDecimal("0.02")));
-        recalcLineTotals(gridLine);
+        
+        // 在独立计算模式下，卖出价必须按固定比例计算，不使用实际成交价
+        if ("INDEPENDENT".equals(strategy.getGridCalculationMode())) {
+            forceRecalcSellPrice(gridLine);
+        } else {
+            gridLine.setSellPrice(price);
+        }
+        
+        gridLine.setSellTriggerPrice(gridLine.getSellPrice().subtract(new BigDecimal("0.02")));
+        
+        // 增加卖出次数统计
+        gridLine.setSellCount(gridLine.getSellCount() + 1);
+        System.out.println("[OCR-SELL] 网格" + gridLine.getLevel() + " sellCount -> " + gridLine.getSellCount());
+        
+        recalcLineTotals(gridLine, strategy);
     }
 
-    private void recalcLineTotals(GridLine gridLine) {
+    private void recalcLineTotals(GridLine gridLine, Strategy strategy) {
         BigDecimal buyPrice = gridLine.getBuyPrice();
         BigDecimal sellPrice = gridLine.getSellPrice();
         BigDecimal buyAmount = gridLine.getBuyAmount();
@@ -514,6 +551,102 @@ public class OcrService {
         }
     }
 
+    /**
+     * 强制按固定比例重新计算卖出价（独立计算模式专用）
+     */
+    private void forceRecalcSellPrice(GridLine gridLine) {
+        BigDecimal buyPrice = gridLine.getBuyPrice();
+        if (buyPrice == null) {
+            return;
+        }
+        
+        // 根据网格类型确定利润率
+        BigDecimal profitRate;
+        switch (gridLine.getGridType()) {
+            case SMALL:
+                profitRate = GridPlanGenerator.SMALL_PERCENT;  // 5%
+                break;
+            case MEDIUM:
+                profitRate = GridPlanGenerator.MEDIUM_PERCENT;  // 15%
+                break;
+            case LARGE:
+                profitRate = GridPlanGenerator.LARGE_PERCENT;  // 30%
+                break;
+            default:
+                profitRate = GridPlanGenerator.SMALL_PERCENT;
+        }
+        
+        // 卖出价 = 买入价 × (1 + 利润率)
+        BigDecimal sellPrice = buyPrice.multiply(BigDecimal.ONE.add(profitRate)).setScale(8, RoundingMode.HALF_UP);
+        gridLine.setSellPrice(sellPrice);
+        
+        System.out.println(String.format(
+            "[独立计算] 网格%d %s: 买%.3f → 卖%.3f (%.1f%%)",
+            gridLine.getLevel(), gridLine.getGridType(), buyPrice, sellPrice, 
+            profitRate.multiply(new BigDecimal("100"))
+        ));
+    }
+
+    /**
+     * 计算每个网格的真实累计收益
+     * 从实际的交易记录中配对买卖，计算扣除手续费后的真实收益
+     */
+    private void calculateActualProfits(Strategy strategy) {
+        List<GridLine> gridLines = strategy.getGridLines();
+        if (gridLines == null || gridLines.isEmpty()) {
+            return;
+        }
+
+        for (GridLine gridLine : gridLines) {
+            // 查询该网格的所有交易记录，按时间排序
+            List<TradeRecord> tradeRecords = tradeRecordRepository
+                    .findByGridLineIdOrderByTradeTimeAsc(gridLine.getId());
+            
+            if (tradeRecords == null || tradeRecords.isEmpty()) {
+                continue;
+            }
+
+            // 分离买入和卖出记录
+            List<TradeRecord> buyRecords = new ArrayList<>();
+            List<TradeRecord> sellRecords = new ArrayList<>();
+            
+            for (TradeRecord record : tradeRecords) {
+                if (record.getType() == TradeType.BUY) {
+                    buyRecords.add(record);
+                } else if (record.getType() == TradeType.SELL) {
+                    sellRecords.add(record);
+                }
+            }
+
+            // 配对计算收益：第1次买配第1次卖，第2次买配第2次卖...
+            int pairCount = Math.min(buyRecords.size(), sellRecords.size());
+            BigDecimal totalActualProfit = BigDecimal.ZERO;
+            
+            for (int i = 0; i < pairCount; i++) {
+                TradeRecord buyRecord = buyRecords.get(i);
+                TradeRecord sellRecord = sellRecords.get(i);
+                
+                // 计算该轮收益 = 卖出金额 - 买入金额 - 手续费
+                BigDecimal buyAmount = buyRecord.getAmount() != null ? buyRecord.getAmount() : BigDecimal.ZERO;
+                BigDecimal sellAmount = sellRecord.getAmount() != null ? sellRecord.getAmount() : BigDecimal.ZERO;
+                BigDecimal buyFee = buyRecord.getFee() != null ? buyRecord.getFee() : BigDecimal.ZERO;
+                BigDecimal sellFee = sellRecord.getFee() != null ? sellRecord.getFee() : BigDecimal.ZERO;
+                
+                BigDecimal pairProfit = sellAmount.subtract(buyAmount).subtract(buyFee).subtract(sellFee);
+                totalActualProfit = totalActualProfit.add(pairProfit);
+                
+                System.out.println(String.format(
+                    "[真实收益] 网格%d 第%d轮: 卖出%.2f - 买入%.2f - 费用%.4f = %.2f, 累计=%.2f",
+                    gridLine.getLevel(), i + 1, sellAmount, buyAmount, 
+                    buyFee.add(sellFee), pairProfit, totalActualProfit
+                ));
+            }
+            
+            // 设置真实累计收益
+            gridLine.setActualProfit(totalActualProfit.setScale(2, RoundingMode.HALF_UP));
+        }
+    }
+
     private void recalculateSubsequentGrids(Strategy strategy, GridLine fromGridLine) {
         if (strategy == null || fromGridLine == null) {
             return;
@@ -524,6 +657,7 @@ public class OcrService {
             return;
         }
 
+        boolean isIndependentMode = "INDEPENDENT".equals(strategy.getGridCalculationMode());
         BigDecimal smallStep = basePrice.multiply(GridPlanGenerator.SMALL_PERCENT);
         int startLevel = fromGridLine.getLevel() + 1;
         if (startLevel > GridPlanGenerator.TOTAL_GRID_COUNT) {
@@ -589,28 +723,61 @@ public class OcrService {
             BigDecimal newSellPrice;
 
             if (gridLine.getGridType() == GridType.SMALL) {
-                newBuyPrice = lastSmallBuyPrice.subtract(smallStep)
-                        .setScale(8, RoundingMode.HALF_UP);
-                newSellPrice = lastSmallBuyPrice;
+                // 独立计算模式：等比递减
+                if (isIndependentMode) {
+                    newBuyPrice = lastSmallBuyPrice.multiply(BigDecimal.ONE.subtract(GridPlanGenerator.SMALL_PERCENT))
+                            .setScale(8, RoundingMode.HALF_UP);
+                } else {
+                    // 价格锁定模式：等差递减
+                    newBuyPrice = lastSmallBuyPrice.subtract(smallStep)
+                            .setScale(8, RoundingMode.HALF_UP);
+                }
+                
+                // 独立计算模式：卖出价 = 买入价 × 1.05
+                if (isIndependentMode) {
+                    newSellPrice = newBuyPrice.multiply(BigDecimal.ONE.add(GridPlanGenerator.SMALL_PERCENT))
+                            .setScale(8, RoundingMode.HALF_UP);
+                } else {
+                    // 价格锁定模式：卖出价 = 上一个小网买入价
+                    newSellPrice = lastSmallBuyPrice;
+                }
+                
                 lastSmallBuyPrice = newBuyPrice;
             } else if (gridLine.getGridType() == GridType.MEDIUM) {
                 mediumCount++;
                 newBuyPrice = lastSmallBuyPrice;
-                if (gridLine.getLevel() == 5) {
-                    newSellPrice = basePrice;
+                
+                // 独立计算模式：卖出价 = 买入价 × 1.15
+                if (isIndependentMode) {
+                    newSellPrice = newBuyPrice.multiply(BigDecimal.ONE.add(GridPlanGenerator.MEDIUM_PERCENT))
+                            .setScale(8, RoundingMode.HALF_UP);
                 } else {
-                    newSellPrice = lastMediumBuyPrice;
+                    // 价格锁定模式：原有逻辑
+                    if (gridLine.getLevel() == 5) {
+                        newSellPrice = basePrice;
+                    } else {
+                        newSellPrice = lastMediumBuyPrice;
+                    }
                 }
+                
                 lastMediumBuyPrice = newBuyPrice;
                 if (mediumCount == 2) {
                     secondMediumBuyPrice = newBuyPrice;
                 }
             } else {
                 newBuyPrice = lastSmallBuyPrice;
-                if (gridLine.getLevel() == 10) {
-                    newSellPrice = basePrice;
+                
+                // 独立计算模式：卖出价 = 买入价 × 1.30
+                if (isIndependentMode) {
+                    newSellPrice = newBuyPrice.multiply(BigDecimal.ONE.add(GridPlanGenerator.LARGE_PERCENT))
+                            .setScale(8, RoundingMode.HALF_UP);
                 } else {
-                    newSellPrice = secondMediumBuyPrice;
+                    // 价格锁定模式：原有逻辑
+                    if (gridLine.getLevel() == 10) {
+                        newSellPrice = basePrice;
+                    } else {
+                        newSellPrice = secondMediumBuyPrice;
+                    }
                 }
             }
 

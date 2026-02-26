@@ -114,6 +114,24 @@ public class GridLine {
     private BigDecimal profitRate;
 
     /**
+     * 买入次数统计（支持多轮交易）
+     */
+    @Column(name = "buy_count", nullable = false)
+    private Integer buyCount = 0;
+
+    /**
+     * 卖出次数统计（支持多轮交易）
+     */
+    @Column(name = "sell_count", nullable = false)
+    private Integer sellCount = 0;
+
+    /**
+     * 真实累计收益（从实际交易记录计算，扣除手续费）
+     */
+    @Column(name = "actual_profit", precision = 20, scale = 2)
+    private BigDecimal actualProfit = BigDecimal.ZERO;
+
+    /**
      * JPA 要求的无参构造器
      */
     public GridLine() {
@@ -247,5 +265,29 @@ public class GridLine {
 
     public void setActualSellPrice(BigDecimal actualSellPrice) {
         this.actualSellPrice = actualSellPrice;
+    }
+
+    public Integer getBuyCount() {
+        return buyCount;
+    }
+
+    public void setBuyCount(Integer buyCount) {
+        this.buyCount = buyCount;
+    }
+
+    public Integer getSellCount() {
+        return sellCount;
+    }
+
+    public void setSellCount(Integer sellCount) {
+        this.sellCount = sellCount;
+    }
+
+    public BigDecimal getActualProfit() {
+        return actualProfit;
+    }
+
+    public void setActualProfit(BigDecimal actualProfit) {
+        this.actualProfit = actualProfit;
     }
 }

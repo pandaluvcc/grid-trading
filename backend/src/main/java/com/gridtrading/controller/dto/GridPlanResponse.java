@@ -58,6 +58,9 @@ public class GridPlanResponse {
         private BigDecimal profit;
         private BigDecimal profitRate;
         private GridLineState state;
+        private Integer buyCount;
+        private Integer sellCount;
+        private BigDecimal actualProfit;
 
         public Long getId() {
             return id;
@@ -161,6 +164,30 @@ public class GridPlanResponse {
 
         public void setState(GridLineState state) {
             this.state = state;
+        }
+
+        public Integer getBuyCount() {
+            return buyCount;
+        }
+
+        public void setBuyCount(Integer buyCount) {
+            this.buyCount = buyCount;
+        }
+
+        public Integer getSellCount() {
+            return sellCount;
+        }
+
+        public void setSellCount(Integer sellCount) {
+            this.sellCount = sellCount;
+        }
+
+        public BigDecimal getActualProfit() {
+            return actualProfit;
+        }
+
+        public void setActualProfit(BigDecimal actualProfit) {
+            this.actualProfit = actualProfit;
         }
     }
 

@@ -46,6 +46,32 @@
       </div>
 
       <div class="form-group">
+        <label class="form-label">网格计算模式</label>
+        <div class="mode-switch">
+          <div 
+            class="mode-item" 
+            :class="{ active: form.gridCalculationMode === 'INDEPENDENT' }"
+            @click="form.gridCalculationMode = 'INDEPENDENT'"
+          >
+            独立计算
+          </div>
+          <div 
+            class="mode-item" 
+            :class="{ active: form.gridCalculationMode === 'PRICE_LOCK' }"
+            @click="form.gridCalculationMode = 'PRICE_LOCK'"
+          >
+            价格锁定
+          </div>
+        </div>
+        <div class="form-hint" v-if="form.gridCalculationMode === 'INDEPENDENT'">
+          每个网格独立计算：卖价 = 买价 × (1 + 比例)
+        </div>
+        <div class="form-hint" v-if="form.gridCalculationMode === 'PRICE_LOCK'">
+          价格锁定模式：卖价关联其他网格（原有逻辑）
+        </div>
+      </div>
+
+      <div class="form-group">
         <label class="form-label">基准价</label>
         <input 
           type="number" 
@@ -153,7 +179,8 @@ const form = ref({
   symbol: '',
   basePrice: null,
   amountPerGrid: null,
-  quantityPerGrid: null
+  quantityPerGrid: null,
+  gridCalculationMode: 'INDEPENDENT'  // 默认独立计算模式
 })
 
 // 计算单格金额
@@ -201,7 +228,8 @@ const submitImport = async () => {
     const response = await ocrCreateStrategy({
       files: importFiles.value,
       name: form.value.name,
-      symbol: form.value.symbol
+      symbol: form.value.symbol,
+      gridCalculationMode: form.value.gridCalculationMode
     })
     const strategyId = response.data?.id
     if (!strategyId) {

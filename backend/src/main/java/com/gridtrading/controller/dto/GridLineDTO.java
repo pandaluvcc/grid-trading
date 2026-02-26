@@ -42,6 +42,10 @@ public class GridLineDTO {
     // 是否可编辑实际买入价
     private Boolean canEditActualBuyPrice;
 
+    // 买卖次数统计（支持多轮交易）
+    private Integer buyCount;
+    private Integer sellCount;
+
     public GridLineDTO() {
     }
 
@@ -84,6 +88,10 @@ public class GridLineDTO {
 
         // 已买入状态才可编辑实际买入价
         dto.setCanEditActualBuyPrice(gridLine.getState() == GridLineState.BOUGHT);
+
+        // 买卖次数统计
+        dto.setBuyCount(gridLine.getBuyCount() != null ? gridLine.getBuyCount() : 0);
+        dto.setSellCount(gridLine.getSellCount() != null ? gridLine.getSellCount() : 0);
 
         return dto;
     }
@@ -224,5 +232,21 @@ public class GridLineDTO {
 
     public void setCanEditActualBuyPrice(Boolean canEditActualBuyPrice) {
         this.canEditActualBuyPrice = canEditActualBuyPrice;
+    }
+
+    public Integer getBuyCount() {
+        return buyCount;
+    }
+
+    public void setBuyCount(Integer buyCount) {
+        this.buyCount = buyCount;
+    }
+
+    public Integer getSellCount() {
+        return sellCount;
+    }
+
+    public void setSellCount(Integer sellCount) {
+        this.sellCount = sellCount;
     }
 }

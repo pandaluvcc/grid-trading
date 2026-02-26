@@ -12,21 +12,27 @@
     <div class="card-center">
       <div class="price-row">
         <span class="price-label">买</span>
-        <span class="price-value buy">{{ formatPrice(grid.buyPrice) }}</span>
+        <span class="price-value buy">
+          {{ formatPrice(grid.buyPrice) }}
+          <span v-if="showBuyCheck" class="check-mark">✅</span>
+        </span>
       </div>
       <div class="price-row">
         <span class="price-label">卖</span>
-        <span class="price-value sell">{{ formatPrice(grid.sellPrice) }}</span>
+        <span class="price-value sell">
+          {{ formatPrice(grid.sellPrice) }}
+          <span v-if="showSellCheck" class="check-mark">✅</span>
+        </span>
       </div>
     </div>
 
     <!-- 右侧状态和收益 -->
     <div class="card-right">
-      <div class="state-tag" :class="stateClass">
-        {{ stateLabel }}
+      <div class="cycle-tag" :class="cycleClass">
+        {{ cycleText }}
       </div>
-      <div class="profit">
-        +{{ formatAmount(grid.profit) }}
+      <div class="profit" :class="profitClass">
+        +{{ formatAmount(displayProfit) }}
       </div>
     </div>
   </div>
@@ -71,15 +77,53 @@ const stateClass = computed(() => {
   return 'state-wait'
 })
 
-// 状态文字
-const stateLabel = computed(() => {
-  const map = {
-    WAIT_BUY: '待买',
-    BOUGHT: '已买',
-    WAIT_SELL: '已买',
-    SOLD: '已卖'
+// 买入次数
+const buyCount = computed(() => {
+  return props.grid.buyCount || 0
+})
+
+// 卖出次数
+const sellCount = computed(() => {
+  return props.grid.sellCount || 0
+})
+
+// 完成轮次（一轮 = 一次买入 + 一次卖出）
+const completedCycles = computed(() => {
+  return Math.min(buyCount.value, sellCount.value)
+})
+
+// ✅ 显示逻辑：表示"当前有未配对的交易"
+// 买✅：buyCount > sellCount（当前持仓待卖）
+// 卖✅：sellCount > buyCount（理论情况，网格交易一般不会出现）
+const showBuyCheck = computed(() => buyCount.value > sellCount.value)
+const showSellCheck = computed(() => sellCount.value > buyCount.value)
+
+// 轮次文字（简洁显示）
+const cycleText = computed(() => {
+  return `${completedCycles.value}轮`
+})
+
+// 轮次标签样式（根据轮次数量显示不同颜色）
+const cycleClass = computed(() => {
+  const cycles = completedCycles.value
+  if (cycles > 0) {
+    return 'has-cycles'
   }
-  return map[props.grid.state] || '待买'
+  return 'no-cycles'
+})
+
+// 显示收益：有完成轮次时显示真实收益，否则显示预计收益
+const displayProfit = computed(() => {
+  const cycles = completedCycles.value
+  if (cycles > 0 && props.grid.actualProfit !== undefined) {
+    return props.grid.actualProfit
+  }
+  return props.grid.profit || 0
+})
+
+// 收益样式：区分真实收益和预计收益
+const profitClass = computed(() => {
+  return completedCycles.value > 0 ? 'actual-profit' : 'estimated-profit'
 })
 
 // 格式化
@@ -182,6 +226,9 @@ const formatAmount = (val) => {
   font-size: 15px;
   font-weight: 600;
   font-family: 'SF Mono', 'Monaco', monospace;
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
 
 .price-value.buy {
@@ -192,6 +239,10 @@ const formatAmount = (val) => {
   color: #67c23a;
 }
 
+.check-mark {
+  font-size: 12px;
+}
+
 /* 右侧 */
 .card-right {
   display: flex;
@@ -200,20 +251,21 @@ const formatAmount = (val) => {
   gap: 6px;
 }
 
-.state-tag {
-  font-size: 11px;
+.cycle-tag {
+  font-size: 12px;
+  font-weight: 600;
   padding: 3px 8px;
   border-radius: 4px;
 }
 
-.state-tag.state-wait {
+.cycle-tag.no-cycles {
   background: #f0f2f5;
   color: #909399;
 }
 
-.state-tag.state-bought {
-  background: #fdf6ec;
-  color: #e6a23c;
+.cycle-tag.has-cycles {
+  background: #e1f3d8;
+  color: #67c23a;
 }
 
 .profit {
