@@ -155,7 +155,7 @@ function Upload-Files {
     Write-Host "[4/6] 上传文件到服务器..." -ForegroundColor Yellow
 
     # 确保远程目录存在
-    Invoke-SSH "mkdir -p $REMOTE_PATH/backend $REMOTE_PATH/frontend"
+    Invoke-SSH "mkdir -p $REMOTE_PATH/backend $REMOTE_PATH/frontend $REMOTE_PATH/nginx $REMOTE_PATH/mysql-data"
 
     if (-not $FrontendOnly) {
         Write-Host "  ├─ 上传后端 JAR 包..." -ForegroundColor Gray
@@ -182,8 +182,7 @@ function Upload-Files {
         Invoke-SCP "$ProjectRoot\frontend\dist\*" "$REMOTE_PATH/frontend/" -Recursive
 
         Write-Host "  ├─ 上传 Nginx 配置..." -ForegroundColor Gray
-        Invoke-SSH "mkdir -p /usr/local/openresty/nginx/conf/conf.d"
-        Invoke-SCP "$ProjectRoot\deploy\nginx\grid-trading.conf" "/usr/local/openresty/nginx/conf/conf.d/"
+        Invoke-SCP "$ProjectRoot\deploy\nginx\grid-trading.conf" "$REMOTE_PATH/nginx/default.conf"
     }
 
     Write-Host "✓ 文件上传完成！" -ForegroundColor Green
@@ -193,31 +192,16 @@ function Upload-Files {
 function Deploy-Remote {
     Write-Host "[5/6] 远程执行部署..." -ForegroundColor Yellow
 
-    if (-not $FrontendOnly) {
-        Write-Host "  ├─ 重启 Docker 容器..." -ForegroundColor Gray
-        $dockerCommands = @"
+    Write-Host "  ├─ 重启 Docker 容器..." -ForegroundColor Gray
+    $dockerCommands = @"
 cd $REMOTE_PATH
 docker compose down 2>/dev/null || true
 docker compose up -d --build
-sleep 5
+echo "等待服务启动..."
+sleep 8
 docker compose ps
 "@
-        Invoke-SSH $dockerCommands
-    }
-
-    if (-not $BackendOnly) {
-        Write-Host "  ├─ 重载 OpenResty..." -ForegroundColor Gray
-
-        # 检查 OpenResty 配置是否正确
-        $checkNginx = @"
-if ! grep -q 'include /usr/local/openresty/nginx/conf/conf.d/*.conf;' /usr/local/openresty/nginx/conf/nginx.conf 2>/dev/null; then
-    # 在 http 块末尾添加 include
-    sed -i '/http {/a\    include /usr/local/openresty/nginx/conf/conf.d/*.conf;' /usr/local/openresty/nginx/conf/nginx.conf 2>/dev/null || true
-fi
-openresty -t && openresty -s reload
-"@
-        Invoke-SSH $checkNginx
-    }
+    Invoke-SSH $dockerCommands
 
     Write-Host "✓ 远程部署完成！" -ForegroundColor Green
 }
@@ -226,28 +210,25 @@ openresty -t && openresty -s reload
 function Test-Deployment {
     Write-Host "[6/6] 验证部署状态..." -ForegroundColor Yellow
 
-    Start-Sleep -Seconds 3
+    Start-Sleep -Seconds 5
 
-    # 测试后端 API
-    if (-not $FrontendOnly) {
-        Write-Host "  ├─ 测试后端 API..." -ForegroundColor Gray
-        try {
-            $response = Invoke-WebRequest -Uri "http://${SERVER_IP}:8080/api/strategies" -TimeoutSec 15 -UseBasicParsing
-            Write-Host "  │  ✓ 后端 API: 正常 (HTTP $($response.StatusCode))" -ForegroundColor Green
-        } catch {
-            Write-Host "  │  ✗ 后端 API: 异常 (请检查 Docker 日志)" -ForegroundColor Red
-        }
+    # 测试前端页面（通过 OpenResty 80 端口访问）
+    Write-Host "  ├─ 测试前端页面..." -ForegroundColor Gray
+    try {
+        $response = Invoke-WebRequest -Uri "http://${SERVER_IP}/" -TimeoutSec 15 -UseBasicParsing
+        Write-Host "  │  ✓ 前端页面: 正常 (HTTP $($response.StatusCode))" -ForegroundColor Green
+    } catch {
+        Write-Host "  │  ✗ 前端页面: 异常 (请检查 docker compose logs openresty)" -ForegroundColor Red
     }
 
-    # 测试前端页面
-    if (-not $BackendOnly) {
-        Write-Host "  ├─ 测试前端页面..." -ForegroundColor Gray
-        try {
-            $response = Invoke-WebRequest -Uri "http://${SERVER_IP}/" -TimeoutSec 10 -UseBasicParsing
-            Write-Host "  │  ✓ 前端页面: 正常 (HTTP $($response.StatusCode))" -ForegroundColor Green
-        } catch {
-            Write-Host "  │  ✗ 前端页面: 异常 (请检查 OpenResty)" -ForegroundColor Red
-        }
+    # 测试后端 API（通过 OpenResty 反向代理访问）
+    Write-Host "  ├─ 测试后端 API..." -ForegroundColor Gray
+    try {
+        $response = Invoke-WebRequest -Uri "http://${SERVER_IP}/api/strategies" -TimeoutSec 15 -UseBasicParsing
+        Write-Host "  │  ✓ 后端 API: 正常 (HTTP $($response.StatusCode))" -ForegroundColor Green
+    } catch {
+        Write-Host "  │  ✗ 后端 API: 异常 (请检查 docker compose logs backend)" -ForegroundColor Red
+    }
     }
 }
 

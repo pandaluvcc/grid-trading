@@ -3,16 +3,18 @@
 > **服务器环境**：Ubuntu 22.04 64位  
 > **本地环境**：Windows + PowerShell  
 > **部署路径**：`/data/docker/grid-trading`  
-> **部署方式**：一键脚本部署，在 IDE 中执行即可
+> **部署方式**：全部 Docker 化，一键脚本部署
 
 ## 📋 部署方案概述
 
 | 组件 | 部署方式 | 端口 | 说明 |
 |------|----------|------|------|
+| 前端 (Vue 3) | Docker - OpenResty | 80 | 静态文件 + 反向代理 |
 | 后端 (Spring Boot) | Docker 容器 | 8080 | Java 17 + Spring Boot 3.2.2 |
 | 数据库 (MySQL) | Docker 容器 | 3306 | MySQL 8.0 |
-| 前端 (Vue 3) | OpenResty | 80 | Nginx + Lua 扩展，性能更好 |
 | 一键部署 | PowerShell 脚本 | - | IDE 内执行远程部署 |
+
+> ✅ **全部服务都在 Docker 中**，用 docker-compose 统一管理，更干净！
 
 ---
 
@@ -21,7 +23,7 @@
 | 步骤 | 任务 | 在哪里操作 | 预计时间 |
 |------|------|------------|----------|
 | 1 | 本地配置 SSH 免密登录 | 你的电脑 PowerShell | 3 分钟 |
-| 2 | 服务器环境初始化 | SSH 客户端（连接服务器后） | 10 分钟 |
+| 2 | 服务器安装 Docker | SSH 客户端（连接服务器后） | 5 分钟 |
 | 3 | 修改部署配置 | 你的电脑 IDE | 2 分钟 |
 | 4 | 执行一键部署 | 你的电脑 IDE 终端 | 5 分钟 |
 | 5 | 浏览器验证 | 浏览器 | 1 分钟 |
@@ -84,11 +86,11 @@ ssh root@你的服务器IP
 
 ---
 
-## 步骤 2：服务器环境初始化（在你的 SSH 客户端操作）
+## 步骤 2：服务器安装 Docker（在你的 SSH 客户端操作）
 
 > 📍 **在哪里执行**：你的 SSH 客户端窗口（已连接到服务器的那个）
 > 
-> **命令在哪执行**：登录服务器后，默认在 `/root` 目录，下面的命令**在任意目录都可以执行**，除非特别说明
+> **命令在哪执行**：登录服务器后，默认在 `/root` 目录，下面的命令**在任意目录都可以执行**
 
 ### 2.1 更新系统
 
@@ -121,102 +123,27 @@ Docker Compose version v2.x.x
 
 看到版本号就说明安装成功了。
 
-### 2.3 安装 OpenResty
-
-一条一条执行（可以复制整块，会自动逐行执行）：
-
-```bash
-# 安装依赖
-apt install -y --no-install-recommends wget gnupg ca-certificates lsb-release
-
-# 添加 OpenResty 官方软件源
-wget -O - https://openresty.org/package/pubkey.gpg | gpg --dearmor -o /usr/share/keyrings/openresty.gpg
-
-echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/openresty.gpg] http://openresty.org/package/ubuntu $(lsb_release -sc) main" | tee /etc/apt/sources.list.d/openresty.list > /dev/null
-
-# 更新并安装
-apt update
-apt install -y openresty
-
-# 启动并设置开机自启
-systemctl start openresty
-systemctl enable openresty
-
-# 验证安装
-openresty -v
-```
-
-**预期输出**：
-```
-nginx version: openresty/1.25.x.x
-```
-
-### 2.4 创建部署目录
-
-> 📍 按你的习惯，服务放在 `/data/docker`
+### 2.3 创建部署目录
 
 ```bash
 # 创建目录结构
-mkdir -p /data/docker/grid-trading/{backend,frontend,mysql-data}
-
-# 创建 OpenResty 配置目录
-mkdir -p /usr/local/openresty/nginx/conf/conf.d
+mkdir -p /data/docker/grid-trading
 
 # 设置权限
-chmod -R 755 /data/docker/grid-trading
+chmod -R 755 /data/docker
 ```
 
-### 2.5 配置 OpenResty 加载自定义配置
+### 2.4 配置防火墙（可选）
 
-```bash
-# 用 nano 编辑器打开配置文件
-nano /usr/local/openresty/nginx/conf/nginx.conf
-```
-
-打开后，用方向键找到这一行：
-```
-http {
-```
-
-在 `http {` 的**下一行**，添加：
-```nginx
-    include /usr/local/openresty/nginx/conf/conf.d/*.conf;
-```
-
-添加后看起来像这样：
-```nginx
-http {
-    include /usr/local/openresty/nginx/conf/conf.d/*.conf;
-    ... 其他内容 ...
-```
-
-**保存退出**：
-1. 按 `Ctrl + O`（保存）
-2. 按 `Enter`（确认文件名）
-3. 按 `Ctrl + X`（退出）
-
-**验证配置正确**：
-```bash
-openresty -t
-```
-
-应该显示：
-```
-nginx: the configuration file /usr/local/openresty/nginx/conf/nginx.conf syntax is ok
-nginx: configuration file /usr/local/openresty/nginx/conf/nginx.conf test is successful
-```
-
-### 2.6 配置防火墙（可选）
-
-> Ubuntu 22.04 默认防火墙可能没开启，如果你不确定，执行下面的命令不会有问题
+> Ubuntu 22.04 默认防火墙可能没开启，执行下面的命令不会有问题
 
 ```bash
 ufw allow 22/tcp    # SSH
 ufw allow 80/tcp    # 网站
-ufw allow 8080/tcp  # 后端 API
+ufw allow 8080/tcp  # 后端 API（可选，调试用）
 ```
 
-### 2.7 京东云安全组配置
+### 2.5 京东云安全组配置
 
 > 📍 **在哪里操作**：打开浏览器，登录京东云控制台网页
 
@@ -228,13 +155,13 @@ ufw allow 8080/tcp  # 后端 API
 | 协议 | 端口 | 源IP | 说明 |
 |------|------|------|------|
 | TCP | 80 | 0.0.0.0/0 | 网站访问 |
-| TCP | 8080 | 0.0.0.0/0 | 后端 API |
+| TCP | 8080 | 0.0.0.0/0 | 后端 API（调试用） |
 
 > ⚠️ 这一步很重要！如果不配置安全组，外网访问不了！
 
-### 2.8 服务器初始化完成
+### 2.6 服务器准备完成
 
-现在服务器准备好了，**不用退出 SSH**，继续看下一步。
+就这么简单！只需要安装 Docker 就够了，OpenResty 也会在 Docker 里运行。
 
 ---
 
@@ -448,18 +375,18 @@ docker compose exec mysql mysql -u grid_user -pGridTrading@2026 -e "SHOW DATABAS
 
 ### 问题 4：样式/JS 加载失败 (404)
 
-**原因**：Nginx 配置没有正确加载
+**原因**：OpenResty 容器没有正确挂载前端文件
 
 **排查步骤**：
 ```bash
-# 检查 Nginx 配置
-openresty -t
+# 查看 OpenResty 容器日志
+docker compose logs openresty
 
-# 重新加载
-openresty -s reload
+# 检查前端文件是否存在
+ls -la /data/docker/grid-trading/frontend/
 
-# 查看配置文件是否存在
-ls -la /usr/local/openresty/nginx/conf/conf.d/
+# 重启 OpenResty 容器
+docker compose restart openresty
 ```
 
 ---
@@ -543,10 +470,8 @@ docker compose exec mysql mysql -u grid_user -pGridTrading@2026 grid_trading
 - [ ] 添加公钥到 `~/.ssh/authorized_keys`
 - [ ] 安装 Docker：`apt install -y docker.io docker-compose-plugin`
 - [ ] 启动 Docker：`systemctl start docker && systemctl enable docker`
-- [ ] 安装 OpenResty（按文档 2.3 步骤）
-- [ ] 创建目录：`mkdir -p /data/docker/grid-trading/{backend,frontend,mysql-data}`
-- [ ] 配置 nginx.conf 添加 include 行
-- [ ] 京东云安全组开放 80、8080 端口
+- [ ] 创建目录：`mkdir -p /data/docker/grid-trading`
+- [ ] 京东云安全组开放 80 端口
 
 ### 步骤 3：配置部署
 - [ ] 编辑 `deploy/config.ps1`，填入服务器 IP
