@@ -1,0 +1,49 @@
+# docker-compose.yml - Grid Trading 生产环境部署
+version: '3.8'
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: grid-mysql
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: Root@2026!
+      MYSQL_DATABASE: grid_trading
+      MYSQL_USER: grid_user
+      MYSQL_PASSWORD: GridTrading@2026
+    ports:
+      - "3306:3306"
+    volumes:
+      - /data/docker/grid-trading/mysql-data:/var/lib/mysql
+      - ./backend/init.sql:/docker-entrypoint-initdb.d/init.sql
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - grid-network
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: grid-backend
+    restart: always
+    depends_on:
+      mysql:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+    environment:
+      - SPRING_PROFILES_ACTIVE=prod
+      - MYSQL_PASSWORD=GridTrading@2026
+    networks:
+      - grid-network
+
+networks:
+  grid-network:
+    driver: bridge
+
+
