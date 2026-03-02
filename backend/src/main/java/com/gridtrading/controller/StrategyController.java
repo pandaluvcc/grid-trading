@@ -357,39 +357,83 @@ public class StrategyController {
 
     /**
      * 执行一次 tick（价格更新）
+     * 支持两种模式：
+     * 1. 自动模式：只传 price，系统自动执行网格引擎
+     * 2. 手动模式：传 price + type + quantity + fee + tradeTime，手动录入交易
      */
     @PostMapping("/{id}/tick")
     public TickResponse executeTick(@PathVariable Long id, @RequestBody TickRequest request) {
-        // 记录执行前的时间，用于查询本次产生的交易记录
-        LocalDateTime beforeExecution = LocalDateTime.now();
-        
-        // 执行价格更新
-        gridEngine.processPrice(id, request.getPrice());
-        
-        // 重新加载策略获取最新状态
         Strategy strategy = strategyRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("策略不存在: " + id));
-        
-        // 查询本次执行产生的交易记录（在执行时间之后创建的记录）
-        List<TradeRecord> newTrades = tradeRecordRepository
-                .findByStrategyIdAndTradeTimeAfter(id, beforeExecution);
-        
-        // 构建响应
-        TickResponse response = new TickResponse();
-        response.setStatus(strategy.getStatus());
-        response.setCurrentPrice(strategy.getLastPrice());
-        response.setPosition(strategy.getPosition());
-        response.setAvailableCash(strategy.getAvailableCash());
-        response.setInvestedAmount(strategy.getInvestedAmount());
-        response.setRealizedProfit(strategy.getRealizedProfit());
-        
-        // 转换交易记录
-        List<TradeRecordDto> tradeDtos = newTrades.stream()
-                .map(TradeRecordDto::fromEntity)
-                .collect(Collectors.toList());
-        response.setTrades(tradeDtos);
-        
-        return response;
+
+        // 判断是手动模式还是自动模式
+        if (request.getType() != null && request.getQuantity() != null) {
+            // ========== 手动模式：直接创建交易记录 ==========
+            TradeRecord record = new TradeRecord();
+            record.setStrategy(strategy);
+            record.setType(request.getType());
+            record.setPrice(request.getPrice());
+            record.setQuantity(request.getQuantity());
+            record.setAmount(request.getPrice().multiply(request.getQuantity()));
+            record.setFee(request.getFee());
+
+            // 解析交易时间
+            if (request.getTradeTime() != null && !request.getTradeTime().isEmpty()) {
+                try {
+                    java.time.format.DateTimeFormatter formatter =
+                        java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+                    record.setTradeTime(LocalDateTime.parse(request.getTradeTime(), formatter));
+                } catch (Exception e) {
+                    record.setTradeTime(LocalDateTime.now());
+                }
+            } else {
+                record.setTradeTime(LocalDateTime.now());
+            }
+
+            tradeRecordRepository.save(record);
+
+            // 构建响应
+            TickResponse response = new TickResponse();
+            response.setStatus(strategy.getStatus());
+            response.setCurrentPrice(request.getPrice());
+            response.setPosition(strategy.getPosition());
+            response.setAvailableCash(strategy.getAvailableCash());
+            response.setInvestedAmount(strategy.getInvestedAmount());
+            response.setRealizedProfit(strategy.getRealizedProfit());
+            response.setTrades(java.util.Collections.singletonList(TradeRecordDto.fromEntity(record)));
+
+            return response;
+        } else {
+            // ========== 自动模式：执行网格引擎 ==========
+            LocalDateTime beforeExecution = LocalDateTime.now();
+
+            // 执行价格更新
+            gridEngine.processPrice(id, request.getPrice());
+
+            // 重新加载策略获取最新状态
+            strategy = strategyRepository.findById(id)
+                    .orElseThrow(() -> new RuntimeException("策略不存在: " + id));
+
+            // 查询本次执行产生的交易记录
+            List<TradeRecord> newTrades = tradeRecordRepository
+                    .findByStrategyIdAndTradeTimeAfter(id, beforeExecution);
+
+            // 构建响应
+            TickResponse response = new TickResponse();
+            response.setStatus(strategy.getStatus());
+            response.setCurrentPrice(strategy.getLastPrice());
+            response.setPosition(strategy.getPosition());
+            response.setAvailableCash(strategy.getAvailableCash());
+            response.setInvestedAmount(strategy.getInvestedAmount());
+            response.setRealizedProfit(strategy.getRealizedProfit());
+
+            List<TradeRecordDto> tradeDtos = newTrades.stream()
+                    .map(TradeRecordDto::fromEntity)
+                    .collect(Collectors.toList());
+            response.setTrades(tradeDtos);
+
+            return response;
+        }
     }
 
     /**

@@ -311,47 +311,71 @@
         </template>
       </el-dialog>
 
-      <!-- 价格触发后的费用录入弹窗 -->
+      <!-- 交易执行弹窗 -->
       <el-dialog
         v-model="tickFeeDialogVisible"
-        title="录入本次交易费用"
+        title="录入执行交易"
         width="90%"
         :close-on-click-modal="false"
-        :close-on-press-escape="false"
-        :show-close="false"
         class="tick-fee-dialog"
       >
         <div class="tick-fee-content">
-          <div class="tick-fee-hint">本次触发产生了以下交易，请录入手续费：</div>
-          <div 
-            v-for="trade in tickTrades" 
-            :key="trade.id" 
-            class="tick-fee-item"
-          >
+          <div class="tick-fee-hint">请录入交易信息：</div>
+          <div class="tick-fee-item">
+            <!-- 交易类型和价格 -->
             <div class="tick-fee-trade-info">
-              <el-tag 
-                size="small" 
-                :type="trade.type === 'BUY' ? 'danger' : 'success'"
+              <el-select
+                v-model="tradeType"
+                size="default"
+                style="width: 100px"
               >
-                {{ trade.type === 'BUY' ? '买入' : '卖出' }}
-              </el-tag>
-              <span class="tick-fee-price">¥{{ formatPrice(trade.price) }}</span>
-              <span class="tick-fee-amount">{{ formatAmount(trade.amount) }}元</span>
+                <el-option label="买入" value="BUY" />
+                <el-option label="卖出" value="SELL" />
+              </el-select>
+              <span class="tick-fee-price">¥{{ priceInput }}</span>
+              <span class="tick-fee-hint-text">基准价: ¥{{ formatPrice(strategy?.basePrice) }}</span>
             </div>
-            <el-input
-              v-model="tickFeeInputs[trade.id]"
-              type="number"
-              placeholder="手续费"
-              size="default"
-              class="tick-fee-input"
-            >
-              <template #prefix>¥</template>
-            </el-input>
+
+            <!-- 输入表单 -->
+            <div class="tick-fee-inputs">
+              <div class="input-group">
+                <label>交易日期</label>
+                <el-date-picker
+                  v-model="tradeTime"
+                  type="datetime"
+                  format="YYYY-MM-DD HH:mm:ss"
+                  value-format="YYYY-MM-DD HH:mm:ss"
+                  placeholder="选择交易日期"
+                  size="default"
+                  style="width: 100%"
+                />
+              </div>
+              <div class="input-group">
+                <label>交易数量</label>
+                <el-input
+                  v-model="tradeQuantity"
+                  type="number"
+                  placeholder="输入数量"
+                  size="default"
+                />
+              </div>
+              <div class="input-group">
+                <label>手续费</label>
+                <el-input
+                  v-model="tradeFee"
+                  type="number"
+                  placeholder="输入手续费（可选）"
+                  size="default"
+                >
+                  <template #prefix>¥</template>
+                </el-input>
+              </div>
+            </div>
           </div>
         </div>
         <template #footer>
-          <el-button @click="skipTickFees">跳过</el-button>
-          <el-button type="primary" :loading="savingTickFees" @click="saveTickFees">保存</el-button>
+          <el-button @click="cancelTrade">取消</el-button>
+          <el-button type="primary" :loading="savingTrade" @click="saveTrade">保存并执行</el-button>
         </template>
       </el-dialog>
     </template>
@@ -395,11 +419,13 @@ const editingRecord = ref(null)
 const feeInput = ref('')
 const savingFee = ref(false)
 
-// 价格触发后的费用录入弹窗
+// 交易执行弹窗相关
 const tickFeeDialogVisible = ref(false)
-const tickTrades = ref([])  // 本次触发产生的交易
-const tickFeeInputs = ref({})  // { tradeId: feeValue }
-const savingTickFees = ref(false)
+const tradeType = ref('BUY')
+const tradeTime = ref('')
+const tradeQuantity = ref('')
+const tradeFee = ref('')
+const savingTrade = ref(false)
 
 // OCR导入相关
 const ocrDialogVisible = ref(false)
@@ -489,24 +515,32 @@ const handleExecute = async () => {
     return
   }
 
-  executing.value = true
-  try {
-    const res = await executeTick(strategyId.value, price)
-    const trades = res.data?.trades || []
-    
-    if (trades.length > 0) {
-      // 有交易产生，弹窗录入费用
-      tickTrades.value = trades
-      tickFeeInputs.value = {}
-      trades.forEach(t => {
-        tickFeeInputs.value[t.id] = ''
-      })
-      tickFeeDialogVisible.value = true
+  // 自动判断买入/卖出：价格低于基准价=买入，高于基准价=卖出
+  const basePrice = strategy.value?.basePrice || 0
+  tradeType.value = price <= basePrice ? 'BUY' : 'SELL'
+
+  // 设置默认交易日期为当前时间
+  const now = new Date()
+  const year = now.getFullYear()
+  const month = String(now.getMonth() + 1).padStart(2, '0')
+  const day = String(now.getDate()).padStart(2, '0')
+  const hours = String(now.getHours()).padStart(2, '0')
+  const minutes = String(now.getMinutes()).padStart(2, '0')
+  const seconds = String(now.getSeconds()).padStart(2, '0')
+  tradeTime.value = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`
+
+  // 清空输入
+  tradeQuantity.value = ''
+  tradeFee.value = ''
+
+  // 弹窗
+  tickFeeDialogVisible.value = true
+}
       ElMessage.success(`成交 ${trades.length} 笔，请录入手续费`)
     } else {
       ElMessage.info('未触发任何交易')
     }
-    
+
     await loadData()
   } catch (error) {
     console.error('执行失败:', error)
@@ -563,39 +597,48 @@ const saveFee = async () => {
   }
 }
 
-// 保存价格触发后的费用（批量）
-const saveTickFees = async () => {
-  savingTickFees.value = true
+// 保存并执行交易
+const saveTrade = async () => {
+  const price = parseFloat(priceInput.value)
+  const quantity = parseFloat(tradeQuantity.value)
+  const fee = tradeFee.value ? parseFloat(tradeFee.value) : null
+
+  if (!quantity || quantity <= 0) {
+    ElMessage.warning('请输入有效的交易数量')
+    return
+  }
+
+  if (!tradeTime.value) {
+    ElMessage.warning('请选择交易日期')
+    return
+  }
+
+  savingTrade.value = true
   try {
-    const promises = []
-    for (const trade of tickTrades.value) {
-      const feeStr = tickFeeInputs.value[trade.id]
-      if (feeStr && feeStr.trim() !== '') {
-        const fee = parseFloat(feeStr)
-        if (!isNaN(fee) && fee >= 0) {
-          promises.push(updateTradeFee(trade.id, fee))
-        }
-      }
-    }
-    
-    if (promises.length > 0) {
-      await Promise.all(promises)
-      ElMessage.success('费用保存成功')
-    }
-    
+    // 调用 executeTick 的手动模式
+    await executeTick(strategyId.value, {
+      price: price,
+      type: tradeType.value,
+      quantity: quantity,
+      fee: fee,
+      tradeTime: tradeTime.value
+    })
+
+    ElMessage.success('执行成功')
     tickFeeDialogVisible.value = false
-    await loadData()  // 刷新数据
+    await loadData()
   } catch (error) {
-    console.error('保存费用失败:', error)
-    ElMessage.error('保存失败')
+    console.error('执行失败:', error)
+    ElMessage.error(error.response?.data?.message || '执行失败')
   } finally {
-    savingTickFees.value = false
+    savingTrade.value = false
   }
 }
 
-// 跳过费用录入
-const skipTickFees = () => {
+// 取消交易
+const cancelTrade = () => {
   tickFeeDialogVisible.value = false
+  ElMessage.info('已取消')
 }
 
 // 记录已加载的ID，避免重复加载
@@ -1018,7 +1061,7 @@ const sortOcrRecords = (records) => {
   width: 100%;
 }
 
-/* 价格触发后费用弹窗样式 */
+/* 交易执行弹窗样式 */
 .tick-fee-content {
   padding: 0;
 }
@@ -1031,35 +1074,48 @@ const sortOcrRecords = (records) => {
 
 .tick-fee-item {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
+  flex-direction: column;
+  gap: 12px;
   padding: 12px;
   background: #f5f7fa;
   border-radius: 8px;
-  margin-bottom: 10px;
 }
 
 .tick-fee-trade-info {
   display: flex;
   align-items: center;
   gap: 8px;
-  flex: 1;
+  flex-wrap: wrap;
 }
 
 .tick-fee-price {
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 600;
   color: #303133;
 }
 
-.tick-fee-amount {
+.tick-fee-hint-text {
   font-size: 12px;
   color: #909399;
+  margin-left: auto;
 }
 
-.tick-fee-input {
-  width: 100px;
-  flex-shrink: 0;
+.tick-fee-inputs {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.input-group label {
+  font-size: 13px;
+  color: #606266;
+  font-weight: 500;
 }
 
 /* OCR导入样式 */

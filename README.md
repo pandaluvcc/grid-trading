@@ -123,7 +123,9 @@ grid-trading/
 
 ## 🚀 快速开始
 
-### 1. 启动后端
+### 本地开发
+
+#### 1. 启动后端
 
 ```powershell
 # 方式 A：IDEA 运行
@@ -136,7 +138,7 @@ mvn spring-boot:run
 # 验证：访问 http://localhost:8080/api/strategies
 ```
 
-### 2. 启动前端
+#### 2. 启动前端
 
 ```powershell
 cd E:\project\grid-trading\frontend
@@ -148,6 +150,28 @@ npm run dev
 
 # 访问：http://localhost:5173
 ```
+
+---
+
+### 🚀 生产部署（Maven 自动部署）
+
+**一键部署到服务器**：
+
+```powershell
+cd backend
+mvn clean install -DskipTests
+```
+
+**自动完成**：
+- ✅ 编译打包
+- ✅ 上传到服务器
+- ✅ 自动重启服务
+
+**详细配置**：查看 [📖 Maven 自动部署快速启动](./MAVEN-DEPLOY-QUICKSTART.md)
+
+**其他部署方式**：
+- [PowerShell 一键部署](./docs/JDCloud-Deployment-Guide.md)
+- [Docker Compose 手动部署](./deploy/README.md)
 
 ### 3. 验证系统
 

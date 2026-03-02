@@ -59,9 +59,17 @@ export function getGridLines(strategyId) {
 
 /**
  * 执行一次价格触发
+ * 支持两种模式：
+ * 1. 自动模式：executeTick(strategyId, price)
+ * 2. 手动模式：executeTick(strategyId, { price, type, quantity, fee, tradeTime })
  */
-export function executeTick(strategyId, price) {
-  return api.post(`/strategies/${strategyId}/tick`, { price })
+export function executeTick(strategyId, priceOrData) {
+  // 兼容两种调用方式
+  const data = typeof priceOrData === 'number' || typeof priceOrData === 'string'
+    ? { price: priceOrData }
+    : priceOrData
+
+  return api.post(`/strategies/${strategyId}/tick`, data)
 }
 
 /**
@@ -97,12 +105,6 @@ export function updateTradeFee(tradeId, fee) {
   return api.put(`/trades/${tradeId}/fee`, { fee })
 }
 
-/**
- * 获取策略的累计手续费
- */
-export function getStrategyTotalFee(strategyId) {
-  return api.get(`/strategies/${strategyId}/total-fee`)
-}
 
 /**
  * OCR识别（上传截图）
