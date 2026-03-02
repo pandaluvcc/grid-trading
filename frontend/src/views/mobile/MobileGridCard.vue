@@ -13,7 +13,7 @@
       <div class="price-row">
         <span class="price-label">买</span>
         <span class="price-value buy">
-          {{ formatPrice(grid.buyPrice) }}
+          {{ formatPrice(grid.actualBuyPrice || grid.buyPrice) }}
           <span v-if="showBuyCheck" class="check-mark">✅</span>
         </span>
       </div>

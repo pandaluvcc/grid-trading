@@ -536,19 +536,6 @@ const handleExecute = async () => {
   // 弹窗
   tickFeeDialogVisible.value = true
 }
-      ElMessage.success(`成交 ${trades.length} 笔，请录入手续费`)
-    } else {
-      ElMessage.info('未触发任何交易')
-    }
-
-    await loadData()
-  } catch (error) {
-    console.error('执行失败:', error)
-    ElMessage.error(error.response?.data?.message || '执行失败')
-  } finally {
-    executing.value = false
-  }
-}
 
 // 格式化
  const formatPrice = (val) => val == null ? '-' : Number(val).toFixed(3)

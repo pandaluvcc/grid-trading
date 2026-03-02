@@ -167,7 +167,7 @@ const pendingGrid = computed(() => {
       id: g.id,
       level: g.level,
       action: 'buy',
-      price: g.buyPrice,
+      price: g.actualBuyPrice || g.buyPrice,
       type: formatGridType(g.gridType),
       strategyId: currentStrategy.value.id
     }

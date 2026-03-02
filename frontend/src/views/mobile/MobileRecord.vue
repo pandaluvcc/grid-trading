@@ -42,7 +42,7 @@
           @click="selectGrid(grid)"
         >
           <span class="chip-level">{{ grid.level }}</span>
-          <span class="chip-price">{{ formatPrice(actionType === 'buy' ? grid.buyPrice : grid.sellPrice) }}</span>
+          <span class="chip-price">{{ formatPrice(actionType === 'buy' ? (grid.actualBuyPrice || grid.buyPrice) : grid.sellPrice) }}</span>
         </div>
       </div>
       <div class="selector-hint" v-if="availableGrids.length === 0">
@@ -143,7 +143,7 @@ const availableGrids = computed(() => {
 const planPrice = computed(() => {
   if (!selectedGrid.value) return 0
   return actionType.value === 'buy' 
-    ? selectedGrid.value.buyPrice 
+    ? (selectedGrid.value.actualBuyPrice || selectedGrid.value.buyPrice)
     : selectedGrid.value.sellPrice
 })
 
@@ -209,7 +209,7 @@ const selectGrid = (grid) => {
   selectedGrid.value = grid
   // 默认填入计划价
   inputPrice.value = actionType.value === 'buy' 
-    ? grid.buyPrice.toString() 
+    ? (grid.actualBuyPrice || grid.buyPrice).toString() 
     : grid.sellPrice.toString()
 }
 

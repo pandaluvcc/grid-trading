@@ -168,9 +168,11 @@ public class StrategyController {
      * 3. 大网：特殊锚点反弹规则：
      *    - 第1个大网(Level 10)：sellPrice = basePrice
      *    - 第2个大网(Level 19)：sellPrice = 第2个中网(Level 9)的买入价
-     * 4. ❗买入价计算（差值递减，禁止乘法）：
-     *    - 小网：buyPrice = lastSmallBuyPrice - (basePrice × 5%)
+     * 4. ❗买入价计算（固定比例递减）：
+     *    - 小网：buyPrice = lastSmallBuyPrice × 0.95（固定比例递减）
      *    - 中网/大网：buyPrice = lastSmallBuyPrice（继承最新小网价格）
+     * 5. ❗精度规则：
+     *    - 价格统一3位小数，向下舍入(DOWN)，对用户更有利
      *
      * @param strategy 策略实体（必须已设置 basePrice 和 amountPerGrid）
      */
@@ -180,9 +182,9 @@ public class StrategyController {
         BigDecimal basePrice = strategy.getBasePrice();
         BigDecimal amountPerGrid = strategy.getAmountPerGrid();
         
-        // 计算基准价差（用于差值递减）
-        BigDecimal smallStep = basePrice.multiply(SMALL_PERCENT);  // 5%
-        
+        // 固定比例递减系数
+        BigDecimal decreaseFactor = BigDecimal.ONE.subtract(SMALL_PERCENT);  // 1 - 5% = 0.95
+
         // 追踪变量
         BigDecimal lastSmallBuyPrice = basePrice;  // 最新小网买入价
         BigDecimal lastMediumBuyPrice = null;      // 上一个中网买入价（用于后续中网卖出锚点）
@@ -200,17 +202,17 @@ public class StrategyController {
             BigDecimal sellPrice;
             
             if (gridType == GridType.SMALL) {
-                // === 小网：连续阶梯 ===
+                // === 小网：连续阶梯（固定比例递减）===
                 if (level == 1) {
                     // 第1条小网：buyPrice = basePrice
                     buyPrice = basePrice;
-                    // sellPrice = basePrice + smallStep
-                    sellPrice = basePrice.add(smallStep)
-                            .setScale(8, RoundingMode.HALF_UP);
+                    // sellPrice = basePrice × (1 + 5%)，向下舍入3位
+                    sellPrice = basePrice.multiply(BigDecimal.ONE.add(SMALL_PERCENT))
+                            .setScale(3, RoundingMode.DOWN);
                 } else {
-                    // 后续小网：buyPrice = lastSmallBuyPrice - smallStep（差值递减）
-                    buyPrice = lastSmallBuyPrice.subtract(smallStep)
-                            .setScale(8, RoundingMode.HALF_UP);
+                    // 后续小网：buyPrice = lastSmallBuyPrice × 0.95（固定比例递减），向下舍入3位
+                    buyPrice = lastSmallBuyPrice.multiply(decreaseFactor)
+                            .setScale(3, RoundingMode.DOWN);
                     // sellPrice = 上一条小网.buyPrice（阶梯回撤）
                     sellPrice = lastSmallBuyPrice;
                 }
@@ -269,7 +271,7 @@ public class StrategyController {
             gridLines.add(gridLine);
         }
 
-        // 设置到策略实体（利用 cascade = ALL 自动保存）
+        // 设置到策略实体（利��� cascade = ALL 自动保存）
         strategy.setGridLines(gridLines);
     }
     
@@ -295,8 +297,8 @@ public class StrategyController {
      * @param strategy      所属策略
      * @param gridType      网格类型
      * @param level         档位编号
-     * @param buyPrice      买入价
-     * @param sellPrice     卖出价
+     * @param buyPrice      买入价（3位小数）
+     * @param sellPrice     卖出价（3位小数）
      * @param buyAmount     买入金额
      * @return 完整的 GridLine 实体
      */
@@ -316,22 +318,22 @@ public class StrategyController {
         gridLine.setLevel(level);
         gridLine.setState(GridLineState.WAIT_BUY);
 
-        // 价格信息
-        gridLine.setBuyPrice(buyPrice);
-        gridLine.setSellPrice(sellPrice);
+        // 价格信息（收益最大化：买入向下、卖出四舍五入）
+        gridLine.setBuyPrice(buyPrice.setScale(3, RoundingMode.DOWN));           // 买得便宜
+        gridLine.setSellPrice(sellPrice.setScale(3, RoundingMode.HALF_UP));      // 卖得贵
         // 触发价计算：买入触发价 = 买入价 + 0.02，卖出触发价 = 卖出价 - 0.02
-        gridLine.setBuyTriggerPrice(buyPrice.add(new BigDecimal("0.02")));
-        gridLine.setSellTriggerPrice(sellPrice.subtract(new BigDecimal("0.02")));
+        gridLine.setBuyTriggerPrice(buyPrice.add(new BigDecimal("0.02")).setScale(3, RoundingMode.DOWN));
+        gridLine.setSellTriggerPrice(sellPrice.subtract(new BigDecimal("0.02")).setScale(3, RoundingMode.HALF_UP));
 
         // 买入金额
         gridLine.setBuyAmount(buyAmount);
 
-        // 买入数量 = 买入金额 / 买入价格
-        BigDecimal buyQuantity = buyAmount.divide(buyPrice, 8, RoundingMode.DOWN);
+        // 买入数量 = 买入金额 / 买入价格（8位小数，向下舍入确保不超支）
+        BigDecimal buyQuantity = buyAmount.divide(gridLine.getBuyPrice(), 8, RoundingMode.DOWN);
         gridLine.setBuyQuantity(buyQuantity);
 
-        // 卖出金额 = 买入数量 × 卖出价格
-        BigDecimal sellAmount = buyQuantity.multiply(sellPrice).setScale(2, RoundingMode.DOWN);
+        // 卖出金额 = 买入数量 × 卖出价格（2位小数，向下舍入）
+        BigDecimal sellAmount = buyQuantity.multiply(gridLine.getSellPrice()).setScale(2, RoundingMode.DOWN);
         gridLine.setSellAmount(sellAmount);
 
         // 毛利润 = 卖出金额 - 买入金额
@@ -356,85 +358,77 @@ public class StrategyController {
     }
 
     /**
-     * 执行一次 tick（价格更新）
-     * 支持两种模式：
-     * 1. 自动模式：只传 price，系统自动执行网格引擎
-     * 2. 手动模式：传 price + type + quantity + fee + tradeTime，手动录入交易
+     * 执行一次交易录入
+     * 所有参数必填，直接录入用户的实际成交数据
      */
     @PostMapping("/{id}/tick")
     public TickResponse executeTick(@PathVariable Long id, @RequestBody TickRequest request) {
+        // 参数校验
+        if (request.getPrice() == null || request.getPrice().compareTo(BigDecimal.ZERO) <= 0) {
+            throw new IllegalArgumentException("price 必填且必须大于 0");
+        }
+        if (request.getType() == null) {
+            throw new IllegalArgumentException("type 必填");
+        }
+        if (request.getQuantity() == null || request.getQuantity().compareTo(BigDecimal.ZERO) <= 0) {
+            throw new IllegalArgumentException("quantity 必填且必须大于 0");
+        }
+        if (request.getFee() == null || request.getFee().compareTo(BigDecimal.ZERO) < 0) {
+            throw new IllegalArgumentException("fee 必填且必须大于等于 0");
+        }
+        if (request.getTradeTime() == null || request.getTradeTime().isEmpty()) {
+            throw new IllegalArgumentException("tradeTime 必填");
+        }
+
         Strategy strategy = strategyRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("策略不存在: " + id));
 
-        // 判断是手动模式还是自动模式
-        if (request.getType() != null && request.getQuantity() != null) {
-            // ========== 手动模式：直接创建交易记录 ==========
-            TradeRecord record = new TradeRecord();
-            record.setStrategy(strategy);
-            record.setType(request.getType());
-            record.setPrice(request.getPrice());
-            record.setQuantity(request.getQuantity());
-            record.setAmount(request.getPrice().multiply(request.getQuantity()));
-            record.setFee(request.getFee());
-
-            // 解析交易时间
-            if (request.getTradeTime() != null && !request.getTradeTime().isEmpty()) {
-                try {
-                    java.time.format.DateTimeFormatter formatter =
-                        java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
-                    record.setTradeTime(LocalDateTime.parse(request.getTradeTime(), formatter));
-                } catch (Exception e) {
-                    record.setTradeTime(LocalDateTime.now());
-                }
-            } else {
-                record.setTradeTime(LocalDateTime.now());
-            }
-
-            tradeRecordRepository.save(record);
-
-            // 构建响应
-            TickResponse response = new TickResponse();
-            response.setStatus(strategy.getStatus());
-            response.setCurrentPrice(request.getPrice());
-            response.setPosition(strategy.getPosition());
-            response.setAvailableCash(strategy.getAvailableCash());
-            response.setInvestedAmount(strategy.getInvestedAmount());
-            response.setRealizedProfit(strategy.getRealizedProfit());
-            response.setTrades(java.util.Collections.singletonList(TradeRecordDto.fromEntity(record)));
-
-            return response;
-        } else {
-            // ========== 自动模式：执行网格引擎 ==========
-            LocalDateTime beforeExecution = LocalDateTime.now();
-
-            // 执行价格更新
-            gridEngine.processPrice(id, request.getPrice());
-
-            // 重新加载策略获取最新状态
-            strategy = strategyRepository.findById(id)
-                    .orElseThrow(() -> new RuntimeException("策略不存在: " + id));
-
-            // 查询本次执行产生的交易记录
-            List<TradeRecord> newTrades = tradeRecordRepository
-                    .findByStrategyIdAndTradeTimeAfter(id, beforeExecution);
-
-            // 构建响应
-            TickResponse response = new TickResponse();
-            response.setStatus(strategy.getStatus());
-            response.setCurrentPrice(strategy.getLastPrice());
-            response.setPosition(strategy.getPosition());
-            response.setAvailableCash(strategy.getAvailableCash());
-            response.setInvestedAmount(strategy.getInvestedAmount());
-            response.setRealizedProfit(strategy.getRealizedProfit());
-
-            List<TradeRecordDto> tradeDtos = newTrades.stream()
-                    .map(TradeRecordDto::fromEntity)
-                    .collect(Collectors.toList());
-            response.setTrades(tradeDtos);
-
-            return response;
+        // 解析交易时间
+        LocalDateTime tradeTime;
+        try {
+            java.time.format.DateTimeFormatter formatter =
+                java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+            tradeTime = LocalDateTime.parse(request.getTradeTime(), formatter);
+        } catch (Exception e) {
+            throw new IllegalArgumentException("交易时间格式错误，请使用 yyyy-MM-dd HH:mm:ss 格式");
         }
+
+        // 调用 GridEngine 处理交易
+        LocalDateTime beforeExecution = LocalDateTime.now();
+        gridEngine.processManualTrade(
+            id,
+            request.getType(),
+            request.getPrice(),
+            request.getQuantity(),
+            request.getFee(),
+            tradeTime
+        );
+
+        // 重新加载策略获取最新状态
+        strategy = strategyRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("策略不存在: " + id));
+
+        // 查询本次执行产生的交易记录
+        List<TradeRecord> newTrades = tradeRecordRepository
+                .findByStrategyIdAndTradeTimeAfter(id, beforeExecution);
+
+        // 构建响应
+        TickResponse response = new TickResponse();
+        response.setStatus(strategy.getStatus());
+        response.setCurrentPrice(request.getPrice());
+        response.setPosition(strategy.getPosition());
+        response.setAvailableCash(strategy.getAvailableCash());
+        response.setInvestedAmount(strategy.getInvestedAmount());
+        response.setRealizedProfit(strategy.getRealizedProfit());
+
+        List<TradeRecordDto> tradeDtos = newTrades.stream()
+                .map(TradeRecordDto::fromEntity)
+                .collect(Collectors.toList());
+        response.setTrades(tradeDtos);
+
+        return response;
     }
+
 
     /**
      * 获取策略详情（完整信息）
@@ -472,7 +466,7 @@ public class StrategyController {
         GridLine gridLine = gridLineRepository.findById(gridLineId)
                 .orElseThrow(() -> new RuntimeException("网格线不存在: " + gridLineId));
 
-        // 验证状态：只有等待买入状态才能修改计划买入价
+        // 验证状态：只有等待买入状态���能修改计划买入价
         if (gridLine.getState() != GridLineState.WAIT_BUY) {
             throw new IllegalArgumentException("只有等待买入状态的网格才能修改计划买入价");
         }
@@ -804,6 +798,8 @@ public class StrategyController {
                     item.setLevel(gridLine.getLevel());
                     item.setBuyPrice(gridLine.getBuyPrice());
                     item.setSellPrice(gridLine.getSellPrice());
+                    item.setActualBuyPrice(gridLine.getActualBuyPrice());     // 实际买入价
+                    item.setActualSellPrice(gridLine.getActualSellPrice());   // 实际卖出价
                     item.setBuyTriggerPrice(gridLine.getBuyTriggerPrice());
                     item.setSellTriggerPrice(gridLine.getSellTriggerPrice());
                     item.setQuantity(gridLine.getBuyQuantity());

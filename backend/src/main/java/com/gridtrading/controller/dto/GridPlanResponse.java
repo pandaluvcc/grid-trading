@@ -48,8 +48,10 @@ public class GridPlanResponse {
         private Long id;
         private GridType gridType;
         private Integer level;
-        private BigDecimal buyPrice;
-        private BigDecimal sellPrice;
+        private BigDecimal buyPrice;          // 计划买入价
+        private BigDecimal sellPrice;         // 计划卖出价
+        private BigDecimal actualBuyPrice;    // 实际买入价
+        private BigDecimal actualSellPrice;   // 实际卖出价
         private BigDecimal buyTriggerPrice;
         private BigDecimal sellTriggerPrice;
         private BigDecimal quantity;
@@ -100,6 +102,22 @@ public class GridPlanResponse {
 
         public void setSellPrice(BigDecimal sellPrice) {
             this.sellPrice = sellPrice;
+        }
+
+        public BigDecimal getActualBuyPrice() {
+            return actualBuyPrice;
+        }
+
+        public void setActualBuyPrice(BigDecimal actualBuyPrice) {
+            this.actualBuyPrice = actualBuyPrice;
+        }
+
+        public BigDecimal getActualSellPrice() {
+            return actualSellPrice;
+        }
+
+        public void setActualSellPrice(BigDecimal actualSellPrice) {
+            this.actualSellPrice = actualSellPrice;
         }
 
         public BigDecimal getBuyTriggerPrice() {
