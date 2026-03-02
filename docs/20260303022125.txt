@@ -1,0 +1,501 @@
+我的提问：
+网格计划是理想情况的计划，通过导入进来的都是真实的交易记录，里面包含了买入和卖出，所以肯定要按真实价格来重新生成网格。我是同意区分建议买入/卖出价，真实买入/卖出价的。
+小网的卖出价是否应该等于上一小网的买入价，一般情况理论上是这样的，但是如果导入进来的价格覆盖了当前网，那是否还应该遵守这样呢，或者重新计算当前网的卖出价（真实买入价+【真实买入价*5%】），这一点我拿不准主意，需要你结合实际情况还有主流做法来定下方案。
+2.中网、大网的卖出价逻辑我觉得按你的来没问题，第5网中网的卖出价就应该是1.710
+3.买入价、卖出价确实要级联更新，但是要看情况，如果当前网格交易了，本来已经是真实价格，结果你下一网更新把当前网的真实价格改成了建议价格，那就肯定不对。如果加上了区分字段是否更好设计逻辑
+你根据我说这些列一个方案说明文档，先不改代码
+
+
+你的回复：
+
+📋 网格价格管理方案设计文档
+一、核心理念
+区分"建议价格"和"实际价格"，两者独立存储，互不覆盖：
+字段名
+用途
+来源
+是否可修改
+buyPrice
+建议买入价（理论计划）
+系统计算
+可级联更新
+sellPrice
+建议卖出价（理论计划）
+系统计算
+可级联更新
+actualBuyPrice
+实际买入价（已成交）
+交易录入/OCR导入
+不可修改
+actualSellPrice
+实际卖出价（已成交）
+交易录入/OCR导入
+不可修改
+
+二、小网卖出价设计方案（重点讨论）
+方案对比
+场景：第7网（小网）实际买入价 = 1.324
+方案
+第8网建议卖出价
+计算逻辑
+优点
+缺点
+方案A：阶梯回撤
+1.324（第7网买入价）
+严格遵循网格规则
+网格连贯、易理解
+可能偏离实际市场
+方案B：动态收益
+1.324×1.05=1.390
+基于真实价格+5%收益
+更贴合实际、收益固定
+打破了阶梯结构
+
+🎯 推荐方案：方案A（阶梯回撤）+ 特殊情况处理
+核心逻辑：
+IF 第8网状态 == WAIT_BUY（未成交）:
+    第8网建议卖出价 = 第7网建议买入价（遵循阶梯规则）
+
+ELSE IF 第8网状态 == BOUGHT（已买入）:
+    第8网建议卖出价 = 第7网实际买入价（actualBuyPrice）
+    // 因为第7网已经成交，使用真实价格更合理
+示例演算（基准价1.71）：
+Level
+状态
+实际买入价
+建议买入价
+建议卖出价
+说明
+7
+BOUGHT
+1.324
+1.324
+1.394
+OCR导入真实价
+8
+BOUGHT
+1.275
+1.275
+1.324
+卖出价=第7网真实买入价 ✅
+9
+WAIT_BUY
+null
+1.275
+1.465
+继承第8网，卖回第5网
+理由：
+保持阶梯结构：第8网卖出到第7网的买入点，完成一次套利循环
+尊重真实数据：使用第7网的实际成交价，更准确
+符合主流做法：网格交易的本质就是"高卖低买"，在两个实际成交价之间套利
+易于理解：用户看到"我在1.324买的，就在1.324卖"，逻辑清晰
+
+三、中网/大网卖出价逻辑（已确认）
+规则
+网格
+建议卖出价
+说明
+第5网（中网）
+1.710（基准价）
+卖回起点 ✅
+第9网（中网）
+第5网的实际买入价或建议买入价
+卖回上一中网 ✅
+第10网（大网）
+1.710（基准价）
+卖回起点 ✅
+第14网（中网）
+第9网的实际买入价或建议买入价
+卖回上一中网 ✅
+第18网（中网）
+第14网的实际买入价或建议买入价
+卖回上一中网 ✅
+第19网（大网）
+第9网的实际买入价或建议买入价
+特殊规则 ✅
+取值优先级：
+锚点价格 = actualBuyPrice != null ? actualBuyPrice : buyPrice
+你的确认：这个逻辑没问题 ✅
+
+四、级联更新规则（核心逻辑）
+原则：实际价格永不被覆盖
+级联更新触发条件：
+1. 手动录入交易（更新actualBuyPrice/actualSellPrice）
+2. 修改计划价格（更新buyPrice/sellPrice）
+
+级联更新规则：
+IF 网格状态 == WAIT_BUY（未成交）:
+    ✅ 可以更新 buyPrice 和 sellPrice
+    ❌ actualBuyPrice 和 actualSellPrice 保持 null
+
+ELSE IF 网格状态 == BOUGHT（已买入）:
+    ✅ 可以更新 sellPrice（因为还没卖出）
+    ❌ actualBuyPrice 不可修改（已成交）
+    ❌ buyPrice 不可修改（已成交，保持历史计划）
+
+ELSE IF 网格状态 == SOLD（已卖出，循环回 WAIT_BUY）:
+    ✅ 可以更新 buyPrice 和 sellPrice（新一轮）
+    ❌ actualBuyPrice 和 actualSellPrice 保持历史记录
+
+级联更新场景
+场景1：手动录入第8网买入（价格1.275）
+执行步骤：
+1. 第8网：
+   - actualBuyPrice = 1.275（记录实际价格）
+   - buyPrice = 1.275（同步更新，供后续计算）
+   - state = BOUGHT
+
+2. 第9网（中网，WAIT_BUY）：
+   - buyPrice = 1.275（继承第8网）
+   - sellPrice = 1.466（卖回第5网，取第5网的actual或buy）
+
+3. 第10网（大网，WAIT_BUY）：
+   - buyPrice = 1.275（继承第8网）
+   - sellPrice = 1.710（卖回基准价）
+
+4. 第11网（小网，WAIT_BUY）：
+   - buyPrice = 1.275 × 0.95 = 1.211（递减）
+   - sellPrice = 1.275（卖回第8网）
+
+5. 第12网（小网，WAIT_BUY）：
+   - buyPrice = 1.211 × 0.95 = 1.150（继续递减）
+   - sellPrice = 1.211（卖回第11网）
+
+... 依此类推，所有未成交网格全部重算
+场景2：OCR导入第1-6网历史数据
+导入时：
+第1网（已买入1.710，已卖出1.795）：
+   - actualBuyPrice = 1.710
+   - actualSellPrice = 1.795
+   - buyPrice = 1.710
+   - sellPrice = 1.795（使用实际卖出价）
+   - state = WAIT_BUY（循环回初始）
+
+第2网（已买入1.625）：
+   - actualBuyPrice = 1.625
+   - actualSellPrice = null（还没卖）
+   - buyPrice = 1.625
+   - sellPrice = 1.710（应该卖回第1网）❌ 当前是1.706
+   - state = BOUGHT
+
+导入后：
+   触发级联更新：
+   - 第3-19网的 buyPrice/sellPrice 全部基于第1-6网的实际价格重新计算
+
+五、数据库字段小数位数规范
+字段
+小数位数
+舍入方式
+理由
+buyPrice
+3位
+DOWN（向下）
+买得更便宜
+sellPrice
+3位
+HALF_UP（四舍五入）
+卖得更贵
+actualBuyPrice
+3位
+保持原值
+交易所实际成交价
+actualSellPrice
+3位
+保持原值
+交易所实际成交价
+buyTriggerPrice
+3位
+DOWN
+与买入价一致
+sellTriggerPrice
+3位
+HALF_UP
+与卖出价一致
+buyAmount/sellAmount
+2位
+DOWN
+金额精度
+buyQuantity
+8位
+DOWN
+加密货币精度
+profit
+2位
+HALF_UP
+收益统计
+profitRate
+6位
+HALF_UP
+百分比精度
+
+六、当前数据问题分析
+问题1：sellPrice没有遵循阶梯规则
+Level
+实际sellPrice
+理论sellPrice
+差异
+原因
+2
+1.706
+1.710(第1网buy)
+-0.004
+OCR导入的可能是实际卖出价
+3
+1.621
+1.625(第2网buy)
+-0.004
+同上
+5
+1.686
+1.710(基准价)
+-0.024
+锚点逻辑错误 ⚠️
+根本原因：OCR导入时，sellPrice使用了历史的实际卖出价，而不是按网格规则计算的理论价格。
+问题2：小数位数不统一
+sellPrice有5位、6位、8位小数混乱
+应该统一为3位小数
+
+七、完整解决方案
+修复点1：generateGridLines() 方法
+// 小网的sellPrice计算
+if (level == 1) {
+    sellPrice = basePrice.multiply(1.05)
+        .setScale(3, RoundingMode.HALF_UP);  // ✅ 改为HALF_UP
+} else {
+    // ✅ 核心修复：sellPrice要标准化
+    sellPrice = lastSmallBuyPrice.setScale(3, RoundingMode.HALF_UP);
+}
+
+// 中网的sellPrice计算
+if (level == 5) {
+    sellPrice = basePrice.setScale(3, RoundingMode.HALF_UP);  // ✅ 加上setScale
+} else {
+    sellPrice = lastMediumBuyPrice.setScale(3, RoundingMode.HALF_UP);  // ✅ 加上setScale
+}
+修复点2：recalculateSubsequentGridsAfterManualBuy() 方法
+// 小网：继续递减
+newBuyPrice = lastSmallBuyPrice × 0.95（向下3位）
+newSellPrice = lastSmallBuyPrice（四舍五入3位） // ✅ 使用上一小网的买入价
+
+// 中网/大网：使用 actualBuyPrice 优先
+锚点价格 = (目标网格.actualBuyPrice != null) ?
+           目标网格.actualBuyPrice :
+           目标网格.buyPrice;
+newSellPrice = 锚点价格.setScale(3, HALF_UP);
+修复点3：触发价同步更新
+// GridEngine重算时，同步更新触发价
+gridLine.setBuyTriggerPrice(newBuyPrice.add(0.02).setScale(3, DOWN));
+gridLine.setSellTriggerPrice(newSellPrice.subtract(0.02).setScale(3, HALF_UP));
+修复点4：级联更新保护机制
+// 只更新未成交网格的建议价格
+if (gridLine.getState() == WAIT_BUY) {
+    // ✅ 可以更新 buyPrice 和 sellPrice
+    gridLine.setBuyPrice(newBuyPrice);
+    gridLine.setSellPrice(newSellPrice);
+}
+else if (gridLine.getState() == BOUGHT) {
+    // ✅ 只能更新 sellPrice（还没卖）
+    // ❌ buyPrice 不更新（已买入，保持历史）
+    gridLine.setSellPrice(newSellPrice);
+}
+else {
+    // SOLD 或其他状态：不更新任何建议价格
+    // actualBuyPrice/actualSellPrice 永远不被级联更新覆盖
+}
+
+八、OCR导入逻辑优化方案
+当前问题
+OCR导入时，可能导入了历史的实际卖出价（比如第2网卖出价1.706），这个价格不符合网格规则（应该是1.710）。
+推荐方案：导入后触发"网格修复"
+OCR导入流程：
+1. 解析交易记录（买入/卖出价格、时间、数量）
+2. 写入 actualBuyPrice/actualSellPrice
+3. 更新网格状态（BOUGHT/WAIT_BUY）
+4. ✅ 调用级联更新方法，重新计算所有未成交网格的 buyPrice/sellPrice
+优势：
+保留历史真实数据（actual字段）
+自动修复理论价格（buy/sell字段）
+确保未来交易基于正确的网格计划
+
+九、完整示例演算
+场景：导入1-8网历史数据后的网格计划
+导入数据：
+第1-6网：已买入已卖出（循环回WAIT_BUY）
+第7网：已买入1.324（BOUGHT）
+第8网：已买入1.275（BOUGHT）
+级联更新后的理论网格：
+Level
+状态
+actualBuy
+actualSell
+buyPrice
+sellPrice
+说明
+1
+WAIT_BUY
+1.710
+1.795
+1.710
+1.795
+基准，保持历史
+2
+BOUGHT
+1.625
+null
+1.625
+1.710
+卖回第1网（修复）✅
+3
+BOUGHT
+1.544
+null
+1.544
+1.625
+卖回第2网（修复）✅
+4
+BOUGHT
+1.467
+1.544
+1.467
+1.544
+卖回第3网（修复）✅
+5
+BOUGHT
+1.466
+null
+1.466
+1.710
+卖回基准（修复）✅
+6
+BOUGHT
+1.394
+null
+1.394
+1.467
+卖回第4网（修复）✅
+7
+BOUGHT
+1.324
+null
+1.324
+1.394
+卖回第6网（修复）✅
+8
+BOUGHT
+1.275
+null
+1.275
+1.324
+卖回第7网 ✅
+9
+WAIT_BUY
+null
+null
+1.275
+1.466
+继承第8网，卖回第5网（actual优先）✅
+10
+WAIT_BUY
+null
+null
+1.275
+1.710
+继承第8网，卖回基准 ✅
+11
+WAIT_BUY
+null
+null
+1.211
+1.275
+1.275×0.95，卖回第8网 ✅
+12
+WAIT_BUY
+null
+null
+1.150
+1.211
+1.211×0.95，卖回第11网 ✅
+13
+WAIT_BUY
+null
+null
+1.092
+1.150
+1.150×0.95，卖回第12网 ✅
+
+十、主流做法参考
+主流网格交易平台的做法
+币安网格：
+建议价格和实际价格完全分离
+实际成交价不影响网格计划
+每次成交后会"微调"后续网格建议价（类似我们的级联更新）
+欧易网格：
+支持"动态调整"模式
+根据实际成交价重新计算后续网格
+但历史网格的计划价格不变
+火币网格：
+严格按照初始网格计划执行
+不支持中途修改
+实际价格偏离计划时会标红提示
+推荐策略（综合主流做法）
+我们采用：币安模式 + 欧易动态调整
+✅ 建议价格和实际价格分离
+✅ 支持级联更新（动态调整）
+✅ 保护已成交网格的actual字段
+✅ 前端同时显示两种价格，偏差大时标红提示
+
+十一、前端显示建议
+// 网格计划显示逻辑
+显示买入价：
+  IF actualBuyPrice != null:
+    主显示：actualBuyPrice（绿色加粗）
+    副显示：buyPrice（灰色删除线，如果与actual不同）
+  ELSE:
+    主显示：buyPrice（黑色正常）
+
+显示卖出价：
+  IF actualSellPrice != null:
+    主显示：actualSellPrice（红色加粗）
+    副显示：sellPrice（灰色删除线，如果与actual不同）
+  ELSE:
+    主显示：sellPrice（黑色正常）
+
+偏差提示：
+  IF |actualBuyPrice - buyPrice| > 0.01:
+    显示警告图标："实际价格偏离计划 +1.72分"
+
+十二、总结：需要修复的代码点
+序号
+文件
+方法
+修复内容
+1
+StrategyController
+generateGridLines()
+sellPrice 加 .setScale(3, HALF_UP)
+2
+StrategyController
+generateGridLines()
+第1网sellPrice改为HALF_UP
+3
+GridEngine
+recalculateSubsequentGridsAfterManualBuy()
+小网sellPrice使用上一小网buyPrice
+4
+GridEngine
+recalculateSubsequentGridsAfterManualBuy()
+中网/大网sellPrice优先使用actualBuyPrice
+5
+GridEngine
+recalculateSubsequentGridsAfterManualBuy()
+添加触发价同步更新
+6
+GridEngine
+recalculateSubsequentGridsAfterManualBuy()
+添加状态保护（BOUGHT只更新sellPrice）
+
+❓ 需要你最终确认
+小网卖出价规则：确认使用"阶梯回撤"方案（sellPrice = 上一小网的实际买入价）✅ 还是 ❌？
+OCR导入后是否自动修复：确认导入历史数据后，自动重新计算未成交网格的建议价格 ✅ 还是 ❌？
+已成交网格的buyPrice：确认已买入的网格，其buyPrice不被级联更新覆盖 ✅ 还是 ❌？
+请确认这3点，我立即开始修改代码！
