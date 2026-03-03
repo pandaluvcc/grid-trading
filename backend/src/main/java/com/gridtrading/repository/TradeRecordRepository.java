@@ -4,6 +4,8 @@ import com.gridtrading.domain.Strategy;
 import com.gridtrading.domain.TradeRecord;
 import com.gridtrading.domain.TradeType;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
@@ -39,4 +41,15 @@ public interface TradeRecordRepository extends JpaRepository<TradeRecord, Long> 
      * 查询某个网格的所有交易记录（按时间升序）
      */
     List<TradeRecord> findByGridLineIdOrderByTradeTimeAsc(Long gridLineId);
+
+    /**
+     * 查询策略的所有交易记录（按时间升序）- 用于批量计算收益
+     */
+    List<TradeRecord> findByStrategyIdOrderByTradeTimeAsc(Long strategyId);
+
+    /**
+     * ✅ 优化：查询策略的所有交易记录，并JOIN FETCH关联的GridLine，避免N+1查询
+     */
+    @Query("SELECT tr FROM TradeRecord tr JOIN FETCH tr.gridLine WHERE tr.strategy.id = :strategyId ORDER BY tr.tradeTime ASC")
+    List<TradeRecord> findByStrategyIdWithGridLineOrderByTradeTimeAsc(@Param("strategyId") Long strategyId);
 }

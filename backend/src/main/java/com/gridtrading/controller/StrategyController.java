@@ -206,15 +206,15 @@ public class StrategyController {
                 if (level == 1) {
                     // 第1条小网：buyPrice = basePrice
                     buyPrice = basePrice;
-                    // sellPrice = basePrice × (1 + 5%)，向下舍入3位
+                    // ✅ 修复：sellPrice = basePrice × (1 + 5%)，四舍五入3位（卖得更贵）
                     sellPrice = basePrice.multiply(BigDecimal.ONE.add(SMALL_PERCENT))
-                            .setScale(3, RoundingMode.DOWN);
+                            .setScale(3, RoundingMode.HALF_UP);
                 } else {
                     // 后续小网：buyPrice = lastSmallBuyPrice × 0.95（固定比例递减），向下舍入3位
                     buyPrice = lastSmallBuyPrice.multiply(decreaseFactor)
                             .setScale(3, RoundingMode.DOWN);
-                    // sellPrice = 上一条小网.buyPrice（阶梯回撤）
-                    sellPrice = lastSmallBuyPrice;
+                    // ✅ 修复：sellPrice = 上一条小网.buyPrice（阶梯回撤），四舍五入3位
+                    sellPrice = lastSmallBuyPrice.setScale(3, RoundingMode.HALF_UP);
                 }
                 
                 // 更新最新小网买入价
@@ -229,11 +229,11 @@ public class StrategyController {
                 
                 // sellPrice = 锚点
                 if (level == 5) {
-                    // 第1个中网（第5条）：卖回 basePrice
-                    sellPrice = basePrice;
+                    // ✅ 修复：第1个中网（第5条）：卖回 basePrice，四舍五入3位
+                    sellPrice = basePrice.setScale(3, RoundingMode.HALF_UP);
                 } else {
-                    // 后续中网：卖回上一个中网的 buyPrice
-                    sellPrice = lastMediumBuyPrice;
+                    // ✅ 修复：后续中网：卖回上一个中网的 buyPrice，四舍五入3位
+                    sellPrice = lastMediumBuyPrice.setScale(3, RoundingMode.HALF_UP);
                 }
                 
                 // 记录当前中网买入价，供后续中网使用
@@ -251,11 +251,11 @@ public class StrategyController {
                 
                 // sellPrice 特殊规则
                 if (level == 10) {
-                    // 第1个大网：卖回 basePrice
-                    sellPrice = basePrice;
+                    // ✅ 修复：第1个大网：卖回 basePrice，四舍五入3位
+                    sellPrice = basePrice.setScale(3, RoundingMode.HALF_UP);
                 } else {
-                    // 第2个大网（Level 19）：卖回第2个中网(Level 9)的买入价
-                    sellPrice = secondMediumBuyPrice;
+                    // ✅ 修复：第2个大网（Level 19）：卖回第2个中网(Level 9)的买入价，四舍五入3位
+                    sellPrice = secondMediumBuyPrice.setScale(3, RoundingMode.HALF_UP);
                 }
             }
             

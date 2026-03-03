@@ -10,19 +10,44 @@
 
     <!-- 中间价格信息 -->
     <div class="card-center">
+      <!-- 买入价 -->
       <div class="price-row">
         <span class="price-label">买</span>
-        <span class="price-value buy">
-          {{ formatPrice(grid.actualBuyPrice || grid.buyPrice) }}
-          <span v-if="showBuyCheck" class="check-mark">✅</span>
-        </span>
+        <div class="price-value-wrapper">
+          <!-- 主显示：真实价格（如果有）或建议价格 -->
+          <span class="price-value buy" :class="{ 'price-deviation': hasBuyDeviation }">
+            {{ formatPrice(displayBuyPrice) }}
+            <span v-if="showBuyCheck" class="check-mark">✅</span>
+          </span>
+          <!-- 副显示：当真实价格与建议价格不同时，显示建议价格（删除线） -->
+          <span v-if="hasBuyDeviation" class="price-original">
+            {{ formatPrice(grid.buyPrice) }}
+          </span>
+          <!-- 偏差提示 -->
+          <span v-if="hasBuyDeviation" class="price-diff-badge">
+            偏差{{ buyDeviation }}
+          </span>
+        </div>
       </div>
+
+      <!-- 卖出价 -->
       <div class="price-row">
         <span class="price-label">卖</span>
-        <span class="price-value sell">
-          {{ formatPrice(grid.sellPrice) }}
-          <span v-if="showSellCheck" class="check-mark">✅</span>
-        </span>
+        <div class="price-value-wrapper">
+          <!-- 主显示：真实价格（如果有）或建议价格 -->
+          <span class="price-value sell" :class="{ 'price-deviation': hasSellDeviation }">
+            {{ formatPrice(displaySellPrice) }}
+            <span v-if="showSellCheck" class="check-mark">✅</span>
+          </span>
+          <!-- 副显示：当真实价格与建议价格不同时，显示建议价格（删除线） -->
+          <span v-if="hasSellDeviation" class="price-original">
+            {{ formatPrice(grid.sellPrice) }}
+          </span>
+          <!-- 偏差提示 -->
+          <span v-if="hasSellDeviation" class="price-diff-badge">
+            偏差{{ sellDeviation }}
+          </span>
+        </div>
       </div>
     </div>
 
@@ -97,6 +122,56 @@ const completedCycles = computed(() => {
 // 卖✅：sellCount > buyCount（理论情况，网格交易一般不会出现）
 const showBuyCheck = computed(() => buyCount.value > sellCount.value)
 const showSellCheck = computed(() => sellCount.value > buyCount.value)
+
+// ===== ✅ 新增：价格显示和偏差计算 =====
+// 偏差阈值：超过此值时标红提示
+const DEVIATION_THRESHOLD = 0.01 // 0.01 = 1分
+
+// 显示的买入价（优先真实价格）
+const displayBuyPrice = computed(() => {
+  return props.grid.actualBuyPrice || props.grid.buyPrice
+})
+
+// 显示的卖出价（优先真实价格）
+const displaySellPrice = computed(() => {
+  return props.grid.actualSellPrice || props.grid.sellPrice
+})
+
+// 买入价是否有偏差
+const hasBuyDeviation = computed(() => {
+  if (!props.grid.actualBuyPrice) return false // 没有真实价格，无偏差
+  if (!props.grid.buyPrice) return false
+  const diff = Math.abs(Number(props.grid.actualBuyPrice) - Number(props.grid.buyPrice))
+  return diff > DEVIATION_THRESHOLD
+})
+
+// 卖出价是否有偏差
+const hasSellDeviation = computed(() => {
+  if (!props.grid.actualSellPrice) return false // 没有真实价格，无偏差
+  if (!props.grid.sellPrice) return false
+  const diff = Math.abs(Number(props.grid.actualSellPrice) - Number(props.grid.sellPrice))
+  return diff > DEVIATION_THRESHOLD
+})
+
+// 买入价偏差（格式化显示）
+const buyDeviation = computed(() => {
+  if (!hasBuyDeviation.value) return ''
+  const actual = Number(props.grid.actualBuyPrice)
+  const plan = Number(props.grid.buyPrice)
+  const diff = actual - plan
+  const sign = diff > 0 ? '+' : ''
+  return `${sign}${diff.toFixed(3)}`
+})
+
+// 卖出价偏差（格式化显示）
+const sellDeviation = computed(() => {
+  if (!hasSellDeviation.value) return ''
+  const actual = Number(props.grid.actualSellPrice)
+  const plan = Number(props.grid.sellPrice)
+  const diff = actual - plan
+  const sign = diff > 0 ? '+' : ''
+  return `${sign}${diff.toFixed(3)}`
+})
 
 // 轮次文字（简洁显示）
 const cycleText = computed(() => {
@@ -207,12 +282,12 @@ const formatAmount = (val) => {
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px; /* 增加间距以容纳偏差提示 */
 }
 
 .price-row {
   display: flex;
-  align-items: center;
+  align-items: flex-start; /* 改为flex-start以支持多行 */
   gap: 8px;
 }
 
@@ -220,6 +295,13 @@ const formatAmount = (val) => {
   font-size: 12px;
   color: #909399;
   width: 16px;
+  margin-top: 2px; /* 与价格对齐 */
+}
+
+.price-value-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
 
 .price-value {
@@ -237,6 +319,43 @@ const formatAmount = (val) => {
 
 .price-value.sell {
   color: #67c23a;
+}
+
+/* ✅ 新增：价格偏差标红 */
+.price-value.price-deviation {
+  font-weight: 700;
+  position: relative;
+}
+
+.price-value.price-deviation.buy {
+  color: #f56c6c;
+  text-shadow: 0 0 1px rgba(245, 108, 108, 0.3);
+}
+
+.price-value.price-deviation.sell {
+  color: #e6a23c; /* 卖出价偏差用橙色警告 */
+  text-shadow: 0 0 1px rgba(230, 162, 60, 0.3);
+}
+
+/* ✅ 新增：原始价格（删除线） */
+.price-original {
+  font-size: 11px;
+  color: #909399;
+  text-decoration: line-through;
+  font-family: 'SF Mono', 'Monaco', monospace;
+}
+
+/* ✅ 新增：偏差标签 */
+.price-diff-badge {
+  display: inline-block;
+  font-size: 10px;
+  color: #e6a23c;
+  background: #fdf6ec;
+  border: 1px solid #f5dab1;
+  border-radius: 3px;
+  padding: 1px 4px;
+  font-weight: 500;
+  margin-left: 4px;
 }
 
 .check-mark {
