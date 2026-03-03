@@ -221,9 +221,9 @@ public class GridEngine {
         gridLine.setActualBuyPrice(price);  // 记录实际买入价
         gridLine.setBuyPrice(price);        // 同步更新计划买入价，以便后续网格基于此计算
 
-        // ✅ 修复：更新买入触发价
-        BigDecimal buyTriggerPrice = price.add(new BigDecimal("0.02"))
-            .setScale(3, RoundingMode.DOWN);
+        // ✅ 修复：更新买入触发价（买入价 + 0.002，价格涨到此处触发买入）
+        BigDecimal buyTriggerPrice = price.add(new BigDecimal("0.002"))
+            .setScale(3, RoundingMode.HALF_UP);
         gridLine.setBuyTriggerPrice(buyTriggerPrice);
 
         // ✅ 新增：更新当前网格的sellPrice（基于阶梯回撤规则）
@@ -344,7 +344,8 @@ public class GridEngine {
 
         if (newSellPrice != null) {
             currentGridLine.setSellPrice(newSellPrice);
-            BigDecimal sellTriggerPrice = newSellPrice.subtract(new BigDecimal("0.02"))
+            // ✅ 修正：卖出触发价 = 卖出价 - 0.002（价格跌到此处触发卖出）
+            BigDecimal sellTriggerPrice = newSellPrice.subtract(new BigDecimal("0.002"))
                 .setScale(3, RoundingMode.HALF_UP);
             currentGridLine.setSellTriggerPrice(sellTriggerPrice);
 
@@ -372,8 +373,8 @@ public class GridEngine {
         // ✅ 修复：同步更新sellPrice（保持一致性）
         gridLine.setSellPrice(price);
 
-        // ✅ 修复：更新卖出触发价
-        BigDecimal sellTriggerPrice = price.subtract(new BigDecimal("0.02"))
+        // ✅ 修正：更新卖出触发价（卖出价 - 0.002，价格跌到此处触发卖出）
+        BigDecimal sellTriggerPrice = price.subtract(new BigDecimal("0.002"))
             .setScale(3, RoundingMode.HALF_UP);
         gridLine.setSellTriggerPrice(sellTriggerPrice);
 
@@ -560,10 +561,12 @@ public class GridEngine {
                 log.info("[RECALC] 更新网格 level={}, type={}, state=WAIT_BUY, 新买入价={}, 新卖出价={}",
                     gridLine.getLevel(), gridLine.getGridType(), newBuyPrice, newSellPrice);
 
-                // ✅ 新增：同步更新触发价
-                BigDecimal newBuyTriggerPrice = newBuyPrice.add(new BigDecimal("0.02"))
-                    .setScale(3, RoundingMode.DOWN);
-                BigDecimal newSellTriggerPrice = newSellPrice.subtract(new BigDecimal("0.02"))
+                // ✅ 同步更新触发价
+                // buyTriggerPrice = buyPrice + 0.002（价格涨到此处触发买入）
+                // sellTriggerPrice = sellPrice - 0.002（价格跌到此处触发卖出）
+                BigDecimal newBuyTriggerPrice = newBuyPrice.add(new BigDecimal("0.002"))
+                    .setScale(3, RoundingMode.HALF_UP);
+                BigDecimal newSellTriggerPrice = newSellPrice.subtract(new BigDecimal("0.002"))
                     .setScale(3, RoundingMode.HALF_UP);
                 gridLine.setBuyTriggerPrice(newBuyTriggerPrice);
                 gridLine.setSellTriggerPrice(newSellTriggerPrice);
@@ -574,8 +577,8 @@ public class GridEngine {
                 log.info("[RECALC] 更新网格 level={}, type={}, state=BOUGHT, 保持买入价={}, 新卖出价={}",
                     gridLine.getLevel(), gridLine.getGridType(), gridLine.getBuyPrice(), newSellPrice);
 
-                // ✅ 新增：只更新卖出触发价
-                BigDecimal newSellTriggerPrice = newSellPrice.subtract(new BigDecimal("0.02"))
+                // ✅ 只更新卖出触发价：sellTriggerPrice = sellPrice - 0.002（价格跌到此处触发卖出）
+                BigDecimal newSellTriggerPrice = newSellPrice.subtract(new BigDecimal("0.002"))
                     .setScale(3, RoundingMode.HALF_UP);
                 gridLine.setSellTriggerPrice(newSellTriggerPrice);
 
@@ -592,7 +595,7 @@ public class GridEngine {
                 BigDecimal buyQuantity = buyAmount.divide(newBuyPrice, 8, RoundingMode.DOWN);
                 gridLine.setBuyQuantity(buyQuantity);
 
-                // 卖出金额和收益也需要重新计算
+                // ✅ 修正：sellAmount = 数量 × 卖出价（不扣除手续费，手续费在实际成交时才考虑）
                 BigDecimal sellAmount = buyQuantity.multiply(newSellPrice)
                     .setScale(2, RoundingMode.DOWN);
                 gridLine.setSellAmount(sellAmount);
@@ -606,6 +609,7 @@ public class GridEngine {
                 // ✅ 新增：BOUGHT状态只重新计算卖出相关字段
                 BigDecimal buyQuantity = gridLine.getBuyQuantity(); // 使用已有的买入数量
                 if (buyQuantity != null) {
+                    // ✅ 修正：sellAmount = 数量 × 卖出价（不扣除手续费）
                     BigDecimal sellAmount = buyQuantity.multiply(newSellPrice)
                         .setScale(2, RoundingMode.DOWN);
                     gridLine.setSellAmount(sellAmount);

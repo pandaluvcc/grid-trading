@@ -17,7 +17,7 @@ public class GridPlanGenerator {
     public static final BigDecimal MEDIUM_PERCENT = new BigDecimal("0.15");
     public static final BigDecimal LARGE_PERCENT = new BigDecimal("0.30");
 
-    private static final BigDecimal TRIGGER_OFFSET = new BigDecimal("0.02");
+    private static final BigDecimal TRIGGER_OFFSET = new BigDecimal("0.002");
 
     /**
      * 网格计算模式

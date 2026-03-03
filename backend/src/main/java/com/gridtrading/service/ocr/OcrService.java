@@ -492,7 +492,7 @@ public class OcrService {
         BigDecimal price = record.getPrice();
         gridLine.setActualBuyPrice(price);
         gridLine.setBuyPrice(price);
-        gridLine.setBuyTriggerPrice(price.add(new BigDecimal("0.02")));
+        gridLine.setBuyTriggerPrice(price.add(new BigDecimal("0.002")));
 
         if (record.getAmount() != null) {
             gridLine.setBuyAmount(record.getAmount());
@@ -522,7 +522,7 @@ public class OcrService {
         BigDecimal newSellPrice = price.multiply(BigDecimal.ONE.add(profitRate))
             .setScale(3, RoundingMode.HALF_UP);
         gridLine.setSellPrice(newSellPrice);
-        gridLine.setSellTriggerPrice(newSellPrice.subtract(new BigDecimal("0.02")));
+        gridLine.setSellTriggerPrice(newSellPrice.subtract(new BigDecimal("0.002")));
 
         System.out.println("[独立计算] 网格" + gridLine.getLevel() + " " + gridLine.getGridType() +
             ": 买" + price + " → 卖" + newSellPrice + " (" + profitRate.multiply(new BigDecimal("100")).setScale(1, RoundingMode.HALF_UP) + "%)");
@@ -534,7 +534,7 @@ public class OcrService {
         BigDecimal price = record.getPrice();
         gridLine.setActualSellPrice(price);
         gridLine.setSellPrice(price); // ✅ 直接使用真实成交价
-        gridLine.setSellTriggerPrice(price.subtract(new BigDecimal("0.02")));
+        gridLine.setSellTriggerPrice(price.subtract(new BigDecimal("0.002")));
 
         // 增加卖出次数统计
         gridLine.setSellCount(gridLine.getSellCount() + 1);
@@ -561,7 +561,7 @@ public class OcrService {
             return;
         }
 
-        BigDecimal sellAmount = buyQuantity.multiply(sellPrice).setScale(2, RoundingMode.HALF_UP);
+        BigDecimal sellAmount = buyQuantity.multiply(sellPrice).setScale(2, RoundingMode.DOWN);
         gridLine.setSellAmount(sellAmount);
         if (buyAmount != null && buyAmount.compareTo(BigDecimal.ZERO) > 0) {
             BigDecimal profit = sellAmount.subtract(buyAmount).setScale(2, RoundingMode.HALF_UP);
@@ -719,10 +719,36 @@ public class OcrService {
                 continue;
             }
 
+            // ✅ 新增：更新buyTriggerPrice（基于actualBuyPrice + 0.002）
+            BigDecimal buyTriggerPrice = gridLine.getActualBuyPrice().add(new BigDecimal("0.002"))
+                .setScale(3, RoundingMode.HALF_UP);
+            gridLine.setBuyTriggerPrice(buyTriggerPrice);
+
+            // 计算新的sellPrice
             BigDecimal newSellPrice = calculateSellPriceForImportedGrid(strategy, gridLine, allGridLines);
             if (newSellPrice != null) {
                 gridLine.setSellPrice(newSellPrice);
-                gridLine.setSellTriggerPrice(newSellPrice.subtract(new BigDecimal("0.02")));
+                // 更新sellTriggerPrice（sellPrice - 0.002）
+                BigDecimal sellTriggerPrice = newSellPrice.subtract(new BigDecimal("0.002"))
+                    .setScale(3, RoundingMode.HALF_UP);
+                gridLine.setSellTriggerPrice(sellTriggerPrice);
+
+                // ✅ 新增：重新计算sellAmount（基于实际数量和新的sellPrice）
+                BigDecimal buyQuantity = gridLine.getBuyQuantity();
+                if (buyQuantity != null && buyQuantity.compareTo(BigDecimal.ZERO) > 0) {
+                    BigDecimal newSellAmount = buyQuantity.multiply(newSellPrice)
+                        .setScale(2, RoundingMode.DOWN);
+                    gridLine.setSellAmount(newSellAmount);
+
+                    // 重新计算profit和profitRate
+                    BigDecimal buyAmount = gridLine.getBuyAmount();
+                    BigDecimal profit = newSellAmount.subtract(buyAmount);
+                    gridLine.setProfit(profit);
+
+                    BigDecimal profitRate = profit.divide(buyAmount, 6, RoundingMode.HALF_UP);
+                    gridLine.setProfitRate(profitRate);
+                }
+
                 System.out.println("  -> 更新level " + gridLine.getLevel() + " sellPrice=" + newSellPrice);
             }
         }

@@ -169,7 +169,7 @@ public class ImportService {
                 gridLine.setBuyPrice(record.getPrice());
 
                 // 更新买入触发价
-                BigDecimal buyTriggerPrice = record.getPrice().add(new BigDecimal("0.02"))
+                BigDecimal buyTriggerPrice = record.getPrice().add(new BigDecimal("0.002"))
                     .setScale(3, RoundingMode.DOWN);
                 gridLine.setBuyTriggerPrice(buyTriggerPrice);
 
@@ -187,7 +187,7 @@ public class ImportService {
                 gridLine.setSellPrice(record.getPrice());
 
                 // 更新卖出触发价
-                BigDecimal sellTriggerPrice = record.getPrice().subtract(new BigDecimal("0.02"))
+                BigDecimal sellTriggerPrice = record.getPrice().subtract(new BigDecimal("0.002"))
                     .setScale(3, RoundingMode.HALF_UP);
                 gridLine.setSellTriggerPrice(sellTriggerPrice);
 
@@ -226,7 +226,7 @@ public class ImportService {
                 BigDecimal newSellPrice = calculateSellPriceForGrid(strategy, gridLine, allGridLines);
                 if (newSellPrice != null) {
                     gridLine.setSellPrice(newSellPrice);
-                    BigDecimal sellTriggerPrice = newSellPrice.subtract(new BigDecimal("0.02"))
+                    BigDecimal sellTriggerPrice = newSellPrice.subtract(new BigDecimal("0.002"))
                         .setScale(3, RoundingMode.HALF_UP);
                     gridLine.setSellTriggerPrice(sellTriggerPrice);
                     System.out.println("    更新level " + gridLine.getLevel() + " sellPrice=" + newSellPrice);

@@ -321,9 +321,17 @@ public class StrategyController {
         // 价格信息（收益最大化：买入向下、卖出四舍五入）
         gridLine.setBuyPrice(buyPrice.setScale(3, RoundingMode.DOWN));           // 买得便宜
         gridLine.setSellPrice(sellPrice.setScale(3, RoundingMode.HALF_UP));      // 卖得贵
-        // 触发价计算：买入触发价 = 买入价 + 0.02，卖出触发价 = 卖出价 - 0.02
-        gridLine.setBuyTriggerPrice(buyPrice.add(new BigDecimal("0.02")).setScale(3, RoundingMode.DOWN));
-        gridLine.setSellTriggerPrice(sellPrice.subtract(new BigDecimal("0.02")).setScale(3, RoundingMode.HALF_UP));
+
+        // 触发价计算：基于价格的1.2%偏移（而不是固定0.002）
+        // buyTriggerPrice = buyPrice * 1.012 (向上触发买入)
+        // sellTriggerPrice = sellPrice * 0.988 (向下触发卖出)
+        BigDecimal buyTriggerPrice = buyPrice.add(new BigDecimal("0.002"))
+            .setScale(3, RoundingMode.HALF_UP);
+        BigDecimal sellTriggerPrice = sellPrice.add(new BigDecimal("0.002"))
+            .setScale(3, RoundingMode.HALF_UP);
+
+        gridLine.setBuyTriggerPrice(buyTriggerPrice);
+        gridLine.setSellTriggerPrice(sellTriggerPrice);
 
         // 买入金额
         gridLine.setBuyAmount(buyAmount);
@@ -332,8 +340,9 @@ public class StrategyController {
         BigDecimal buyQuantity = buyAmount.divide(gridLine.getBuyPrice(), 8, RoundingMode.DOWN);
         gridLine.setBuyQuantity(buyQuantity);
 
-        // 卖出金额 = 买入数量 × 卖出价格（2位小数，向下舍入）
-        BigDecimal sellAmount = buyQuantity.multiply(gridLine.getSellPrice()).setScale(2, RoundingMode.DOWN);
+        // 卖出金额 = 买入数量 × 卖出价格（不扣除手续费，手续费在实际成交时才考虑）
+        BigDecimal sellAmount = buyQuantity.multiply(gridLine.getSellPrice())
+            .setScale(2, RoundingMode.DOWN);
         gridLine.setSellAmount(sellAmount);
 
         // 毛利润 = 卖出金额 - 买入金额
@@ -573,16 +582,21 @@ public class StrategyController {
             gl.setBuyPrice(buyPrice.setScale(2, RoundingMode.HALF_UP));
             gl.setSellPrice(sellPrice.setScale(2, RoundingMode.HALF_UP));
             
-            // 重新计算触发价
-            gl.setBuyTriggerPrice(gl.getBuyPrice().add(new BigDecimal("0.02")));
-            gl.setSellTriggerPrice(gl.getSellPrice().subtract(new BigDecimal("0.02")));
-            
+            // 重新计算触发价（基于价格的1.2%偏移）
+            gl.setBuyTriggerPrice(gl.getBuyPrice().multiply(new BigDecimal("1.012"))
+                .setScale(3, RoundingMode.UP));
+            gl.setSellTriggerPrice(gl.getSellPrice().multiply(new BigDecimal("0.988"))
+                .setScale(3, RoundingMode.DOWN));
+
             // 重新计算其他字段
             BigDecimal buyAmount = gl.getBuyAmount();
             BigDecimal buyQuantity = buyAmount.divide(gl.getBuyPrice(), 8, RoundingMode.DOWN);
             gl.setBuyQuantity(buyQuantity);
             
-            BigDecimal sellAmount = buyQuantity.multiply(gl.getSellPrice()).setScale(2, RoundingMode.DOWN);
+            // 卖出金额需要扣除手续费（0.05%）
+            BigDecimal sellAmountBeforeFee = buyQuantity.multiply(gl.getSellPrice());
+            BigDecimal sellFee = sellAmountBeforeFee.multiply(new BigDecimal("0.0005"));
+            BigDecimal sellAmount = sellAmountBeforeFee.subtract(sellFee).setScale(2, RoundingMode.DOWN);
             gl.setSellAmount(sellAmount);
             
             BigDecimal profit = sellAmount.subtract(buyAmount);
@@ -750,15 +764,18 @@ public class StrategyController {
             // 更新价格
             gridLine.setBuyPrice(newBuyPrice);
             gridLine.setSellPrice(newSellPrice);
-            // 触发价计算：买入触发价 = 买入价 + 0.02，卖出触发价 = 卖出价 - 0.02
-            gridLine.setBuyTriggerPrice(newBuyPrice.add(new BigDecimal("0.02")));
-            gridLine.setSellTriggerPrice(newSellPrice.subtract(new BigDecimal("0.02")));
+            // 触发价计算：买入触发价 = 买入价 + 0.002，卖出触发价 = 卖出价 - 0.002
+            gridLine.setBuyTriggerPrice(newBuyPrice.add(new BigDecimal("0.002")));
+            gridLine.setSellTriggerPrice(newSellPrice.subtract(new BigDecimal("0.002")));
 
             // 重算数量和金额
             BigDecimal buyAmount = gridLine.getBuyAmount();
             BigDecimal buyQuantity = buyAmount.divide(newBuyPrice, 8, RoundingMode.DOWN);
-            BigDecimal sellAmount = buyQuantity.multiply(newSellPrice)
-                    .setScale(2, RoundingMode.HALF_UP);
+            // 卖出金额需要扣除手续费（0.05%）
+            BigDecimal sellAmountBeforeFee = buyQuantity.multiply(newSellPrice);
+            BigDecimal sellFee = sellAmountBeforeFee.multiply(new BigDecimal("0.0005"));
+            BigDecimal sellAmount = sellAmountBeforeFee.subtract(sellFee)
+                    .setScale(2, RoundingMode.DOWN);
             BigDecimal profit = sellAmount.subtract(buyAmount)
                     .setScale(2, RoundingMode.HALF_UP);
             BigDecimal profitRate = profit.divide(buyAmount, 6, RoundingMode.HALF_UP);
