@@ -24,28 +24,24 @@
         <div class="overview-stats">
           <div class="stat-item main">
             <span class="stat-label">已实现收益</span>
-            <span class="stat-value profit" :class="{ negative: strategy.realizedProfit < 0 }">
-              {{ formatProfit(strategy.realizedProfit) }}
+            <span class="stat-value profit" :class="{ negative: realizedProfit < 0 }">
+              {{ formatProfit(realizedProfit) }}
             </span>
           </div>
         </div>
 
         <div class="overview-grid">
           <div class="stat-item">
-            <span class="stat-label">基准价</span>
-            <span class="stat-value">{{ formatPrice(strategy.basePrice) }}</span>
-          </div>
-          <div class="stat-item">
-            <span class="stat-label">单格金额</span>
-            <span class="stat-value">¥{{ formatAmount(strategy.amountPerGrid) }}</span>
+            <span class="stat-label">单格数量</span>
+            <span class="stat-value">{{ formatQuantity(strategy.amountPerGrid / strategy.basePrice) }}</span>
           </div>
           <div class="stat-item">
             <span class="stat-label">可用资金</span>
-            <span class="stat-value">¥{{ formatAmount(strategy.availableCash) }}</span>
+            <span class="stat-value">¥0</span>
           </div>
           <div class="stat-item">
             <span class="stat-label">已投入</span>
-            <span class="stat-value">¥{{ formatAmount(strategy.investedAmount) }}</span>
+            <span class="stat-value">¥{{ formatAmount(calculatedInvestedAmount) }}</span>
           </div>
           <div class="stat-item">
             <span class="stat-label">累计手续费</span>
@@ -107,10 +103,6 @@
         >
           成交记录
         </div>
-      </div>
-
-      <div class="ocr-action">
-        <el-button type="primary" size="small" @click="openOcrDialog">导入成交截图</el-button>
       </div>
 
       <!-- 网格列表 -->
@@ -436,17 +428,42 @@ const ocrImporting = ref(false)
 const ocrRecords = ref([])
 const ocrError = ref('')
 
-// 计算累计手续费
+// 计算累计手续费（所有交易的手续费总和，仅用于展示）
 const totalFee = computed(() => {
   return tradeRecords.value.reduce((sum, r) => {
     return sum + (r.fee ? Number(r.fee) : 0)
   }, 0)
 })
 
-// 计算净收益 = 已实现收益 - 累计手续费
+// 计算已投入金额（已买入网格的总金额）
+const calculatedInvestedAmount = computed(() => {
+  return gridLines.value
+    .filter(g => g.state === 'BOUGHT')
+    .reduce((sum, g) => sum + (g.buyAmount ? Number(g.buyAmount) : 0), 0)
+})
+
+// 计算已实现收益（所有网格的 actualProfit 之和）
+const realizedProfit = computed(() => {
+  return gridLines.value
+    .filter(g => g.actualProfit)
+    .reduce((sum, g) => sum + Number(g.actualProfit), 0)
+})
+
+// 只统计已完成买卖的网格id
+const completedGridIds = computed(() => {
+  return new Set(gridLines.value.filter(g => g.actualSellPrice).map(g => g.id))
+})
+
+// 只统计这些网格的手续费
+const completedTradeFee = computed(() => {
+  return tradeRecords.value
+    .filter(r => completedGridIds.value.has(r.gridLineId))
+    .reduce((sum, r) => sum + (r.fee ? Number(r.fee) : 0), 0)
+})
+
+// 净收益 = 已实现收益 - 已完成买卖手续费
 const netProfit = computed(() => {
-  const profit = strategy.value?.realizedProfit || 0
-  return Number(profit) - totalFee.value
+  return realizedProfit.value - completedTradeFee.value
 })
 
 const strategyTitle = computed(() => {
@@ -538,8 +555,9 @@ const handleExecute = async () => {
 }
 
 // 格式化
- const formatPrice = (val) => val == null ? '-' : Number(val).toFixed(3)
+const formatPrice = (val) => val == null ? '-' : Number(val).toFixed(3)
 const formatAmount = (val) => val == null ? '0' : Math.round(Number(val)).toString()
+const formatQuantity = (val) => val == null ? '0' : Math.round(Number(val)).toString()
 const formatProfit = (val) => {
   if (val == null) return '0.00'
   const num = Number(val)
