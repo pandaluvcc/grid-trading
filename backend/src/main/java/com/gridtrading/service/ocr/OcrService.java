@@ -222,14 +222,22 @@ public class OcrService {
             lastMatchedLine = gridLine;
         }
 
-        // ✅ 修复：先更新所有已导入网格的sellPrice（基于阶梯回撤规则）
-        System.out.println("[OCR导入] 步骤1: 更新已导入网格的sellPrice");
-        updateImportedGridsSellPrice(strategy);
+        // ✅ 统一调用GridEngine更新网格sellPrice（包含收益率保护）
+        System.out.println("[OCR导入] 更新已导入网格的sellPrice并触发级联更新");
+        for (GridLine gridLine : orderedGridLines) {
+            // 只更新已买入的网格
+            if (gridLine.getActualBuyPrice() != null && gridLine.getState() == GridLineState.BOUGHT) {
+                // 调用GridEngine的统一方法更新sellPrice
+                gridEngine.updateCurrentGridSellPriceAfterBuy(strategy, gridLine);
+            }
+        }
 
-        // 然后触发级联更新（更新未导入的网格）
+        // 触发级联更新（更新后续未导入的网格）
         if (lastMatchedLine != null && lastMatchedLine.getLevel() < orderedGridLines.size()) {
-            System.out.println("[OCR导入] 步骤2: 触发级联更新");
-            recalculateSubsequentGrids(strategy, lastMatchedLine);
+            System.out.println("[OCR导入] 触发级联更新后续网格");
+            BigDecimal actualBuyPrice = lastMatchedLine.getActualBuyPrice() != null ?
+                lastMatchedLine.getActualBuyPrice() : lastMatchedLine.getBuyPrice();
+            gridEngine.recalculateSubsequentGridsAfterManualBuy(strategy, lastMatchedLine, actualBuyPrice);
         }
 
         // 计算每个网格的真实累计收益
@@ -709,140 +717,6 @@ public class OcrService {
     /**
      * 更新所有已导入网格的sellPrice（基于阶梯回撤规则）
      */
-    private void updateImportedGridsSellPrice(Strategy strategy) {
-        List<GridLine> allGridLines = new ArrayList<>(strategy.getGridLines());
-        allGridLines.sort(Comparator.comparing(GridLine::getLevel));
-
-        for (GridLine gridLine : allGridLines) {
-            // 只更新已买入的网格
-            if (gridLine.getActualBuyPrice() == null) {
-                continue;
-            }
-
-            // ✅ 新增：更新buyTriggerPrice（基于actualBuyPrice + 0.002）
-            BigDecimal buyTriggerPrice = gridLine.getActualBuyPrice().add(new BigDecimal("0.002"))
-                .setScale(3, RoundingMode.HALF_UP);
-            gridLine.setBuyTriggerPrice(buyTriggerPrice);
-
-            // 计算新的sellPrice
-            BigDecimal newSellPrice = calculateSellPriceForImportedGrid(strategy, gridLine, allGridLines);
-            if (newSellPrice != null) {
-                gridLine.setSellPrice(newSellPrice);
-                // 更新sellTriggerPrice（sellPrice - 0.002）
-                BigDecimal sellTriggerPrice = newSellPrice.subtract(new BigDecimal("0.002"))
-                    .setScale(3, RoundingMode.HALF_UP);
-                gridLine.setSellTriggerPrice(sellTriggerPrice);
-
-                // ✅ 新增：重新计算sellAmount（基于实际数量和新的sellPrice）
-                BigDecimal buyQuantity = gridLine.getBuyQuantity();
-                if (buyQuantity != null && buyQuantity.compareTo(BigDecimal.ZERO) > 0) {
-                    BigDecimal newSellAmount = buyQuantity.multiply(newSellPrice)
-                        .setScale(2, RoundingMode.DOWN);
-                    gridLine.setSellAmount(newSellAmount);
-
-                    // 重新计算profit和profitRate
-                    BigDecimal buyAmount = gridLine.getBuyAmount();
-                    BigDecimal profit = newSellAmount.subtract(buyAmount);
-                    gridLine.setProfit(profit);
-
-                    BigDecimal profitRate = profit.divide(buyAmount, 6, RoundingMode.HALF_UP);
-                    gridLine.setProfitRate(profitRate);
-                }
-
-                System.out.println("  -> 更新level " + gridLine.getLevel() + " sellPrice=" + newSellPrice);
-            }
-        }
-    }
-
-    /**
-     * 计算已导入网格的sellPrice（基于阶梯回撤规则）
-     */
-    private BigDecimal calculateSellPriceForImportedGrid(Strategy strategy, GridLine gridLine, List<GridLine> allGridLines) {
-        GridType gridType = gridLine.getGridType();
-        int currentLevel = gridLine.getLevel();
-
-        if (gridType == GridType.SMALL) {
-            if (currentLevel == 1) {
-                // 第1网：sellPrice = buyPrice × 1.05
-                return gridLine.getBuyPrice().multiply(new BigDecimal("1.05"))
-                    .setScale(3, RoundingMode.HALF_UP);
-            } else {
-                // 后续小网：sellPrice = 上一小网的buyPrice（优先actualBuyPrice）
-                GridLine prevSmallGrid = null;
-                for (int i = allGridLines.size() - 1; i >= 0; i--) {
-                    GridLine gl = allGridLines.get(i);
-                    if (gl.getLevel() < currentLevel && gl.getGridType() == GridType.SMALL) {
-                        prevSmallGrid = gl;
-                        break;
-                    }
-                }
-                if (prevSmallGrid != null) {
-                    BigDecimal prevBuyPrice = prevSmallGrid.getActualBuyPrice() != null ?
-                        prevSmallGrid.getActualBuyPrice() : prevSmallGrid.getBuyPrice();
-                    return prevBuyPrice.setScale(3, RoundingMode.HALF_UP);
-                }
-            }
-        } else if (gridType == GridType.MEDIUM) {
-            // 中网：卖回锚点
-            if (currentLevel == 5) {
-                // 第1个中网：卖回basePrice
-                return strategy.getBasePrice().setScale(3, RoundingMode.HALF_UP);
-            } else {
-                // 后续中网：卖回上一个中网的buyPrice（优先actualBuyPrice）
-                GridLine prevMediumGrid = null;
-                for (int i = allGridLines.size() - 1; i >= 0; i--) {
-                    GridLine gl = allGridLines.get(i);
-                    if (gl.getLevel() < currentLevel && gl.getGridType() == GridType.MEDIUM) {
-                        prevMediumGrid = gl;
-                        break;
-                    }
-                }
-                if (prevMediumGrid != null) {
-                    BigDecimal prevBuyPrice = prevMediumGrid.getActualBuyPrice() != null ?
-                        prevMediumGrid.getActualBuyPrice() : prevMediumGrid.getBuyPrice();
-                    return prevBuyPrice.setScale(3, RoundingMode.HALF_UP);
-                }
-                return strategy.getBasePrice().setScale(3, RoundingMode.HALF_UP);
-            }
-        } else { // LARGE
-            // 大网：特殊锚点
-            if (currentLevel == 10) {
-                return strategy.getBasePrice().setScale(3, RoundingMode.HALF_UP);
-            } else {
-                // 第2个大网：卖回第2个中网的buyPrice
-                for (GridLine gl : allGridLines) {
-                    if (gl.getLevel() == 9 && gl.getGridType() == GridType.MEDIUM) {
-                        BigDecimal buyPrice = gl.getActualBuyPrice() != null ?
-                            gl.getActualBuyPrice() : gl.getBuyPrice();
-                        return buyPrice.setScale(3, RoundingMode.HALF_UP);
-                    }
-                }
-                return strategy.getBasePrice().setScale(3, RoundingMode.HALF_UP);
-            }
-        }
-
-        return null;
-    }
-
-    /**
-     * 重新计算后续网格价格
-     * ✅ 修复：改为调用GridEngine的级联更新方法，统一使用阶梯回撤规则
-     */
-    private void recalculateSubsequentGrids(Strategy strategy, GridLine fromGridLine) {
-        if (strategy == null || fromGridLine == null) {
-            return;
-        }
-
-        System.out.println("[OCR级联更新] 从level " + fromGridLine.getLevel() + " 开始触发级联更新");
-
-        // 调用GridEngine的级联更新方法
-        BigDecimal actualBuyPrice = fromGridLine.getActualBuyPrice() != null ?
-            fromGridLine.getActualBuyPrice() : fromGridLine.getBuyPrice();
-
-        gridEngine.recalculateSubsequentGridsAfterManualBuy(strategy, fromGridLine, actualBuyPrice);
-
-        System.out.println("[OCR级联更新] 级联更新完成");
-    }
 
     private GridLine findBestMatchLineForCreate(List<GridLine> gridLines, OcrTradeRecord record) {
         if (gridLines == null || gridLines.isEmpty() || record == null || record.getPrice() == null) {

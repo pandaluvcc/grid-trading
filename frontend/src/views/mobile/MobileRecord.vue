@@ -71,6 +71,36 @@
       </div>
     </div>
 
+    <!-- 数量和手续费输入 -->
+    <div class="trade-details-section" v-if="selectedGrid && inputPrice">
+      <div class="detail-row">
+        <div class="input-label">成交数量</div>
+        <div class="input-wrapper">
+          <input
+            type="number"
+            v-model="inputQuantity"
+            class="detail-input"
+            placeholder="自动计算"
+            inputmode="decimal"
+          />
+          <span class="unit">股</span>
+        </div>
+      </div>
+      <div class="detail-row">
+        <div class="input-label">手续费</div>
+        <div class="input-wrapper">
+          <span class="currency-small">¥</span>
+          <input
+            type="number"
+            v-model="inputFee"
+            class="detail-input"
+            placeholder="0.00"
+            inputmode="decimal"
+          />
+        </div>
+      </div>
+    </div>
+
     <!-- 交易摘要 -->
     <div class="summary-section" v-if="selectedGrid && inputPrice">
       <div class="summary-row">
@@ -123,6 +153,8 @@ const actionType = ref('buy')
 const gridLines = ref([])
 const selectedGrid = ref(null)
 const inputPrice = ref('')
+const inputQuantity = ref('')  // 新增：成交数量
+const inputFee = ref('0')      // 新增：手续费
 const submitting = ref(false)
 const amountPerGrid = ref(1000) // 将从策略中获取
 
@@ -217,6 +249,17 @@ const selectGrid = (grid) => {
 watch(actionType, () => {
   selectedGrid.value = null
   inputPrice.value = ''
+  inputQuantity.value = ''
+  inputFee.value = '0'
+})
+
+// 监听价格变化，自动计算数量
+watch(inputPrice, (newPrice) => {
+  if (newPrice && Number(newPrice) > 0) {
+    // 根据金额计算数量（保留2位小数）
+    const quantity = (amountPerGrid.value / Number(newPrice)).toFixed(2)
+    inputQuantity.value = quantity
+  }
 })
 
 // 提交
@@ -225,10 +268,18 @@ const handleSubmit = async () => {
   
   submitting.value = true
   try {
-    // 通过执行Tick来触发交易
-    // 实际场景中可能需要不同的API
-    await executeTick(strategyId.value, Number(inputPrice.value))
-    
+    // 构建完整的交易数据（新版接口要求）
+    const tradeData = {
+      gridLineId: selectedGrid.value.id,  // 前端指定网格ID
+      type: actionType.value === 'buy' ? 'BUY' : 'SELL',  // 前端指定交易类型
+      price: Number(inputPrice.value),
+      quantity: Number(inputQuantity.value) || (amountPerGrid.value / Number(inputPrice.value)),  // 优先使用用户输入的数量
+      fee: Number(inputFee.value) || 0,  // 手续费
+      tradeTime: new Date().toISOString().slice(0, 19).replace('T', ' ')  // 当前时间
+    }
+
+    await executeTick(strategyId.value, tradeData)
+
     ElMessage.success(actionType.value === 'buy' ? '买入成功' : '卖出成功')
     router.back()
   } catch (error) {
@@ -440,6 +491,67 @@ onMounted(() => {
 
 .price-hint .worse {
   color: #f56c6c;
+}
+
+/* 交易详情输入 */
+.trade-details-section {
+  margin: 16px;
+  background: #fff;
+  border-radius: 12px;
+  padding: 16px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+}
+
+.detail-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.detail-row:last-child {
+  margin-bottom: 0;
+}
+
+.detail-row .input-label {
+  margin-bottom: 0;
+  font-size: 14px;
+  color: #606266;
+}
+
+.input-wrapper {
+  display: flex;
+  align-items: center;
+  border-bottom: 1px solid #dcdfe6;
+  padding-bottom: 4px;
+  min-width: 140px;
+}
+
+.detail-input {
+  flex: 1;
+  border: none;
+  outline: none;
+  font-size: 16px;
+  color: #303133;
+  background: transparent;
+  text-align: right;
+  min-width: 80px;
+}
+
+.detail-input::placeholder {
+  color: #c0c4cc;
+}
+
+.unit {
+  font-size: 14px;
+  color: #909399;
+  margin-left: 6px;
+}
+
+.currency-small {
+  font-size: 14px;
+  color: #909399;
+  margin-right: 4px;
 }
 
 /* 交易摘要 */

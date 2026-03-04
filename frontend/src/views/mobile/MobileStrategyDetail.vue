@@ -312,6 +312,67 @@
         class="tick-fee-dialog"
       >
         <div class="tick-fee-content">
+          <!-- ✅ 推荐网格信息 -->
+          <div v-if="suggestedGrid" class="suggested-grid-info">
+            <div class="suggested-header">
+              <el-icon><Promotion /></el-icon>
+              <span>系统推荐</span>
+            </div>
+            <div class="suggested-details">
+              <div class="suggested-item">
+                <span class="label">网格编号:</span>
+                <span class="value">第{{ suggestedGrid.level }}网</span>
+              </div>
+              <div class="suggested-item">
+                <span class="label">网格类型:</span>
+                <el-tag size="small" :type="getGridTypeTag(suggestedGrid.gridType)">
+                  {{ getGridTypeName(suggestedGrid.gridType) }}
+                </el-tag>
+              </div>
+              <div class="suggested-item">
+                <span class="label">当前状态:</span>
+                <el-tag size="small" :type="getStateTag(suggestedGrid.state)">
+                  {{ getStateName(suggestedGrid.state) }}
+                </el-tag>
+              </div>
+              <div class="suggested-item">
+                <span class="label">建议操作:</span>
+                <el-tag size="small" :type="suggestedGrid.suggestedType === 'BUY' ? 'danger' : 'success'">
+                  {{ suggestedGrid.suggestedType === 'BUY' ? '买入' : '卖出' }}
+                </el-tag>
+              </div>
+            </div>
+          </div>
+
+          <!-- ✅ 网格选择（可手动修改） -->
+          <div class="grid-selector">
+            <label>选择网格:</label>
+            <el-select
+              v-model="selectedGridLineId"
+              placeholder="选择要操作的网格"
+              size="default"
+              style="width: 100%"
+              @change="handleGridChange"
+            >
+              <el-option
+                v-for="grid in availableGrids"
+                :key="grid.id"
+                :label="`第${grid.level}网 - ${getGridTypeName(grid.gridType)} - ${getStateName(grid.state)}`"
+                :value="grid.id"
+              >
+                <div class="grid-option">
+                  <span class="grid-option-label">第{{ grid.level }}网</span>
+                  <el-tag size="small" :type="getGridTypeTag(grid.gridType)">
+                    {{ getGridTypeName(grid.gridType) }}
+                  </el-tag>
+                  <el-tag size="small" :type="getStateTag(grid.state)">
+                    {{ getStateName(grid.state) }}
+                  </el-tag>
+                </div>
+              </el-option>
+            </el-select>
+          </div>
+
           <div class="tick-fee-hint">请录入交易信息：</div>
           <div class="tick-fee-item">
             <!-- 交易类型和价格 -->
@@ -385,6 +446,7 @@ import {
   executeTick,
   getTradeRecords,
   updateTradeFee,
+  suggestGridByPrice,
   ocrRecognize,
   ocrImport,
   ocrRematch
@@ -413,6 +475,8 @@ const savingFee = ref(false)
 
 // 交易执行弹窗相关
 const tickFeeDialogVisible = ref(false)
+const selectedGridLineId = ref(null) // ✅ 推荐的网格ID
+const suggestedGrid = ref(null) // ✅ 推荐的网格完整信息
 const tradeType = ref('BUY')
 const tradeTime = ref('')
 const tradeQuantity = ref('')
@@ -474,6 +538,26 @@ const strategyTitle = computed(() => {
   return strategy.value.name || strategy.value.symbol || '策略详情'
 })
 
+// ✅ 可操作的网格列表（等待买入 或 已买入）
+const availableGrids = computed(() => {
+  return gridLines.value.filter(g =>
+    g.state === 'WAIT_BUY' || g.state === 'BOUGHT'
+  ).sort((a, b) => a.level - b.level)
+})
+
+// ✅ 用户手动切换网格时，自动更新建议的交易类型
+const handleGridChange = (gridLineId) => {
+  const selectedGrid = gridLines.value.find(g => g.id === gridLineId)
+  if (selectedGrid) {
+    // 根据网格状态自动设置交易类型
+    if (selectedGrid.state === 'WAIT_BUY') {
+      tradeType.value = 'BUY'
+    } else if (selectedGrid.state === 'BOUGHT') {
+      tradeType.value = 'SELL'
+    }
+  }
+}
+
 onUnmounted(() => {
   isUnmounted = true
 })
@@ -532,26 +616,41 @@ const handleExecute = async () => {
     return
   }
 
-  // 自动判断买入/卖出：价格低于基准价=买入，高于基准价=卖出
-  const basePrice = strategy.value?.basePrice || 0
-  tradeType.value = price <= basePrice ? 'BUY' : 'SELL'
+  try {
+    // ✅ 调用推荐接口，获取推荐的网格和交易类型
+    const suggestRes = await suggestGridByPrice(strategyId.value, price)
+    const suggestion = suggestRes.data
 
-  // 设置默认交易日期为当前时间
-  const now = new Date()
-  const year = now.getFullYear()
-  const month = String(now.getMonth() + 1).padStart(2, '0')
-  const day = String(now.getDate()).padStart(2, '0')
-  const hours = String(now.getHours()).padStart(2, '0')
-  const minutes = String(now.getMinutes()).padStart(2, '0')
-  const seconds = String(now.getSeconds()).padStart(2, '0')
-  tradeTime.value = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`
+    if (!suggestion || !suggestion.gridLineId) {
+      ElMessage.warning('未找到匹配的网格，请检查价格')
+      return
+    }
 
-  // 清空输入
-  tradeQuantity.value = ''
-  tradeFee.value = ''
+    // ✅ 保存完整的推荐信息
+    suggestedGrid.value = suggestion
+    selectedGridLineId.value = suggestion.gridLineId
+    tradeType.value = suggestion.suggestedType
 
-  // 弹窗
-  tickFeeDialogVisible.value = true
+    // 设置默认交易日期为当前时间
+    const now = new Date()
+    const year = now.getFullYear()
+    const month = String(now.getMonth() + 1).padStart(2, '0')
+    const day = String(now.getDate()).padStart(2, '0')
+    const hours = String(now.getHours()).padStart(2, '0')
+    const minutes = String(now.getMinutes()).padStart(2, '0')
+    const seconds = String(now.getSeconds()).padStart(2, '0')
+    tradeTime.value = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`
+
+    // 清空输入
+    tradeQuantity.value = ''
+    tradeFee.value = ''
+
+    // 弹窗
+    tickFeeDialogVisible.value = true
+  } catch (error) {
+    console.error('获取推荐网格失败:', error)
+    ElMessage.error(error.response?.data?.message || '获取推荐失败')
+  }
 }
 
 // 格式化
@@ -620,10 +719,11 @@ const saveTrade = async () => {
 
   savingTrade.value = true
   try {
-    // 调用 executeTick 的手动模式
+    // ✅ 调用 executeTick 的手动模式，传递完整参数
     await executeTick(strategyId.value, {
-      price: price,
+      gridLineId: selectedGridLineId.value, // ✅ 传递推荐的网格ID
       type: tradeType.value,
+      price: price,
       quantity: quantity,
       fee: fee,
       tradeTime: tradeTime.value
@@ -813,6 +913,46 @@ const sortOcrRecords = (records) => {
     const bTime = b.tradeTime ? Date.parse(b.tradeTime.replace(' ', 'T')) : 0
     return aTime - bTime
   })
+}
+
+// 网格类型格式化
+const getGridTypeName = (type) => {
+  const map = {
+    'SMALL': '小网',
+    'MEDIUM': '中网',
+    'LARGE': '大网'
+  }
+  return map[type] || type
+}
+
+const getGridTypeTag = (type) => {
+  const map = {
+    'SMALL': '',
+    'MEDIUM': 'warning',
+    'LARGE': 'danger'
+  }
+  return map[type] || ''
+}
+
+// 网格状态格式化
+const getStateName = (state) => {
+  const map = {
+    'WAIT_BUY': '等待买入',
+    'BOUGHT': '已买入',
+    'WAIT_SELL': '等待卖出',
+    'SOLD': '已卖出'
+  }
+  return map[state] || state
+}
+
+const getStateTag = (state) => {
+  const map = {
+    'WAIT_BUY': 'info',
+    'BOUGHT': 'success',
+    'WAIT_SELL': 'warning',
+    'SOLD': ''
+  }
+  return map[state] || ''
 }
 // ...existing code...
 </script>
@@ -1069,6 +1209,73 @@ const sortOcrRecords = (records) => {
 /* 交易执行弹窗样式 */
 .tick-fee-content {
   padding: 0;
+}
+
+/* 推荐网格信息 */
+.suggested-grid-info {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 16px;
+  color: #fff;
+}
+
+.suggested-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.suggested-details {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.suggested-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.suggested-item .label {
+  font-size: 12px;
+  opacity: 0.85;
+}
+
+.suggested-item .value {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+/* 网格选择器 */
+.grid-selector {
+  margin-bottom: 16px;
+  padding: 12px;
+  background: #f5f7fa;
+  border-radius: 8px;
+}
+
+.grid-selector label {
+  display: block;
+  font-size: 13px;
+  color: #606266;
+  font-weight: 500;
+  margin-bottom: 8px;
+}
+
+.grid-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.grid-option-label {
+  font-weight: 600;
+  color: #303133;
 }
 
 .tick-fee-hint {

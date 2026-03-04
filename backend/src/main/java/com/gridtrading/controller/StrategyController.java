@@ -367,12 +367,74 @@ public class StrategyController {
     }
 
     /**
-     * 执行一次交易录入
-     * 所有参数必填，直接录入用户的实际成交数据
+     * 根据价格推荐网格和交易类型（辅助接口）
+     * 前端可以调用此接口获取推荐，然后展示给用户确认
+     */
+    @GetMapping("/{id}/suggest")
+    public GridSuggestionDTO suggestGridByPrice(
+            @PathVariable Long id,
+            @RequestParam BigDecimal price) {
+
+        Strategy strategy = strategyRepository.findByIdWithGridLines(id)
+                .orElseThrow(() -> new RuntimeException("策略不存在: " + id));
+
+        List<GridLine> gridLines = strategy.getGridLines();
+        GridLine bestMatch = null;
+        TradeType suggestedType = null;
+        BigDecimal minDiff = null;
+
+        // 遍历所有网格，找到最匹配的
+        for (GridLine grid : gridLines) {
+            // 如果是 WAIT_BUY 状态，比较买入价
+            if (grid.getState() == GridLineState.WAIT_BUY) {
+                BigDecimal diff = price.subtract(grid.getBuyPrice()).abs();
+                if (minDiff == null || diff.compareTo(minDiff) < 0) {
+                    minDiff = diff;
+                    bestMatch = grid;
+                    suggestedType = TradeType.BUY;
+                }
+            }
+
+            // 如果是 BOUGHT 状态，比较卖出价
+            if (grid.getState() == GridLineState.BOUGHT) {
+                BigDecimal diff = price.subtract(grid.getSellPrice()).abs();
+                if (minDiff == null || diff.compareTo(minDiff) < 0) {
+                    minDiff = diff;
+                    bestMatch = grid;
+                    suggestedType = TradeType.SELL;
+                }
+            }
+        }
+
+        if (bestMatch == null) {
+            throw new RuntimeException("未找到匹配的网格");
+        }
+
+        // 构建推荐结果
+        GridSuggestionDTO suggestion = new GridSuggestionDTO();
+        suggestion.setGridLineId(bestMatch.getId());
+        suggestion.setLevel(bestMatch.getLevel());
+        suggestion.setGridType(bestMatch.getGridType());
+        suggestion.setSuggestedType(suggestedType);
+        suggestion.setBuyPrice(bestMatch.getBuyPrice());
+        suggestion.setSellPrice(bestMatch.getSellPrice());
+        suggestion.setState(bestMatch.getState());
+        suggestion.setInputPrice(price);
+        suggestion.setPriceDiff(minDiff);
+
+        return suggestion;
+    }
+
+    /**
+     * 执行一次交易录入（重构版 - 方案B）
+     * 前端明确指定操作哪个网格线，后端不做自动匹配
      */
     @PostMapping("/{id}/tick")
     public TickResponse executeTick(@PathVariable Long id, @RequestBody TickRequest request) {
         // 参数校验
+        if (request.getGridLineId() == null) {
+            throw new IllegalArgumentException("gridLineId 必填");
+        }
         if (request.getPrice() == null || request.getPrice().compareTo(BigDecimal.ZERO) <= 0) {
             throw new IllegalArgumentException("price 必填且必须大于 0");
         }
@@ -402,11 +464,12 @@ public class StrategyController {
             throw new IllegalArgumentException("交易时间格式错误，请使用 yyyy-MM-dd HH:mm:ss 格式");
         }
 
-        // 调用 GridEngine 处理交易
+        // 调用 GridEngine 处理交易（重构版：传入gridLineId）
         LocalDateTime beforeExecution = LocalDateTime.now();
         gridEngine.processManualTrade(
             id,
-            request.getType(),
+            request.getGridLineId(),  // 前端指定的网格线ID
+            request.getType(),        // 前端指定的交易类型
             request.getPrice(),
             request.getQuantity(),
             request.getFee(),
@@ -490,8 +553,11 @@ public class StrategyController {
             strategy.setBasePrice(newBuyPrice);
         }
 
-        // 重新计算从当前网格开始的所有后续网格
-        recalculatePlanGrids(strategy, gridLine.getLevel(), newBuyPrice);
+        // ✅ 更新当前网格的buyPrice
+        gridLine.setBuyPrice(newBuyPrice);
+
+        // ✅ 调用GridEngine的统一重算方法
+        gridEngine.recalculateSubsequentGridsAfterManualBuy(strategy, gridLine, newBuyPrice);
 
         // 保存策略（级联保存所有网格线）
         strategyRepository.save(strategy);
@@ -499,10 +565,12 @@ public class StrategyController {
 
     /**
      * 重新计算计划阶段的网格（使用固定步长）
+     * @deprecated 已废弃，请使用 GridEngine.recalculateSubsequentGridsAfterManualBuy()
      * @param strategy 策略实体
      * @param fromLevel 从哪一格开始重新计算（包含该格）
      * @param startBuyPrice 起始买入价（修改格的新买入价）
      */
+    @Deprecated
     private void recalculatePlanGrids(Strategy strategy, int fromLevel, BigDecimal startBuyPrice) {
         BigDecimal basePrice = strategy.getBasePrice();
         List<GridLine> gridLines = strategy.getGridLines();
@@ -650,8 +718,11 @@ public class StrategyController {
         // 更新实际买入价
         targetGridLine.setActualBuyPrice(request.getActualBuyPrice());
 
-        // 重算后续网格（从当前level+1开始）
-        recalculateSubsequentGrids(strategy, targetGridLine);
+        // ✅ 同步更新buyPrice（用于后续网格计算）
+        targetGridLine.setBuyPrice(request.getActualBuyPrice());
+
+        // ✅ 调用GridEngine的统一重算方法
+        gridEngine.recalculateSubsequentGridsAfterManualBuy(strategy, targetGridLine, request.getActualBuyPrice());
 
         // 保存策略（级联保存所有网格线）
         strategyRepository.save(strategy);
@@ -659,7 +730,9 @@ public class StrategyController {
 
     /**
      * 重算后续网格（从指定网格之后的网格开始）
+     * @deprecated 已废弃，请使用 GridEngine.recalculateSubsequentGridsAfterManualBuy()
      */
+    @Deprecated
     private void recalculateSubsequentGrids(Strategy strategy, GridLine fromGridLine) {
         BigDecimal basePrice = strategy.getBasePrice();
         BigDecimal smallStep = basePrice.multiply(SMALL_PERCENT);

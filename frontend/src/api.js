@@ -58,10 +58,22 @@ export function getGridLines(strategyId) {
 }
 
 /**
+ * 根据价格推荐网格和交易类型
+ * @param {number} strategyId - 策略ID
+ * @param {number} price - 输入的价格
+ * @returns {Promise} 推荐结果
+ */
+export function suggestGridByPrice(strategyId, price) {
+  return api.get(`/strategies/${strategyId}/suggest`, {
+    params: { price }
+  })
+}
+
+/**
  * 执行一次价格触发
  * 支持两种模式：
  * 1. 自动模式：executeTick(strategyId, price)
- * 2. 手动模式：executeTick(strategyId, { price, type, quantity, fee, tradeTime })
+ * 2. 手动模式（新）：executeTick(strategyId, { gridLineId, type, price, quantity, fee, tradeTime })
  */
 export function executeTick(strategyId, priceOrData) {
   // 兼容两种调用方式

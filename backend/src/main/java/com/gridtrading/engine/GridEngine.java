@@ -41,49 +41,19 @@ public class GridEngine {
         this.tradeRecordRepository = tradeRecordRepository;
     }
 
-    /**
-     * 处理价格更新（自动模式）
-     * <p>
-     * 执行顺序：Step 0 → Step 1 → Step 2 → Step 3
-     *
-     * @param strategyId 策略 ID
-     * @param price      当前价格
-     */
-    @Transactional
-    public void processPrice(Long strategyId, BigDecimal price) {
-        // 加载策略（包含网格线）
-        Strategy strategy = strategyRepository.findByIdWithGridLines(strategyId)
-                .orElseThrow(() -> new IllegalArgumentException("策略不存在: " + strategyId));
-        log.info("GridLines size = {}", strategy.getGridLines().size());
-
-        // ============ Step 0: 更新最新价格 ============
-        strategy.setLastPrice(price);
-
-        // ============ Step 1: 买入处理（仅 RUNNING 状态） ============
-        processBuy(strategy, price);
-
-        // ============ Step 2: 卖出处理（RUNNING / STOPPED 都允许） ============
-        processSell(strategy, price);
-
-        // ============ Step 3: 风控 STOP 判断 ============
-        checkAndStop(strategy, price);
-
-        // 保存策略状态
-        strategyRepository.save(strategy);
-    }
 
     /**
-     * 处理手动录入的交易
+     * 处理手动录入的交易（重构版 - 方案B）
      * <p>
      * 核心逻辑：
-     * 1. 根据价格找到最匹配的网格线
-     * 2. 根据网格线状态判断应该执行的交易类型（BUY/SELL）
-     * 3. 验证用户传入的 type 是否与引擎判断的一致
-     * 4. 使用用户传入的实际价格、数量、手续费、交易时间
-     * 5. 更新网格线的 actualBuyPrice/actualSellPrice
+     * 1. 前端指定 gridLineId + type，后端不做自动匹配和判断
+     * 2. 使用用户传入的实际价格、数量、手续费、交易时间
+     * 3. 更新网格线的 actualBuyPrice/actualSellPrice
+     * 4. 触发级联更新（如果价格改变了）
      *
      * @param strategyId 策略 ID
-     * @param userType   用户传入的交易类型（用于验证）
+     * @param gridLineId 网格线 ID（前端指定）
+     * @param type       交易类型（前端指定：BUY/SELL）
      * @param price      实际成交价格
      * @param quantity   实际成交数量
      * @param fee        手续费
@@ -92,7 +62,8 @@ public class GridEngine {
     @Transactional
     public void processManualTrade(
             Long strategyId,
-            TradeType userType,
+            Long gridLineId,
+            TradeType type,
             BigDecimal price,
             BigDecimal quantity,
             BigDecimal fee,
@@ -102,28 +73,14 @@ public class GridEngine {
         Strategy strategy = strategyRepository.findByIdWithGridLines(strategyId)
                 .orElseThrow(() -> new IllegalArgumentException("策略不存在: " + strategyId));
 
+        // 查找指定的网格线
+        GridLine gridLine = strategy.getGridLines().stream()
+                .filter(gl -> gl.getId().equals(gridLineId))
+                .findFirst()
+                .orElseThrow(() -> new IllegalArgumentException("网格线不存在: " + gridLineId));
+
         // 更新最新价格
         strategy.setLastPrice(price);
-
-        // 根据价格查找最匹配的网格线（不分交易类型，只看价格）
-        GridLine matchedGridLine = findMatchingGridLineByPrice(strategy, price);
-        if (matchedGridLine == null) {
-            throw new RuntimeException("未找到匹配的网格线，价格=" + price);
-        }
-
-        // 根据网格线当前状态判断应该执行的交易类型
-        TradeType expectedType = determineTradeType(matchedGridLine, price);
-
-        // 验证用户传入的交易类型是否与引擎判断的一致
-        if (userType != expectedType) {
-            throw new IllegalArgumentException(
-                String.format("交易类型不匹配！网格线 [Level=%d, 状态=%s] 应该执行 %s，但用户传入了 %s。请检查交易引擎算法或重新确认交易类型。",
-                    matchedGridLine.getLevel(),
-                    matchedGridLine.getState(),
-                    expectedType,
-                    userType)
-            );
-        }
 
         // 计算交易金额
         BigDecimal amount = price.multiply(quantity);
@@ -131,8 +88,8 @@ public class GridEngine {
         // 创建交易记录
         TradeRecord tradeRecord = new TradeRecord();
         tradeRecord.setStrategy(strategy);
-        tradeRecord.setGridLine(matchedGridLine);
-        tradeRecord.setType(expectedType);  // 使用引擎判断的类型
+        tradeRecord.setGridLine(gridLine);
+        tradeRecord.setType(type);
         tradeRecord.setPrice(price);
         tradeRecord.setQuantity(quantity);
         tradeRecord.setAmount(amount);
@@ -141,75 +98,17 @@ public class GridEngine {
         tradeRecordRepository.save(tradeRecord);
 
         // 执行买入或卖出的状态更新
-        if (expectedType == TradeType.BUY) {
-            executeManualBuy(strategy, matchedGridLine, price, quantity, amount);
+        if (type == TradeType.BUY) {
+            executeManualBuy(strategy, gridLine, price, quantity, amount);
         } else {
-            executeManualSell(strategy, matchedGridLine, price, quantity, amount);
+            executeManualSell(strategy, gridLine, price, quantity, amount);
         }
 
         // 保存策略和网格线
-        gridLineRepository.save(matchedGridLine);
+        gridLineRepository.save(gridLine);
         strategyRepository.save(strategy);
     }
 
-    /**
-     * 根据价格查找最匹配的网格线（不考虑交易类型）
-     * 找到买入价或卖出价最接近当前价格的网格线
-     */
-    private GridLine findMatchingGridLineByPrice(Strategy strategy, BigDecimal price) {
-        List<GridLine> gridLines = strategy.getGridLines();
-        GridLine bestMatch = null;
-        BigDecimal minDiff = null;
-
-        for (GridLine gridLine : gridLines) {
-            // 计算与买入价的差异
-            BigDecimal buyDiff = price.subtract(gridLine.getBuyPrice()).abs();
-            // 计算与卖出价的差异
-            BigDecimal sellDiff = price.subtract(gridLine.getSellPrice()).abs();
-
-            // 取较小的差异
-            BigDecimal diff = buyDiff.compareTo(sellDiff) < 0 ? buyDiff : sellDiff;
-
-            // 找到差异最小的网格线
-            if (minDiff == null || diff.compareTo(minDiff) < 0) {
-                minDiff = diff;
-                bestMatch = gridLine;
-            }
-        }
-
-        return bestMatch;
-    }
-
-    /**
-     * 根据网格线状态和价格判断应该执行的交易类型
-     *
-     * @param gridLine 网格线
-     * @param price 当前价格
-     * @return 应该执行的交易类型（BUY 或 SELL）
-     */
-    private TradeType determineTradeType(GridLine gridLine, BigDecimal price) {
-        GridLineState state = gridLine.getState();
-
-        // 判断价格更接近买入价还是卖出价
-        BigDecimal buyDiff = price.subtract(gridLine.getBuyPrice()).abs();
-        BigDecimal sellDiff = price.subtract(gridLine.getSellPrice()).abs();
-        boolean closerToBuyPrice = buyDiff.compareTo(sellDiff) <= 0;
-
-        // 根据状态判断
-        if (state == GridLineState.WAIT_BUY) {
-            // 等待买入状态 → 应该执行买入
-            return TradeType.BUY;
-        } else if (state == GridLineState.BOUGHT) {
-            // 已买入状态 → 应该执行卖出
-            return TradeType.SELL;
-        } else if (state == GridLineState.WAIT_SELL) {
-            // 等待卖出状态（兼容旧状态）→ 应该执行卖出
-            return TradeType.SELL;
-        } else {
-            // 其他状态，根据价格判断
-            return closerToBuyPrice ? TradeType.BUY : TradeType.SELL;
-        }
-    }
 
     /**
      * 执行手动买入的状态更新
@@ -245,7 +144,11 @@ public class GridEngine {
      * 手动买入后，更新当前网格的sellPrice（基于阶梯回撤规则）
      * ✅ 优化：基于实际买入价计算卖出价，确保收益率
      */
-    private void updateCurrentGridSellPriceAfterBuy(Strategy strategy, GridLine currentGridLine) {
+    /**
+     * 更新当前网格买入后的sellPrice（包含收益率保护）
+     * ✅ public方法：供OCR导入服务等外部调用
+     */
+    public void updateCurrentGridSellPriceAfterBuy(Strategy strategy, GridLine currentGridLine) {
         GridType gridType = currentGridLine.getGridType();
         int currentLevel = currentGridLine.getLevel();
         BigDecimal actualBuyPrice = currentGridLine.getActualBuyPrice();
@@ -257,89 +160,84 @@ public class GridEngine {
 
         if (gridType == GridType.SMALL) {
             targetProfitRate = new BigDecimal("0.05"); // 5%
+            BigDecimal minSellPrice = actualBuyPrice.multiply(new BigDecimal("1.05")); // 成本+5%
+
             if (currentLevel == 1) {
-                // 第1网：基于实际买入价计算，确保5%收益
-                newSellPrice = actualBuyPrice.multiply(new BigDecimal("1.05"))
-                    .setScale(3, RoundingMode.HALF_UP);
+                // 第1网：直接使用成本+5%
+                newSellPrice = minSellPrice;
             } else {
-                // 后续小网：先尝试卖回上一小网的买入价
+                // 后续小网：找上一小网的有效买入价
+                BigDecimal targetSellPrice = null;
                 for (int i = allGridLines.size() - 1; i >= 0; i--) {
                     GridLine gl = allGridLines.get(i);
                     if (gl.getLevel() < currentLevel && gl.getGridType() == GridType.SMALL) {
-                        BigDecimal prevBuyPrice = gl.getActualBuyPrice() != null ?
+                        targetSellPrice = gl.getActualBuyPrice() != null ?
                             gl.getActualBuyPrice() : gl.getBuyPrice();
-                        newSellPrice = prevBuyPrice.setScale(3, RoundingMode.HALF_UP);
                         break;
                     }
                 }
-                // ✅ 收益率保护：如果卖回价低于实际成本+5%，则强制按实际成本+5%计算
-                BigDecimal minSellPrice = actualBuyPrice.multiply(new BigDecimal("1.05"))
-                    .setScale(3, RoundingMode.HALF_UP);
-                if (newSellPrice == null || newSellPrice.compareTo(minSellPrice) < 0) {
-                    newSellPrice = minSellPrice;
-                    log.info("[收益保护] 网格{} 卖出价低于成本+5%，强制调整为{}（成本{}）",
-                        currentLevel, newSellPrice, actualBuyPrice);
-                }
+                // ✅ 收益最大化：MAX(成本+5%, 上一小网buyPrice)
+                newSellPrice = (targetSellPrice != null && targetSellPrice.compareTo(minSellPrice) > 0) ?
+                    targetSellPrice : minSellPrice;
             }
+            newSellPrice = newSellPrice.setScale(3, RoundingMode.HALF_UP);
+
         } else if (gridType == GridType.MEDIUM) {
             targetProfitRate = new BigDecimal("0.15"); // 15%
-            // 中网：卖回锚点
+            BigDecimal minSellPrice = actualBuyPrice.multiply(new BigDecimal("1.15")); // 成本+15%
+            BigDecimal targetSellPrice;
+
             if (currentLevel == 5) {
-                newSellPrice = strategy.getBasePrice().setScale(3, RoundingMode.HALF_UP);
+                // 第1个中网：卖回 basePrice
+                targetSellPrice = strategy.getBasePrice();
             } else {
-                // 后续中网：卖回上一个中网的actualBuyPrice
+                // 后续中网：卖回上一个中网的有效buyPrice
+                targetSellPrice = null;
                 for (int i = allGridLines.size() - 1; i >= 0; i--) {
                     GridLine gl = allGridLines.get(i);
                     if (gl.getLevel() < currentLevel && gl.getGridType() == GridType.MEDIUM) {
-                        BigDecimal prevBuyPrice = gl.getActualBuyPrice() != null ?
+                        targetSellPrice = gl.getActualBuyPrice() != null ?
                             gl.getActualBuyPrice() : gl.getBuyPrice();
-                        newSellPrice = prevBuyPrice.setScale(3, RoundingMode.HALF_UP);
                         break;
                     }
                 }
-                if (newSellPrice == null) {
-                    newSellPrice = strategy.getBasePrice().setScale(3, RoundingMode.HALF_UP);
+                if (targetSellPrice == null) {
+                    targetSellPrice = strategy.getBasePrice();
                 }
             }
-            // ✅ 收益率保护：确保至少15%收益
-            BigDecimal minSellPrice = actualBuyPrice.multiply(new BigDecimal("1.15"))
-                .setScale(3, RoundingMode.HALF_UP);
-            if (newSellPrice.compareTo(minSellPrice) < 0) {
-                newSellPrice = minSellPrice;
-                log.info("[收益保护] 网格{} 中网卖出价低于成本+15%，强制调整为{}（成本{}）",
-                    currentLevel, newSellPrice, actualBuyPrice);
-            }
+            // ✅ 收益最大化：MAX(成本+15%, 锚点/上一中网)
+            newSellPrice = minSellPrice.compareTo(targetSellPrice) > 0 ? minSellPrice : targetSellPrice;
+            newSellPrice = newSellPrice.setScale(3, RoundingMode.HALF_UP);
+
         } else { // LARGE
             targetProfitRate = new BigDecimal("0.30"); // 30%
-            // 大网：特殊锚点
+            BigDecimal minSellPrice = actualBuyPrice.multiply(new BigDecimal("1.30")); // 成本+30%
+            BigDecimal targetSellPrice;
+
             if (currentLevel == 10) {
-                newSellPrice = strategy.getBasePrice().setScale(3, RoundingMode.HALF_UP);
+                // 第1个大网：卖回 basePrice
+                targetSellPrice = strategy.getBasePrice();
             } else {
-                // 第2个大网：卖回第2个中网的actualBuyPrice
+                // 第2个大网：卖回第9网的有效buyPrice
+                targetSellPrice = null;
                 int mediumCount = 0;
                 for (GridLine gl : allGridLines) {
                     if (gl.getGridType() == GridType.MEDIUM) {
                         mediumCount++;
                         if (mediumCount == 2) {
-                            BigDecimal mediumPrice = gl.getActualBuyPrice() != null ?
+                            targetSellPrice = gl.getActualBuyPrice() != null ?
                                 gl.getActualBuyPrice() : gl.getBuyPrice();
-                            newSellPrice = mediumPrice.setScale(3, RoundingMode.HALF_UP);
                             break;
                         }
                     }
                 }
-                if (newSellPrice == null) {
-                    newSellPrice = strategy.getBasePrice().setScale(3, RoundingMode.HALF_UP);
+                if (targetSellPrice == null) {
+                    targetSellPrice = strategy.getBasePrice();
                 }
             }
-            // ✅ 收益率保护：确保至少30%收益
-            BigDecimal minSellPrice = actualBuyPrice.multiply(new BigDecimal("1.30"))
-                .setScale(3, RoundingMode.HALF_UP);
-            if (newSellPrice.compareTo(minSellPrice) < 0) {
-                newSellPrice = minSellPrice;
-                log.info("[收益保护] 网格{} 大网卖出价低于成本+30%，强制调整为{}（成本{}）",
-                    currentLevel, newSellPrice, actualBuyPrice);
-            }
+            // ✅ 收益最大化：MAX(成本+30%, 锚点/第9网)
+            newSellPrice = minSellPrice.compareTo(targetSellPrice) > 0 ? minSellPrice : targetSellPrice;
+            newSellPrice = newSellPrice.setScale(3, RoundingMode.HALF_UP);
         }
 
         if (newSellPrice != null) {
@@ -392,21 +290,29 @@ public class GridEngine {
     }
 
     /**
-     * 重新计算后续网格的买入价（手动买入后触发）
+     * 统一的网格价格重算方法（核心方法）
      * <p>
-     * 核心逻辑：
-     * 当一个小网的买入价变化时，需要更新：
-     * 1. 紧跟在后面的中网和大网（它们继承小网的买入价）
-     * 2. 后续所有小网（基于新价格按×0.95递减）
-     * 3. 递归更新所有受影响的网格
-     * 4. 保护已交易网格：actualBuyPrice不为null的网格跳过buyPrice更新
-     * 5. BOUGHT状态的网格：只更新sellPrice，不更新buyPrice（已买入，保持历史）
+     * 适用场景：
+     * 1. 手动交易后级联更新
+     * 2. OCR批量导入后更新
+     * 3. 计划阶段调整价格
      * <p>
-     * ✅ 此方法可被外部调用（如OCR导入服务），以便在批量导入后触发级联更新
+     * 核心规则：
+     * - 小网 buyPrice：上一小网 × 0.95（向下舍入3位）
+     * - 中网/大网 buyPrice：继承最近小网
+     * - sellPrice：MAX(buyPrice × 目标收益率, 回撤参考价)，四舍五入3位
+     * - 收益率：小网5%，中网15%，大网30%
+     * <p>
+     * 状态保护：
+     * - WAIT_BUY：更新 buyPrice + sellPrice + 触发价
+     * - BOUGHT：只更新 sellPrice + sellTriggerPrice（保持历史buyPrice）
+     * - 已交易（actualBuyPrice != null）：跳过更新，但更新追踪变量
+     * <p>
+     * ✅ 此方法可被外部调用（如OCR导入服务、Controller）
      *
      * @param strategy 策略
-     * @param currentGridLine 当前手动买入的网格线
-     * @param actualBuyPrice 实际买入价
+     * @param currentGridLine 当前触发更新的网格线
+     * @param actualBuyPrice 实际买入价（如果是买入交易）
      */
     public void recalculateSubsequentGridsAfterManualBuy(Strategy strategy, GridLine currentGridLine, BigDecimal actualBuyPrice) {
         List<GridLine> allGridLines = strategy.getGridLines();
@@ -503,9 +409,11 @@ public class GridEngine {
                 newBuyPrice = lastSmallBuyPrice.multiply(decreaseFactor)
                     .setScale(3, RoundingMode.DOWN);
 
-                // ✅ 修复：小网的sellPrice = 上一个小网的有效买入价（优先actualBuyPrice）
-                // 卖出价四舍五入（卖得更贵）
-                newSellPrice = lastSmallEffectiveBuyPrice.setScale(3, RoundingMode.HALF_UP);
+                // ✅ 小网 sellPrice = MAX(当前buyPrice × 1.05, 上一小网的有效buyPrice)
+                BigDecimal minSellPrice = newBuyPrice.multiply(new BigDecimal("1.05")); // 5%收益保护
+                BigDecimal targetSellPrice = lastSmallEffectiveBuyPrice; // 卖回上一小网
+                newSellPrice = minSellPrice.compareTo(targetSellPrice) > 0 ? minSellPrice : targetSellPrice;
+                newSellPrice = newSellPrice.setScale(3, RoundingMode.HALF_UP); // 四舍五入
 
                 // ✅ 更新追踪变量
                 lastSmallBuyPrice = newBuyPrice;
@@ -514,19 +422,19 @@ public class GridEngine {
             } else if (gridLine.getGridType() == GridType.MEDIUM) {
                 // 中网：继承最新小网的买入价
                 newBuyPrice = lastSmallBuyPrice;
-                // ✅ 修复：中网的sellPrice = 锚点逻辑（优先使用actualBuyPrice）
+
+                // ✅ 中网 sellPrice = MAX(当前buyPrice × 1.15, 锚点/上一中网buyPrice)
+                BigDecimal minSellPrice = newBuyPrice.multiply(new BigDecimal("1.15")); // 15%收益保护
+                BigDecimal targetSellPrice;
                 if (gridLine.getLevel() == 5) {
                     // 第1个中网（第5条）：卖回 basePrice
-                    newSellPrice = strategy.getBasePrice().setScale(3, RoundingMode.HALF_UP);
+                    targetSellPrice = strategy.getBasePrice();
                 } else {
-                    // 后续中网：卖回上一个中网的 buyPrice（优先使用actualBuyPrice）
-                    if (lastMediumBuyPrice != null) {
-                        newSellPrice = lastMediumBuyPrice.setScale(3, RoundingMode.HALF_UP);
-                    } else {
-                        // 兜底：如果找不到上一个中网，使用基准价
-                        newSellPrice = strategy.getBasePrice().setScale(3, RoundingMode.HALF_UP);
-                    }
+                    // 后续中网：卖回上一个中网的有效buyPrice
+                    targetSellPrice = lastMediumBuyPrice != null ? lastMediumBuyPrice : strategy.getBasePrice();
                 }
+                newSellPrice = minSellPrice.compareTo(targetSellPrice) > 0 ? minSellPrice : targetSellPrice;
+                newSellPrice = newSellPrice.setScale(3, RoundingMode.HALF_UP); // 四舍五入
 
                 mediumCount++;
                 lastMediumBuyPrice = newBuyPrice;
@@ -538,19 +446,18 @@ public class GridEngine {
                 // 大网：继承最新小网的买入价
                 newBuyPrice = lastSmallBuyPrice;
 
-                // ✅ 修复：大网的sellPrice = 特殊锚点规则（优先使用actualBuyPrice）
+                // ✅ 大网 sellPrice = MAX(当前buyPrice × 1.30, 锚点/第9网buyPrice)
+                BigDecimal minSellPrice = newBuyPrice.multiply(new BigDecimal("1.30")); // 30%收益保护
+                BigDecimal targetSellPrice;
                 if (gridLine.getLevel() == 10) {
                     // 第1个大网：卖回 basePrice
-                    newSellPrice = strategy.getBasePrice().setScale(3, RoundingMode.HALF_UP);
+                    targetSellPrice = strategy.getBasePrice();
                 } else {
-                    // 第2个大网（Level 19）：卖回第2个中网(Level 9)的买入价
-                    if (secondMediumBuyPrice != null) {
-                        newSellPrice = secondMediumBuyPrice.setScale(3, RoundingMode.HALF_UP);
-                    } else {
-                        // 兜底：如果找不到第2个中网，使用基准价
-                        newSellPrice = strategy.getBasePrice().setScale(3, RoundingMode.HALF_UP);
-                    }
+                    // 第2个大网（Level 19）：卖回第9网的有效buyPrice
+                    targetSellPrice = secondMediumBuyPrice != null ? secondMediumBuyPrice : strategy.getBasePrice();
                 }
+                newSellPrice = minSellPrice.compareTo(targetSellPrice) > 0 ? minSellPrice : targetSellPrice;
+                newSellPrice = newSellPrice.setScale(3, RoundingMode.HALF_UP); // 四舍五入
             }
 
             // ✅ 修复：根据网格状态决定更新哪些字段
@@ -625,235 +532,5 @@ public class GridEngine {
         }
     }
 
-    /**
-     * Step 1: 买入处理（固定模板网格）
-     * <p>
-     * 状态机：WAIT_BUY → BOUGHT
-     * <p>
-     * 触发条件：
-     * 1. Strategy.status == RUNNING
-     * 2. GridLine.state == WAIT_BUY （严格过滤）
-     * 3. price <= gridLine.buyPrice
-     * 4. availableCash >= amountPerGrid
-     * 5. 已买入网格数量 < 19（固定模板硬风控）
-     * <p>
-     * 排序：按 level 从小到大（按顺序买入）
-     * <p>
-     * 禁止：同一个 GridLine 在一次 processPrice 中 BUY 两次
-     */
-    private void processBuy(Strategy strategy, BigDecimal price) {
-        // 只有 RUNNING 状态才允许买入
-        if (strategy.getStatus() != StrategyStatus.RUNNING) {
-            return;
-        }
 
-        // 【固定模板风控】检查已买入网格数量
-        long boughtCount = gridLineRepository.countByStrategyAndState(strategy, GridLineState.BOUGHT);
-        if (boughtCount >= 19) {
-            log.info("[BUY-STOP] 已买入网格数量达到19条，禁止继续买入");
-            return;
-        }
-
-        // 查询等待买入的网格线（严格过滤 state = WAIT_BUY）
-        List<GridLine> waitBuyLines = gridLineRepository
-                .findByStrategyAndStateOrderByLevelAsc(strategy, GridLineState.WAIT_BUY);
-
-        // 遍历所有等待买入的网格线（支持"一网打尽"）
-        for (GridLine gridLine : waitBuyLines) {
-            // 【固定模板风控】再次检查已买入数量（防止在循环中超出限制）
-            boughtCount = gridLineRepository.countByStrategyAndState(strategy, GridLineState.BOUGHT);
-            if (boughtCount >= 19) {
-                log.info("[BUY-STOP] 已买入网格数量达到19条，停止买入");
-                break;
-            }
-
-            // 二次确认状态（防止并发或重复）
-            if (gridLine.getState() != GridLineState.WAIT_BUY) {
-                log.warn("[BUY-SKIP] gridLineId={}, level={}, state={} (不是 WAIT_BUY)",
-                        gridLine.getId(), gridLine.getLevel(), gridLine.getState());
-                continue;
-            }
-
-            // 检查是否触发买入条件
-            if (price.compareTo(gridLine.getBuyPrice()) > 0) {
-                // 价格高于买入价，不触发
-                continue;
-            }
-
-            // 检查资金是否充足
-            if (strategy.getAvailableCash().compareTo(strategy.getAmountPerGrid()) < 0) {
-                // 资金不足，停止后续买入
-                log.info("[BUY-STOP] 资金不足，停止买入");
-                break;
-            }
-
-            // ===== 执行买入 =====
-            log.info("[BUY] gridLineId={}, level={}, price={}, buyPrice={}",
-                    gridLine.getId(), gridLine.getLevel(), price, gridLine.getBuyPrice());
-
-            // 计算买入数量 = 每格金额 / 买入价格
-            BigDecimal quantity = strategy.getAmountPerGrid()
-                    .divide(gridLine.getBuyPrice(), 8, RoundingMode.DOWN);
-
-            // 【关键】先更新状态：WAIT_BUY → BOUGHT
-            gridLine.setState(GridLineState.BOUGHT);
-            // 增加买入次数统计
-            gridLine.setBuyCount(gridLine.getBuyCount() + 1);
-            log.info("[BUY-COUNT] gridLineId={}, level={}, buyCount={}", 
-                    gridLine.getId(), gridLine.getLevel(), gridLine.getBuyCount());
-            gridLineRepository.save(gridLine);
-
-            // 生成买入交易记录（且仅一条）
-            TradeRecord tradeRecord = new TradeRecord();
-            tradeRecord.setStrategy(strategy);
-            tradeRecord.setGridLine(gridLine);
-            tradeRecord.setType(TradeType.BUY);
-            tradeRecord.setPrice(gridLine.getBuyPrice());
-            tradeRecord.setAmount(strategy.getAmountPerGrid());
-            tradeRecord.setQuantity(quantity);
-            tradeRecord.setTradeTime(LocalDateTime.now());
-            tradeRecordRepository.save(tradeRecord);
-
-
-            // 更新策略资金和持仓
-            strategy.setAvailableCash(
-                    strategy.getAvailableCash().subtract(strategy.getAmountPerGrid())
-            );
-            strategy.setInvestedAmount(
-                    strategy.getInvestedAmount().add(strategy.getAmountPerGrid())
-            );
-            strategy.setPosition(
-                    strategy.getPosition().add(quantity)
-            );
-        }
-    }
-
-    /**
-     * Step 2: 卖出处理（固定模板网格）
-     * <p>
-     * 状态机：BOUGHT → WAIT_BUY （循环网格）
-     * <p>
-     * 触发条件：
-     * 1. GridLine.state == BOUGHT （严格过滤，兼容旧的 WAIT_SELL）
-     * 2. price >= gridLine.sellPrice
-     * <p>
-     * 排序：按 sellPrice 从低到高（靠近当前价的优先）
-     * <p>
-     * 注意：无论策略是 RUNNING 还是 STOPPED，卖出都允许执行
-     */
-    private void processSell(Strategy strategy, BigDecimal price) {
-        // 查询已买入的网格线（严格过滤 state = BOUGHT，兼容 WAIT_SELL）
-        List<GridLine> boughtLines = gridLineRepository
-                .findByStrategyAndStateOrderBySellPriceAsc(strategy, GridLineState.BOUGHT);
-
-        // 兼容旧状态 WAIT_SELL
-        List<GridLine> waitSellLines = gridLineRepository
-                .findByStrategyAndStateOrderBySellPriceAsc(strategy, GridLineState.WAIT_SELL);
-
-        // 合并两个列表（优先处理 BOUGHT）
-        List<GridLine> allSellableLines = new java.util.ArrayList<>(boughtLines);
-        allSellableLines.addAll(waitSellLines);
-
-        // 遍历所有可卖出的网格线（支持"一网打尽"）
-        for (GridLine gridLine : allSellableLines) {
-            // 二次确认状态（防止并发或重复）
-            if (gridLine.getState() != GridLineState.BOUGHT
-                && gridLine.getState() != GridLineState.WAIT_SELL) {
-                log.warn("[SELL-SKIP] gridLineId={}, level={}, state={} (不是 BOUGHT/WAIT_SELL)",
-                        gridLine.getId(), gridLine.getLevel(), gridLine.getState());
-                continue;
-            }
-
-            // 检查是否触发卖出条件
-            if (price.compareTo(gridLine.getSellPrice()) < 0) {
-                // 价格低于卖出价，不触发
-                continue;
-            }
-
-            // ===== 执行卖出 =====
-            log.info("[SELL] gridLineId={}, level={}, price={}, sellPrice={}",
-                    gridLine.getId(), gridLine.getLevel(), price, gridLine.getSellPrice());
-
-            // 计算卖出数量（与买入时相同）
-            BigDecimal quantity = strategy.getAmountPerGrid()
-                    .divide(gridLine.getBuyPrice(), 8, RoundingMode.DOWN);
-
-            // 计算卖出金额 = 数量 × 卖出价格
-            BigDecimal sellAmount = quantity.multiply(gridLine.getSellPrice())
-                    .setScale(2, RoundingMode.DOWN);
-
-            // 计算收益 = 卖出金额 - 买入金额
-            BigDecimal profit = sellAmount.subtract(strategy.getAmountPerGrid());
-
-            // 【关键】先更新状态：BOUGHT/WAIT_SELL → WAIT_BUY（循环网格）
-            gridLine.setState(GridLineState.WAIT_BUY);
-            // 增加卖出次数统计
-            gridLine.setSellCount(gridLine.getSellCount() + 1);
-            log.info("[SELL-COUNT] gridLineId={}, level={}, sellCount={}", 
-                    gridLine.getId(), gridLine.getLevel(), gridLine.getSellCount());
-            gridLineRepository.save(gridLine);
-
-            // 生成卖出交易记录（且仅一条）
-            TradeRecord tradeRecord = new TradeRecord();
-            tradeRecord.setStrategy(strategy);
-            tradeRecord.setGridLine(gridLine);
-            tradeRecord.setType(TradeType.SELL);
-            tradeRecord.setPrice(gridLine.getSellPrice());
-            tradeRecord.setAmount(sellAmount);
-            tradeRecord.setQuantity(quantity);
-            tradeRecord.setTradeTime(LocalDateTime.now());
-            tradeRecordRepository.save(tradeRecord);
-
-            // 更新策略资金和持仓
-            strategy.setAvailableCash(
-                    strategy.getAvailableCash().add(sellAmount)
-            );
-            strategy.setInvestedAmount(
-                    strategy.getInvestedAmount().subtract(strategy.getAmountPerGrid())
-            );
-            strategy.setPosition(
-                    strategy.getPosition().subtract(quantity)
-            );
-            strategy.setRealizedProfit(
-                    strategy.getRealizedProfit().add(profit)
-            );
-        }
-    }
-
-    /**
-     * Step 3: 风控 STOP 判断
-     * <p>
-     * 触发条件（满足任一即可）：
-     * 1. price <= 最低买入网格价格
-     * 2. 已投入资金 >= maxCapital
-     * <p>
-     * STOP 行为：
-     * - 不清仓（保留已买入的持仓）
-     * - 只停止后续买入
-     * - 允许卖出（价格上涨时可平仓获利）
-     */
-    private void checkAndStop(Strategy strategy, BigDecimal price) {
-        // 如果已经是 STOPPED 状态，无需重复判断
-        if (strategy.getStatus() == StrategyStatus.STOPPED) {
-            return;
-        }
-
-        boolean shouldStop = false;
-
-        // 条件 1: 价格跌破最低买入网格价格
-        BigDecimal lowestBuyPrice = gridLineRepository.findLowestBuyPrice(strategy);
-        if (lowestBuyPrice != null && price.compareTo(lowestBuyPrice) <= 0) {
-            shouldStop = true;
-        }
-
-        // 条件 2: 已投入资金达到或超过最大资金
-        if (strategy.getInvestedAmount().compareTo(strategy.getMaxCapital()) >= 0) {
-            shouldStop = true;
-        }
-
-        // 触发 STOP
-        if (shouldStop) {
-            strategy.setStatus(StrategyStatus.STOPPED);
-        }
-    }
 }
