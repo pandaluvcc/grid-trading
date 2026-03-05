@@ -87,6 +87,14 @@
         </div>
       </div>
 
+      <!-- 智能建议区域 -->
+      <SmartSuggestion
+        v-if="strategy"
+        :strategy-id="Number(strategyId)"
+        :initial-last-price="strategy.lastPrice"
+        @price-updated="(p) => priceInput = p.toString()"
+      />
+
       <!-- Tab切换 -->
       <div class="tab-switcher">
         <div 
@@ -453,6 +461,7 @@ import {
 } from '../../api'
 import MobileLayout from './MobileLayout.vue'
 import MobileGridCard from './MobileGridCard.vue'
+import SmartSuggestion from '../../components/SmartSuggestion.vue'
 
 const route = useRoute()
 const strategyId = computed(() => route.params.id)

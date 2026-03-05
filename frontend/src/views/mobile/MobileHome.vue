@@ -117,6 +117,35 @@
             </div>
           </div>
 
+          <!-- 智能建议图标区 -->
+          <div class="strategy-suggestion-icons" v-if="strategySuggestions[s.id]">
+            <!-- 风险提示图标 -->
+            <el-tooltip 
+              v-if="getStrategyRisks(s.id).length > 0"
+              :content="formatRisksTooltip(s.id)"
+              placement="top"
+              effect="dark"
+            >
+              <span class="suggestion-icon risk-icon" @click.stop>
+                <el-icon color="#e6a23c"><Warning /></el-icon>
+                <span class="icon-count">{{ getStrategyRisks(s.id).length }}</span>
+              </span>
+            </el-tooltip>
+
+            <!-- 建议操作数量图标 -->
+            <el-tooltip 
+              v-if="getStrategySuggestionsCount(s.id) > 0"
+              :content="`有${getStrategySuggestionsCount(s.id)}条建议操作`"
+              placement="top"
+              effect="dark"
+            >
+              <span class="suggestion-icon action-icon" @click.stop>
+                <el-icon color="#409eff"><Bell /></el-icon>
+                <span class="icon-count">{{ getStrategySuggestionsCount(s.id) }}</span>
+              </span>
+            </el-tooltip>
+          </div>
+
           <!-- 触发提醒 -->
           <div class="strategy-alerts" v-if="s.triggerCount > 0">
             <el-icon color="#ff9800"><BellFilled /></el-icon>
@@ -190,9 +219,9 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { 
-  HomeFilled, Plus, List, RefreshRight, BellFilled
+  HomeFilled, Plus, List, RefreshRight, BellFilled, Warning, Bell
 } from '@element-plus/icons-vue'
-import { getAllStrategies, updateStrategyLastPrice } from '../../api'
+import { getAllStrategies, updateStrategyLastPrice, getSmartSuggestions } from '../../api'
 
 const router = useRouter()
 
@@ -201,6 +230,7 @@ const loading = ref(false)
 const batchUpdateDialogVisible = ref(false)
 const priceInputs = ref({})
 const updating = ref(false)
+const strategySuggestions = ref({}) // 存储每个策略的智能建议
 
 // 总收益
 const totalProfit = computed(() => {
@@ -294,12 +324,49 @@ const loadData = async () => {
       triggerCount: 0, // TODO: 从后端获取触发提醒数量
       triggers: [] // TODO: 从后端获取触发提醒列表
     }))
+    
+    // 为每个策略获取智能建议
+    await loadSuggestionsForStrategies()
   } catch (error) {
     console.error('加载失败:', error)
     ElMessage.error('加载失败')
   } finally {
     loading.value = false
   }
+}
+
+// 为所有策略加载智能建议
+const loadSuggestionsForStrategies = async () => {
+  for (const s of strategies.value) {
+    if (s.lastPrice) {
+      try {
+        const data = await getSmartSuggestions(s.id, s.lastPrice)
+        strategySuggestions.value[s.id] = data
+      } catch (error) {
+        console.error(`获取策略${s.id}的智能建议失败:`, error)
+        strategySuggestions.value[s.id] = null
+      }
+    }
+  }
+}
+
+// 获取策略的风险提示
+const getStrategyRisks = (strategyId) => {
+  const suggestion = strategySuggestions.value[strategyId]
+  return suggestion?.risks || []
+}
+
+// 获取策略的建议操作数量
+const getStrategySuggestionsCount = (strategyId) => {
+  const suggestion = strategySuggestions.value[strategyId]
+  return suggestion?.suggestions?.length || 0
+}
+
+// 格式化风险提示文字
+const formatRisksTooltip = (strategyId) => {
+  const risks = getStrategyRisks(strategyId)
+  if (risks.length === 0) return ''
+  return risks.map(r => r.message).join('\n')
 }
 
 // 去详情
@@ -633,6 +700,43 @@ onMounted(() => {
 
 .stat-value.negative {
   color: #67c23a;
+}
+
+/* 智能建议图标区 */
+.strategy-suggestion-icons {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px dashed #eee;
+}
+
+.suggestion-icon {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  background: #f5f7fa;
+  border-radius: 12px;
+  cursor: pointer;
+}
+
+.suggestion-icon:hover {
+  background: #e6e8eb;
+}
+
+.suggestion-icon .icon-count {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.risk-icon .icon-count {
+  color: #e6a23c;
+}
+
+.action-icon .icon-count {
+  color: #409eff;
 }
 
 .strategy-alerts {

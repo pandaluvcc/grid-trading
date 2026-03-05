@@ -116,43 +116,7 @@
       <p>当前价格暂无待操作建议</p>
     </div>
 
-    <!-- 风险提示 -->
-    <div class="risks-section" v-if="risks && risks.length > 0">
-      <div class="section-title">
-        <el-icon><Warning /></el-icon>
-        <span>风险提示</span>
-      </div>
-
-      <div class="risk-list">
-        <el-alert
-          v-for="(risk, index) in risks"
-          :key="index"
-          :title="risk.message"
-          :type="getRiskType(risk.level)"
-          :closable="false"
-          show-icon
-        />
-      </div>
-    </div>
-
-    <!-- 优化建议 -->
-    <div class="optimizations-section" v-if="optimizations && optimizations.length > 0">
-      <div class="section-title">
-        <el-icon><Sunny /></el-icon>
-        <span>优化建议</span>
-      </div>
-
-      <div class="optimization-list">
-        <div
-          v-for="(opt, index) in optimizations"
-          :key="index"
-          class="optimization-item"
-        >
-          <el-icon class="opt-icon"><InfoFilled /></el-icon>
-          <span>{{ opt.message }}</span>
-        </div>
-      </div>
-    </div>
+    <!-- 风险提示和优化建议已移至首页策略卡片图标显示 -->
   </div>
 </template>
 
@@ -548,66 +512,7 @@ const getRiskType = (level) => {
   margin: 0;
 }
 
-/* 风险提示区域 */
-.risks-section {
-  margin-top: 16px;
-  background: white;
-  border-radius: 16px;
-  padding: 16px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-}
-
-.risks-section .section-title .el-icon {
-  color: #f56c6c;
-}
-
-.risk-list {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.risk-list :deep(.el-alert) {
-  border-radius: 8px;
-}
-
-/* 优化建议区域 */
-.optimizations-section {
-  margin-top: 16px;
-  background: white;
-  border-radius: 16px;
-  padding: 16px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-}
-
-.optimizations-section .section-title .el-icon {
-  color: #e6a23c;
-}
-
-.optimization-list {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.optimization-item {
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
-  padding: 12px;
-  background: #fef7ec;
-  border-radius: 8px;
-  font-size: 13px;
-  color: #606266;
-  line-height: 1.5;
-}
-
-.opt-icon {
-  color: #e6a23c;
-  font-size: 16px;
-  flex-shrink: 0;
-  margin-top: 2px;
-}
+/* 风险提示和优化建议已移至首页策略卡片图标显示 */
 </style>
 
 

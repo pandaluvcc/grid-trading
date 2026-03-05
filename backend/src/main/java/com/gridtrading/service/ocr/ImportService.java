@@ -144,7 +144,13 @@ public class ImportService {
         } else {
             System.out.println("\n========== 未找到买入记录，跳过级联更新 ==========");
         }
-
+        // ✅ 设置lastPrice为最新交易记录的价格
+        BigDecimal latestPrice = findLatestTradePrice(records);
+        if (latestPrice != null) {
+            strategy.setLastPrice(latestPrice);
+            strategyRepository.save(strategy);
+            System.out.println("[OCR导入] 设置lastPrice: " + latestPrice);
+        }
         System.out.println("========== OCR 批量导入结束: 成功" + imported + "条, 跳过" + skipped + "条 ==========\n");
 
         Map<String, Object> result = new LinkedHashMap<>();
@@ -323,6 +329,25 @@ public class ImportService {
         }
 
         return null;
+    }
+
+    /**
+     * 从交易记录中找出最新的价格（按交易时间排序）
+     */
+    private BigDecimal findLatestTradePrice(List<OcrTradeRecord> records) {
+        if (records == null || records.isEmpty()) {
+            return null;
+        }
+        
+        return records.stream()
+            .filter(r -> r != null && r.getPrice() != null && r.getTradeTime() != null)
+            .max((a, b) -> a.getTradeTime().compareTo(b.getTradeTime()))
+            .map(OcrTradeRecord::getPrice)
+            .orElse(records.stream()
+                .filter(r -> r != null && r.getPrice() != null)
+                .map(OcrTradeRecord::getPrice)
+                .findFirst()
+                .orElse(null));
     }
 }
 

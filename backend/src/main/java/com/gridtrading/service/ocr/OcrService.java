@@ -243,6 +243,13 @@ public class OcrService {
         // 计算每个网格的真实累计收益
         calculateActualProfits(strategy);
 
+        // ✅ 设置lastPrice为最新交易记录的价格
+        BigDecimal latestPrice = findLatestTradePrice(records);
+        if (latestPrice != null) {
+            strategy.setLastPrice(latestPrice);
+            System.out.println("[OCR导入] 设置lastPrice: " + latestPrice);
+        }
+
         return strategyRepository.save(strategy);
     }
 
@@ -1295,5 +1302,24 @@ public class OcrService {
         private BigDecimal buyPrice;
         private BigDecimal sellPrice;
         private GridLineState state;
+    }
+
+    /**
+     * 从交易记录中找出最新的价格（按交易时间排序）
+     */
+    private BigDecimal findLatestTradePrice(List<OcrTradeRecord> records) {
+        if (records == null || records.isEmpty()) {
+            return null;
+        }
+        
+        return records.stream()
+            .filter(r -> r != null && r.getPrice() != null && r.getTradeTime() != null)
+            .max((a, b) -> a.getTradeTime().compareTo(b.getTradeTime()))
+            .map(OcrTradeRecord::getPrice)
+            .orElse(records.stream()
+                .filter(r -> r != null && r.getPrice() != null)
+                .map(OcrTradeRecord::getPrice)
+                .findFirst()
+                .orElse(null));
     }
 }

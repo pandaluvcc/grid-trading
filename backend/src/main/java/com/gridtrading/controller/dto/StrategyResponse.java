@@ -17,6 +17,9 @@ public class StrategyResponse {
     private BigDecimal basePrice;
     private Integer gridCount;
     private BigDecimal currentPrice;
+    private BigDecimal lastPrice;
+    private BigDecimal realizedProfit;
+    private String symbol;
     private LocalDateTime createdAt;
 
     public StrategyResponse() {
@@ -29,11 +32,14 @@ public class StrategyResponse {
         StrategyResponse response = new StrategyResponse();
         response.setId(strategy.getId());
         response.setName(strategy.getName());
+        response.setSymbol(strategy.getSymbol());
         response.setStatus(strategy.getStatus());
         response.setBasePrice(strategy.getBasePrice());
         // 计算总网格数
         response.setGridCount(strategy.getGridCountDown() + strategy.getGridCountUp());
         response.setCurrentPrice(strategy.getLastPrice());
+        response.setLastPrice(strategy.getLastPrice());
+        response.setRealizedProfit(strategy.getRealizedProfit());
         response.setCreatedAt(strategy.getCreatedAt());
         return response;
     }
@@ -92,5 +98,29 @@ public class StrategyResponse {
 
     public void setCreatedAt(LocalDateTime createdAt) {
         this.createdAt = createdAt;
+    }
+
+    public BigDecimal getLastPrice() {
+        return lastPrice;
+    }
+
+    public void setLastPrice(BigDecimal lastPrice) {
+        this.lastPrice = lastPrice;
+    }
+
+    public BigDecimal getRealizedProfit() {
+        return realizedProfit;
+    }
+
+    public void setRealizedProfit(BigDecimal realizedProfit) {
+        this.realizedProfit = realizedProfit;
+    }
+
+    public String getSymbol() {
+        return symbol;
+    }
+
+    public void setSymbol(String symbol) {
+        this.symbol = symbol;
     }
 }
