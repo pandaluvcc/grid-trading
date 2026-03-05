@@ -51,6 +51,13 @@ export function createStrategy(data) {
 }
 
 /**
+ * 更新策略最新价格
+ */
+export function updateStrategyLastPrice(strategyId, lastPrice) {
+  return api.put(`/strategies/${strategyId}/last-price`, { lastPrice })
+}
+
+/**
  * 获取网格计划列表
  */
 export function getGridLines(strategyId) {
@@ -172,6 +179,65 @@ export function ocrCreateStrategy({ files, brokerType = 'EASTMONEY', name, symbo
  */
 export function ocrRematch({ strategyId, records }) {
   return api.post('/ocr/rematch', { strategyId, records })
+}
+
+// ==================== 智能建议相关 ====================
+
+/**
+ * 获取智能建议操作
+ * @param {number} strategyId - 策略ID
+ * @returns {Promise} 智能建议结果
+ */
+export function getSuggestion(strategyId) {
+  return api.get(`/strategies/${strategyId}/suggestion`)
+    .then(response => response.data)
+}
+
+/**
+ * 更新最新价格
+ * @param {number} strategyId - 策略ID
+ * @param {number} lastPrice - 最新价格
+ * @returns {Promise}
+ */
+export function updateLastPrice(strategyId, lastPrice) {
+  return api.put(`/strategies/${strategyId}/last-price`, { lastPrice })
+    .then(response => response.data)
+}
+
+/**
+ * 手动补买暂缓网格
+ * @param {number} strategyId - 策略ID
+ * @param {number} gridId - 网格ID
+ * @param {object} data - 交易数据 { price, quantity, fee, tradeTime }
+ * @returns {Promise}
+ */
+export function resumeBuy(strategyId, gridId, data) {
+  return api.post(`/strategies/${strategyId}/grids/${gridId}/resume-buy`, data)
+    .then(response => response.data)
+}
+
+/**
+ * 获取所有暂缓网格
+ * @param {number} strategyId - 策略ID
+ * @returns {Promise}
+ */
+export function getDeferredGrids(strategyId) {
+  return api.get(`/strategies/${strategyId}/deferred-grids`)
+    .then(response => response.data)
+}
+
+// ==================== 智能建议相关 ====================
+
+/**
+ * 获取智能建议
+ * @param {number} strategyId - 策略ID
+ * @param {number} currentPrice - 当前价格
+ * @returns {Promise}
+ */
+export function getSmartSuggestions(strategyId, currentPrice) {
+  return api.get(`/suggestions/${strategyId}`, {
+    params: { currentPrice }
+  }).then(response => response.data)
 }
 
 export default api

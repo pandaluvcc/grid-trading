@@ -132,6 +132,24 @@ public class GridLine {
     private BigDecimal actualProfit = BigDecimal.ZERO;
 
     /**
+     * 是否暂缓买入（预留功能）
+     */
+    @Column(name = "deferred")
+    private Boolean deferred = false;
+
+    /**
+     * 暂缓原因（预留功能）
+     */
+    @Column(name = "deferred_reason", length = 100)
+    private String deferredReason;
+
+    /**
+     * 暂缓时间（预留功能）
+     */
+    @Column(name = "deferred_at")
+    private java.time.LocalDateTime deferredAt;
+
+    /**
      * JPA 要求的无参构造器
      */
     public GridLine() {
@@ -289,5 +307,29 @@ public class GridLine {
 
     public void setActualProfit(BigDecimal actualProfit) {
         this.actualProfit = actualProfit;
+    }
+
+    public Boolean getDeferred() {
+        return deferred;
+    }
+
+    public void setDeferred(Boolean deferred) {
+        this.deferred = deferred;
+    }
+
+    public String getDeferredReason() {
+        return deferredReason;
+    }
+
+    public void setDeferredReason(String deferredReason) {
+        this.deferredReason = deferredReason;
+    }
+
+    public java.time.LocalDateTime getDeferredAt() {
+        return deferredAt;
+    }
+
+    public void setDeferredAt(java.time.LocalDateTime deferredAt) {
+        this.deferredAt = deferredAt;
     }
 }

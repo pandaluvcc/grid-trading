@@ -6,7 +6,9 @@ import com.gridtrading.engine.GridEngine;
 import com.gridtrading.repository.GridLineRepository;
 import com.gridtrading.repository.StrategyRepository;
 import com.gridtrading.repository.TradeRecordRepository;
+import com.gridtrading.service.suggestion.SuggestionService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
@@ -14,7 +16,9 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
@@ -72,6 +76,9 @@ public class StrategyController {
 
     @Autowired
     private TradeRecordRepository tradeRecordRepository;
+
+    @Autowired
+    private SuggestionService suggestionService;
 
     /**
      * 获取所有策略列表
@@ -922,5 +929,42 @@ public class StrategyController {
 
         response.setGridPlans(gridPlans);
         return response;
+    }
+
+    // ==================== 智能建议相关 API ====================
+
+    /**
+     * 更新最新价格
+     */
+    @PutMapping("/{id}/last-price")
+    public Strategy updateLastPrice(@PathVariable Long id, @RequestBody UpdateLastPriceRequest request) {
+        Strategy strategy = strategyRepository.findById(id)
+            .orElseThrow(() -> new RuntimeException("策略不存在"));
+
+        strategy.setLastPrice(request.getLastPrice());
+        return strategyRepository.save(strategy);
+    }
+
+    /**
+     * 获取智能建议（新版）
+     */
+    @GetMapping("/{id}/suggestion")
+    public Map<String, Object> getSuggestion(
+            @PathVariable Long id,
+            @RequestParam(required = false) BigDecimal currentPrice) {
+
+        Strategy strategy = strategyRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("策略不存在"));
+
+        // 如果没有传入currentPrice，使用lastPrice
+        BigDecimal price = currentPrice != null ? currentPrice : strategy.getLastPrice();
+
+        if (price == null) {
+            Map<String, Object> error = new HashMap<>();
+            error.put("error", "请先设置当前价格");
+            return error;
+        }
+
+        return suggestionService.getSmartSuggestions(id, price);
     }
 }

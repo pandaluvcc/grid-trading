@@ -2,7 +2,18 @@
   <div class="mobile-home">
     <!-- 顶部渐变背景区 -->
     <div class="header-area">
-      <div class="greeting">我的网格</div>
+      <div class="header-top">
+        <div class="greeting">我的网格</div>
+        <el-button 
+          type="primary" 
+          size="small" 
+          @click="showBatchUpdateDialog"
+          class="update-price-btn"
+        >
+          <el-icon><RefreshRight /></el-icon>
+          更新行情
+        </el-button>
+      </div>
       
       <!-- 收益卡片 -->
       <div class="profit-card">
@@ -16,8 +27,8 @@
       </div>
     </div>
 
-    <!-- 快速操作区 -->
-    <div class="action-area">
+    <!-- 快速操作区（保留作为备用） -->
+    <div class="action-area" v-if="false">
       <!-- 待操作提示 -->
       <div class="pending-section" v-if="pendingGrid">
         <div class="pending-card" @click="goToRecord(pendingGrid)">
@@ -65,25 +76,53 @@
           v-for="s in strategies" 
           :key="s.id" 
           class="strategy-item"
-          @click="selectStrategy(s)"
+          @click="goToDetail(s)"
         >
-          <div class="strategy-main">
-            <div class="strategy-name">{{ s.name || s.symbol }}</div>
-            <div class="strategy-code" v-if="s.name">{{ s.symbol }}</div>
-            <div class="strategy-stats">
-              <span class="stat">
-                <span class="stat-label">持仓</span>
-                <span class="stat-value">{{ s.boughtCount }}/19</span>
-              </span>
-              <span class="stat">
-                <span class="stat-label">收益</span>
-                <span class="stat-value profit" :class="{ negative: s.realizedProfit < 0 }">
-                  {{ formatProfit(s.realizedProfit) }}
-                </span>
+          <div class="strategy-header">
+            <div class="strategy-title">
+              <div class="strategy-name">{{ s.name || s.symbol }}</div>
+              <div class="strategy-code" v-if="s.name">{{ s.symbol }}</div>
+            </div>
+            <el-tag 
+              size="small" 
+              :type="s.status === 'RUNNING' ? 'success' : 'info'"
+            >
+              {{ s.status === 'RUNNING' ? '运行中' : '已停止' }}
+            </el-tag>
+          </div>
+
+          <!-- 现价和涨跌 -->
+          <div class="strategy-price">
+            <span class="price">现价 ¥{{ formatPrice(s.lastPrice || s.basePrice) }}</span>
+            <span class="price-change" :class="getPriceChangeClass(s)">
+              {{ formatPriceChange(s) }}
+            </span>
+          </div>
+
+          <!-- 统计信息 -->
+          <div class="strategy-stats">
+            <div class="stat-item">
+              <span class="stat-label">成本</span>
+              <span class="stat-value">¥{{ formatPrice(s.basePrice) }}</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-label">持仓</span>
+              <span class="stat-value">{{ calculatePositionRatio(s) }}%</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-label">盈亏</span>
+              <span class="stat-value profit" :class="{ negative: s.realizedProfit < 0 }">
+                {{ formatProfit(s.realizedProfit) }}
               </span>
             </div>
           </div>
-          <el-icon class="strategy-arrow"><ArrowRight /></el-icon>
+
+          <!-- 触发提醒 -->
+          <div class="strategy-alerts" v-if="s.triggerCount > 0">
+            <el-icon color="#ff9800"><BellFilled /></el-icon>
+            <span>{{ s.triggerCount }}条触发提醒</span>
+            <span class="alert-detail">{{ formatTriggers(s.triggers) }}</span>
+          </div>
         </div>
       </div>
     </div>
@@ -105,6 +144,44 @@
         <span>记录</span>
       </div>
     </div>
+
+    <!-- 批量更新行情弹窗 -->
+    <el-dialog
+      v-model="batchUpdateDialogVisible"
+      title="批量更新行情价格"
+      width="90%"
+      :close-on-click-modal="false"
+    >
+      <div class="batch-update-content">
+        <div 
+          v-for="s in strategies" 
+          :key="s.id" 
+          class="price-update-item"
+        >
+          <div class="update-item-header">
+            <span class="item-name">{{ s.name || s.symbol }}</span>
+            <span class="item-code">{{ s.symbol }}</span>
+          </div>
+          <div class="update-item-input">
+            <el-input
+              v-model="priceInputs[s.id]"
+              type="number"
+              placeholder="输入当前价格"
+              size="large"
+            >
+              <template #prefix>¥</template>
+            </el-input>
+            <span class="last-price" v-if="s.lastPrice">
+              ← 上次：{{ formatPrice(s.lastPrice) }}
+            </span>
+          </div>
+        </div>
+      </div>
+      <template #footer>
+        <el-button @click="batchUpdateDialogVisible = false">取消</el-button>
+        <el-button type="primary" :loading="updating" @click="handleBatchUpdate">确认更新</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -113,17 +190,17 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { 
-  HomeFilled, Plus, List, ArrowRight, 
-  Bottom, Top, CircleCheck 
+  HomeFilled, Plus, List, RefreshRight, BellFilled
 } from '@element-plus/icons-vue'
-import { getAllStrategies, getStrategyDetail, getGridLines } from '../../api'
+import { getAllStrategies, updateStrategyLastPrice } from '../../api'
 
 const router = useRouter()
 
 const strategies = ref([])
-const currentStrategy = ref(null)
-const gridLines = ref([])
 const loading = ref(false)
+const batchUpdateDialogVisible = ref(false)
+const priceInputs = ref({})
+const updating = ref(false)
 
 // 总收益
 const totalProfit = computed(() => {
@@ -133,48 +210,79 @@ const totalProfit = computed(() => {
 // 今日收益（模拟，实际需要后端支持）
 const todayProfit = computed(() => 0)
 
-// 找出最需要操作的网格
-const pendingGrid = computed(() => {
-  if (!currentStrategy.value || gridLines.value.length === 0) return null
-  
-  // 找最靠近的待买入网格（level最小的WAIT_BUY）
-  const waitBuyGrids = gridLines.value
-    .filter(g => g.state === 'WAIT_BUY')
-    .sort((a, b) => a.level - b.level)
-  
-  // 找已买入的网格
-  const boughtGrids = gridLines.value
-    .filter(g => g.state === 'BOUGHT' || g.state === 'WAIT_SELL')
-    .sort((a, b) => a.sellPrice - b.sellPrice)
-  
-  // 优先提示卖出（已有持仓）
-  if (boughtGrids.length > 0) {
-    const g = boughtGrids[0]
-    return {
-      id: g.id,
-      level: g.level,
-      action: 'sell',
-      price: g.sellPrice,
-      type: formatGridType(g.gridType),
-      strategyId: currentStrategy.value.id
+// 显示批量更新弹窗
+const showBatchUpdateDialog = () => {
+  // 初始化价格输入框，默认为上次价格或基准价
+  priceInputs.value = {}
+  strategies.value.forEach(s => {
+    priceInputs.value[s.id] = s.lastPrice || s.basePrice
+  })
+  batchUpdateDialogVisible.value = true
+}
+
+// 批量更新价格
+const handleBatchUpdate = async () => {
+  updating.value = true
+  try {
+    const updates = []
+    for (const s of strategies.value) {
+      const newPrice = priceInputs.value[s.id]
+      if (newPrice && newPrice != s.lastPrice) {
+        updates.push(
+          updateStrategyLastPrice(s.id, newPrice).then(() => {
+            s.lastPrice = newPrice
+            s.lastPriceUpdatedAt = new Date().toISOString()
+          })
+        )
+      }
     }
+    
+    await Promise.all(updates)
+    
+    ElMessage.success(`已更新 ${updates.length} 个策略的价格`)
+    batchUpdateDialogVisible.value = false
+    
+    // 重新加载数据以获取触发提醒
+    await loadData()
+  } catch (error) {
+    console.error('批量更新失败:', error)
+    ElMessage.error('更新失败: ' + (error.response?.data?.message || error.message))
+  } finally {
+    updating.value = false
   }
-  
-  // 其次提示买入
-  if (waitBuyGrids.length > 0) {
-    const g = waitBuyGrids[0]
-    return {
-      id: g.id,
-      level: g.level,
-      action: 'buy',
-      price: g.actualBuyPrice || g.buyPrice,
-      type: formatGridType(g.gridType),
-      strategyId: currentStrategy.value.id
-    }
-  }
-  
-  return null
-})
+}
+
+// 计算持仓比例
+const calculatePositionRatio = (s) => {
+  if (!s.maxCapital || s.maxCapital == 0) return 0
+  const invested = s.investedAmount || 0
+  return ((invested / s.maxCapital) * 100).toFixed(1)
+}
+
+// 获取涨跌样式
+const getPriceChangeClass = (s) => {
+  if (!s.lastPrice) return ''
+  const change = s.lastPrice - s.basePrice
+  if (change > 0) return 'up'
+  if (change < 0) return 'down'
+  return ''
+}
+
+// 格式化涨跌
+const formatPriceChange = (s) => {
+  if (!s.lastPrice) return ''
+  const change = s.lastPrice - s.basePrice
+  const changePercent = ((change / s.basePrice) * 100).toFixed(2)
+  const changeStr = change >= 0 ? `+${change.toFixed(3)}` : change.toFixed(3)
+  return `${changeStr} (${changePercent}%)`
+}
+
+// 格式化触发提醒
+const formatTriggers = (triggers) => {
+  if (!triggers || triggers.length === 0) return ''
+  const types = triggers.map(t => t.action === 'BUY' ? '买入' : '卖出')
+  return types.join('、')
+}
 
 // 加载数据
 const loadData = async () => {
@@ -183,61 +291,25 @@ const loadData = async () => {
     const res = await getAllStrategies()
     strategies.value = res.data.map(s => ({
       ...s,
-      boughtCount: 0 // 需要单独获取
+      triggerCount: 0, // TODO: 从后端获取触发提醒数量
+      triggers: [] // TODO: 从后端获取触发提醒列表
     }))
-    
-    // 加载第一个策略的网格数据（不跳转）
-    if (strategies.value.length > 0) {
-      await loadStrategyGrids(strategies.value[0])
-    }
   } catch (error) {
     console.error('加载失败:', error)
+    ElMessage.error('加载失败')
   } finally {
     loading.value = false
   }
 }
 
-// 加载策略的网格数据（不跳转）
-const loadStrategyGrids = async (s) => {
-  currentStrategy.value = s
-  try {
-    const res = await getGridLines(s.id)
-    gridLines.value = res.data.gridPlans || []
-    
-    // 更新该策略的已买入数量
-    const idx = strategies.value.findIndex(item => item.id === s.id)
-    if (idx >= 0) {
-      strategies.value[idx].boughtCount = gridLines.value.filter(
-        g => g.state === 'BOUGHT' || g.state === 'WAIT_SELL'
-      ).length
-    }
-  } catch (error) {
-    console.error('加载网格失败:', error)
-  }
-}
-
-// 选择策略 - 跳转到详情页
-const selectStrategy = (s) => {
+// 去详情
+const goToDetail = (s) => {
   router.push(`/m/strategy/${s.id}`)
-}
-
-// 去录入
-const goToRecord = (grid) => {
-  router.push({
-    path: '/m/record',
-    query: {
-      strategyId: grid.strategyId,
-      gridId: grid.id,
-      action: grid.action
-    }
-  })
 }
 
 // 快速录入
 const goToQuickRecord = () => {
-  if (currentStrategy.value) {
-    router.push(`/m/record?strategyId=${currentStrategy.value.id}`)
-  } else if (strategies.value.length > 0) {
+  if (strategies.value.length > 0) {
     router.push(`/m/record?strategyId=${strategies.value[0].id}`)
   } else {
     ElMessage.warning('请先创建策略')
@@ -267,11 +339,6 @@ const formatPrice = (val) => {
   return Number(val).toFixed(3)
 }
 
-const formatGridType = (type) => {
-  const map = { SMALL: '小', MEDIUM: '中', LARGE: '大' }
-  return map[type] || '小'
-}
-
 onMounted(() => {
   loadData()
 })
@@ -291,10 +358,30 @@ onMounted(() => {
   border-radius: 0 0 24px 24px;
 }
 
+.header-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
 .greeting {
   color: rgba(255,255,255,0.9);
   font-size: 15px;
-  margin-bottom: 16px;
+}
+
+.update-price-btn {
+  background: rgba(255,255,255,0.2);
+  border: none;
+  color: #fff;
+  font-size: 13px;
+  border-radius: 16px;
+  padding: 6px 12px;
+  height: 32px;
+}
+
+.update-price-btn:hover {
+  background: rgba(255,255,255,0.3);
 }
 
 .profit-card {
@@ -449,17 +536,171 @@ onMounted(() => {
 .strategy-list {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
 }
 
 .strategy-item {
   background: #fff;
   border-radius: 12px;
-  padding: 16px;
+  padding: 14px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.strategy-item:active {
+  transform: scale(0.98);
+}
+
+.strategy-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.strategy-title {
+  flex: 1;
+}
+
+.strategy-name {
+  font-size: 16px;
+  font-weight: 600;
+  color: #303133;
+}
+
+.strategy-code {
+  font-size: 12px;
+  color: #909399;
+  margin-top: 2px;
+}
+
+.strategy-price {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin: 10px 0;
+  padding: 8px 0;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.strategy-price .price {
+  font-size: 18px;
+  font-weight: 700;
+  color: #303133;
+}
+
+.strategy-price .price-change {
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.strategy-price .price-change.up {
+  color: #f56c6c;
+}
+
+.strategy-price .price-change.down {
+  color: #67c23a;
+}
+
+.strategy-stats {
+  display: flex;
+  justify-content: space-around;
+  margin: 10px 0;
+}
+
+.stat-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.stat-label {
+  font-size: 12px;
+  color: #909399;
+  margin-bottom: 4px;
+}
+
+.stat-value {
+  font-size: 14px;
+  font-weight: 600;
+  color: #303133;
+}
+
+.stat-value.profit {
+  color: #f56c6c;
+}
+
+.stat-value.negative {
+  color: #67c23a;
+}
+
+.strategy-alerts {
   display: flex;
   align-items: center;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
-  cursor: pointer;
+  gap: 6px;
+  margin-top: 10px;
+  padding: 8px 10px;
+  background: #fff7e6;
+  border-radius: 6px;
+  font-size: 13px;
+  color: #ff9800;
+}
+
+.strategy-alerts .alert-detail {
+  flex: 1;
+  text-align: right;
+  font-size: 12px;
+  color: #666;
+}
+
+/* 批量更新弹窗 */
+.batch-update-content {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
+.price-update-item {
+  border: 1px solid #e4e7ed;
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.update-item-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.item-name {
+  font-size: 15px;
+  font-weight: 600;
+  color: #303133;
+}
+
+.item-code {
+  font-size: 13px;
+  color: #909399;
+}
+
+.update-item-input {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.update-item-input .el-input {
+  flex: 1;
+}
+
+.last-price {
+  font-size: 12px;
+  color: #909399;
+  white-space: nowrap;
 }
 
 .strategy-item:active {
@@ -580,5 +821,12 @@ onMounted(() => {
 
 .nav-item.main span {
   margin-top: 4px;
+}
+
+/* 智能建议区域 */
+.suggestion-area {
+  margin: -30px 16px 16px;
+  position: relative;
+  z-index: 2;
 }
 </style>

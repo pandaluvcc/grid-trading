@@ -149,6 +149,12 @@ public class Strategy {
     private BigDecimal realizedProfit = BigDecimal.ZERO;
 
     /**
+     * 最大持仓比例（默认80%）
+     */
+    @Column(name = "max_position_ratio", precision = 5, scale = 4)
+    private BigDecimal maxPositionRatio = new BigDecimal("0.8000");
+
+    /**
      * 关联的网格线集合
      */
     @OneToMany(mappedBy = "strategy", cascade = CascadeType.ALL, orphanRemoval = true)
@@ -368,5 +374,13 @@ public class Strategy {
 
     public void setGridCalculationMode(String gridCalculationMode) {
         this.gridCalculationMode = gridCalculationMode;
+    }
+
+    public BigDecimal getMaxPositionRatio() {
+        return maxPositionRatio;
+    }
+
+    public void setMaxPositionRatio(BigDecimal maxPositionRatio) {
+        this.maxPositionRatio = maxPositionRatio;
     }
 }
