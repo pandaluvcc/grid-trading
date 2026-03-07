@@ -99,6 +99,9 @@ const getGridTypeName = (type) => {
   padding: 16px;
   border-left: 4px solid #409eff;
   transition: all 0.3s;
+  overflow: hidden;
+  position: relative;
+  z-index: 1;
 }
 
 .suggestion-card.buy {

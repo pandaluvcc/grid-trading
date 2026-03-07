@@ -1,123 +1,89 @@
 <template>
   <MobileLayout :title="strategyTitle" :show-back="true" :show-tab-bar="false">
-    <!-- 加载中 -->
     <div v-if="loading" class="loading-container">
       <el-icon class="is-loading"><Loading /></el-icon>
     </div>
 
-    <template v-else-if="strategy">
-      <!-- 顶部概览卡片 -->
-      <div class="overview-card">
-        <div class="overview-header">
-            <div class="symbol-block">
-              <span class="symbol">{{ strategy.name || strategy.symbol }}</span>
-              <span class="symbol-code" v-if="strategy.name">{{ strategy.symbol }}</span>
+    <div v-else-if="strategy">
+      <div class="broker-header">
+        <div class="header-top">
+          <div class="symbol-name-big">{{ strategy.name || strategy.symbol }}</div>
+          <div class="symbol-code">{{ strategy.symbol }}</div>
+          <div class="risk-icon-wrapper" v-if="risks && risks.length > 0" @click="showRiskDialog = true">
+            <el-icon class="risk-icon"><Warning /></el-icon>
+          </div>
+        </div>
+        <div class="symbol-sub" v-if="strategy.name">{{ strategy.name }}</div>
+
+        <div class="divider-line"></div>
+
+        <div class="profit-section">
+          <div class="profit-col">
+            <div class="profit-label">持仓盈亏</div>
+            <div class="profit-value" :class="{ negative: positionProfit < 0 }">
+              {{ formatProfit(positionProfit) }}
             </div>
-          <el-tag 
-            size="small" 
-            :type="strategy.status === 'RUNNING' ? 'success' : 'info'"
-          >
-            {{ strategy.status === 'RUNNING' ? '运行中' : '已停止' }}
-          </el-tag>
-        </div>
-        
-        <div class="overview-stats">
-          <div class="stat-item main">
-            <span class="stat-label">已实现收益</span>
-            <span class="stat-value profit" :class="{ negative: realizedProfit < 0 }">
-              {{ formatProfit(realizedProfit) }}
-            </span>
+            <div class="profit-percent" :class="{ negative: positionProfitPercent < 0 }">
+              {{ positionProfitPercent }}
+            </div>
+          </div>
+          <div class="profit-col">
+            <div class="profit-label">当日参考盈亏</div>
+            <div class="profit-value">--</div>
+            <div class="profit-percent">--</div>
           </div>
         </div>
 
-        <!-- 价格信息区域 -->
-        <div class="price-info-section">
-          <div class="price-item">
-            <span class="price-label">当前价格</span>
-            <span class="price-value">¥{{ formatPrice(strategy.lastPrice || strategy.basePrice) }}</span>
+        <div class="stats-grid">
+          <div class="stat-row">
+            <div class="stat-item">
+              <span class="stat-label">持股天数</span>
+              <span class="stat-value">{{ holdingDays }}</span>
+            </div>
+            <div class="stat-item price-item">
+              <span class="stat-label">现价</span>
+              <div class="price-input-wrapper">
+                <el-input
+                  v-model="priceInput"
+                  type="number"
+                  size="small"
+                  class="inline-price-input"
+                  @change="onPriceChange"
+                />
+              </div>
+            </div>
           </div>
-          <div class="price-item">
-            <span class="price-label">基准价</span>
-            <span class="price-value">¥{{ formatPrice(strategy.basePrice) }}</span>
+          <div class="stat-row">
+            <div class="stat-item">
+              <span class="stat-label">个股仓位</span>
+              <span class="stat-value">{{ positionRatio }}%</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-label">成本价</span>
+              <span class="stat-value">¥{{ formatPrice(costPrice) }}</span>
+            </div>
           </div>
-          <div class="price-item">
-            <span class="price-label">偏离度</span>
-            <span class="price-value" :class="getDeviationClass()">
-              {{ calculateDeviation() }}%
-            </span>
-          </div>
-          <div class="price-item">
-            <span class="price-label">最近网格</span>
-            <span class="price-value">{{ getNearestGridInfo() }}</span>
-          </div>
-        </div>
-
-        <div class="overview-grid">
-          <div class="stat-item">
-            <span class="stat-label">单格数量</span>
-            <span class="stat-value">{{ formatQuantity(strategy.amountPerGrid / strategy.basePrice) }}</span>
-          </div>
-          <div class="stat-item">
-            <span class="stat-label">可用资金</span>
-            <span class="stat-value">¥0</span>
-          </div>
-          <div class="stat-item">
-            <span class="stat-label">已投入</span>
-            <span class="stat-value">¥{{ formatAmount(calculatedInvestedAmount) }}</span>
-          </div>
-          <div class="stat-item">
-            <span class="stat-label">累计手续费</span>
-            <span class="stat-value fee">¥{{ totalFee.toFixed(2) }}</span>
-          </div>
-          <div class="stat-item">
-            <span class="stat-label">净收益</span>
-            <span class="stat-value" :class="{ profit: netProfit >= 0, negative: netProfit < 0 }">
-              {{ formatProfit(netProfit) }}
-            </span>
+          <div class="stat-row">
+            <div class="stat-item">
+              <span class="stat-label">税费合计</span>
+              <span class="stat-value fee">¥{{ totalFee.toFixed(2) }}</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-label">买入均价</span>
+              <span class="stat-value">¥{{ formatPrice(averageBuyPrice) }}</span>
+            </div>
           </div>
         </div>
       </div>
 
-      <!-- 智能建议区域 -->
       <SmartSuggestion
         v-if="strategy"
         :strategy-id="Number(strategyId)"
-        :initial-last-price="strategy.lastPrice"
-        @price-updated="(p) => priceInput = p.toString()"
+        :initial-last-price="parseFloat(priceInput) || strategy.lastPrice"
+        ref="smartSuggestionRef"
+        @suggestion-updated="handleSuggestionUpdated"
       />
 
-      <!-- 快速执行区域 -->
-      <div class="execute-card">
-        <div class="execute-title">
-          <el-icon><Promotion /></el-icon>
-          <span>价格触发</span>
-        </div>
-        <div class="execute-form">
-          <el-input
-            v-model="priceInput"
-            type="number"
-            placeholder="输入当前价格"
-            size="large"
-            class="price-input"
-          >
-            <template #prefix>¥</template>
-          </el-input>
-          <el-button 
-            type="primary" 
-            size="large"
-            class="execute-btn"
-            :loading="executing"
-            @click="handleExecute"
-          >
-            执行
-          </el-button>
-        </div>
-        <div class="execute-hint">
-          输入价格后系统将自动判断买卖
-        </div>
-      </div>
-
-      <!-- Tab切换 -->
       <div class="tab-switcher">
         <div 
           class="tab-item" 
@@ -135,45 +101,44 @@
         </div>
       </div>
 
-      <!-- 网格列表 -->
-      <div v-show="activeTab === 'grids'" class="grid-list">
-        <MobileGridCard
-          v-for="grid in gridLines"
-          :key="grid.id"
-          :grid="grid"
-        />
+      <div class="tab-content">
+        <div v-show="activeTab === 'grids'" class="grid-list">
+          <MobileGridCard
+            v-for="grid in gridLines"
+            :key="grid.id"
+            :grid="grid"
+          />
+        </div>
+
+        <div v-show="activeTab === 'records'" class="record-list">
+          <div v-if="tradeRecords.length === 0" class="empty-records">
+            暂无成交记录
+          </div>
+          <div 
+            v-for="record in tradeRecords" 
+            :key="record.id" 
+            class="record-item"
+            @click="openFeeDialog(record)"
+          >
+            <div class="record-left">
+              <el-tag 
+                size="small" 
+                :type="record.type === 'BUY' ? 'danger' : 'success'"
+              >
+                {{ record.type === 'BUY' ? '买入' : '卖出' }}
+              </el-tag>
+              <span class="record-price">¥{{ formatPrice(record.price) }}</span>
+            </div>
+            <div class="record-right">
+              <span class="record-amount">{{ formatAmount(record.amount) }}元</span>
+              <span v-if="record.fee" class="record-fee">费用: ¥{{ Number(record.fee).toFixed(2) }}</span>
+              <span v-else class="record-fee-hint">点击录入费用</span>
+              <span class="record-time">{{ formatTime(record.tradeTime) }}</span>
+            </div>
+          </div>
+        </div>
       </div>
 
-      <!-- 成交记录 -->
-      <div v-show="activeTab === 'records'" class="record-list">
-        <div v-if="tradeRecords.length === 0" class="empty-records">
-          暂无成交记录
-        </div>
-        <div 
-          v-for="record in tradeRecords" 
-          :key="record.id" 
-          class="record-item"
-          @click="openFeeDialog(record)"
-        >
-          <div class="record-left">
-            <el-tag 
-              size="small" 
-              :type="record.type === 'BUY' ? 'danger' : 'success'"
-            >
-              {{ record.type === 'BUY' ? '买入' : '卖出' }}
-            </el-tag>
-            <span class="record-price">¥{{ formatPrice(record.price) }}</span>
-          </div>
-          <div class="record-right">
-            <span class="record-amount">{{ formatAmount(record.amount) }}元</span>
-            <span v-if="record.fee" class="record-fee">费用: ¥{{ Number(record.fee).toFixed(2) }}</span>
-            <span v-else class="record-fee-hint">点击录入费用</span>
-            <span class="record-time">{{ formatTime(record.tradeTime) }}</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- OCR导入弹窗 -->
       <el-dialog v-model="ocrDialogVisible" title="OCR导入成交记录" width="95%">
         <div class="ocr-section">
           <el-upload
@@ -298,7 +263,6 @@
         </template>
       </el-dialog>
 
-      <!-- 费用录入弹窗 -->
       <el-dialog
         v-model="feeDialogVisible"
         title="录入手续费"
@@ -333,7 +297,6 @@
         </template>
       </el-dialog>
 
-      <!-- 交易执行弹窗 -->
       <el-dialog
         v-model="tickFeeDialogVisible"
         title="录入执行交易"
@@ -342,7 +305,6 @@
         class="tick-fee-dialog"
       >
         <div class="tick-fee-content">
-          <!-- ✅ 推荐网格信息 -->
           <div v-if="suggestedGrid" class="suggested-grid-info">
             <div class="suggested-header">
               <el-icon><Promotion /></el-icon>
@@ -374,7 +336,6 @@
             </div>
           </div>
 
-          <!-- ✅ 网格选择（可手动修改） -->
           <div class="grid-selector">
             <label>选择网格:</label>
             <el-select
@@ -405,7 +366,6 @@
 
           <div class="tick-fee-hint">请录入交易信息：</div>
           <div class="tick-fee-item">
-            <!-- 交易类型和价格 -->
             <div class="tick-fee-trade-info">
               <el-select
                 v-model="tradeType"
@@ -419,7 +379,6 @@
               <span class="tick-fee-hint-text">基准价: ¥{{ formatPrice(strategy?.basePrice) }}</span>
             </div>
 
-            <!-- 输入表单 -->
             <div class="tick-fee-inputs">
               <div class="input-group">
                 <label>交易日期</label>
@@ -461,7 +420,19 @@
           <el-button type="primary" :loading="savingTrade" @click="saveTrade">保存并执行</el-button>
         </template>
       </el-dialog>
-    </template>
+
+      <el-dialog v-model="showRiskDialog" title="风险提示" width="90%">
+        <div class="risk-dialog-content">
+          <div v-for="(risk, index) in risks" :key="index" class="risk-dialog-item">
+            <el-icon><Warning /></el-icon>
+            <span>{{ risk.message }}</span>
+          </div>
+        </div>
+        <template #footer>
+          <el-button type="primary" @click="showRiskDialog = false">我知道了</el-button>
+        </template>
+      </el-dialog>
+    </div>
   </MobileLayout>
 </template>
 
@@ -469,7 +440,7 @@
 import { ref, computed, watch, onUnmounted, nextTick } from 'vue'
 import { useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { Loading, Promotion, WarningFilled } from '@element-plus/icons-vue'
+import { Loading, Promotion, WarningFilled, RefreshRight, Warning } from '@element-plus/icons-vue'
 import {
   getStrategyDetail,
   getGridLines,
@@ -493,28 +464,26 @@ const gridLines = ref([])
 const tradeRecords = ref([])
 const priceInput = ref('')
 const activeTab = ref('grids')
+const smartSuggestionRef = ref(null)
 
 const loading = ref(true)
 const executing = ref(false)
 let isUnmounted = false
 
-// 费用编辑相关
 const feeDialogVisible = ref(false)
 const editingRecord = ref(null)
 const feeInput = ref('')
 const savingFee = ref(false)
 
-// 交易执行弹窗相关
 const tickFeeDialogVisible = ref(false)
-const selectedGridLineId = ref(null) // ✅ 推荐的网格ID
-const suggestedGrid = ref(null) // ✅ 推荐的网格完整信息
+const selectedGridLineId = ref(null)
+const suggestedGrid = ref(null)
 const tradeType = ref('BUY')
 const tradeTime = ref('')
 const tradeQuantity = ref('')
 const tradeFee = ref('')
 const savingTrade = ref(false)
 
-// OCR导入相关
 const ocrDialogVisible = ref(false)
 const ocrFiles = ref([])
 const ocrParsing = ref(false)
@@ -523,42 +492,113 @@ const ocrImporting = ref(false)
 const ocrRecords = ref([])
 const ocrError = ref('')
 
-// 计算累计手续费（所有交易的手续费总和，仅用于展示）
+const showRiskDialog = ref(false)
+const risks = ref([])
+
 const totalFee = computed(() => {
   return tradeRecords.value.reduce((sum, r) => {
     return sum + (r.fee ? Number(r.fee) : 0)
   }, 0)
 })
 
-// 计算已投入金额（已买入网格的总金额）
 const calculatedInvestedAmount = computed(() => {
   return gridLines.value
     .filter(g => g.state === 'BOUGHT')
     .reduce((sum, g) => sum + (g.buyAmount ? Number(g.buyAmount) : 0), 0)
 })
 
-// 计算已实现收益（所有网格的 actualProfit 之和）
 const realizedProfit = computed(() => {
   return gridLines.value
     .filter(g => g.actualProfit)
     .reduce((sum, g) => sum + Number(g.actualProfit), 0)
 })
 
-// 只统计已完成买卖的网格id
 const completedGridIds = computed(() => {
   return new Set(gridLines.value.filter(g => g.actualSellPrice).map(g => g.id))
 })
 
-// 只统计这些网格的手续费
 const completedTradeFee = computed(() => {
   return tradeRecords.value
     .filter(r => completedGridIds.value.has(r.gridLineId))
     .reduce((sum, r) => sum + (r.fee ? Number(r.fee) : 0), 0)
 })
 
-// 净收益 = 已实现收益 - 已完成买卖手续费
 const netProfit = computed(() => {
   return realizedProfit.value - completedTradeFee.value
+})
+
+// 持仓盈亏计算
+const positionProfit = computed(() => {
+  if (!strategy.value || !gridLines.value.length) return 0
+  const currentPrice = parseFloat(priceInput.value) || strategy.value.lastPrice || strategy.value.basePrice
+  let totalProfit = 0
+  
+  gridLines.value.forEach(grid => {
+    if (grid.state === 'BOUGHT' && grid.buyPrice) {
+      const buyPrice = Number(grid.buyPrice)
+      const quantity = grid.buyAmount ? Number(grid.buyAmount) / buyPrice : 0
+      totalProfit += (currentPrice - buyPrice) * quantity
+    }
+  })
+  
+  return totalProfit
+})
+
+const positionProfitPercent = computed(() => {
+  if (!calculatedInvestedAmount.value || calculatedInvestedAmount.value === 0) return '--'
+  const percent = (positionProfit.value / calculatedInvestedAmount.value) * 100
+  return (percent >= 0 ? '+' : '') + percent.toFixed(3) + '%'
+})
+
+// 持股天数
+const holdingDays = computed(() => {
+  if (!strategy.value || !strategy.value.createdAt) return 0
+  const created = new Date(strategy.value.createdAt)
+  const now = new Date()
+  const diff = now - created
+  return Math.floor(diff / (1000 * 60 * 60 * 24))
+})
+
+// 个股仓位
+const positionRatio = computed(() => {
+  if (!strategy.value || !strategy.value.maxCapital || strategy.value.maxCapital === 0) return '0.00'
+  const maxCapital = Number(strategy.value.maxCapital)
+  const invested = calculatedInvestedAmount.value
+  const ratio = (invested / maxCapital) * 100
+  return ratio.toFixed(2)
+})
+
+// 成本价和买入均价
+const costPrice = computed(() => {
+  if (!gridLines.value.length) return 0
+  
+  let totalAmount = 0
+  let totalQuantity = 0
+  
+  gridLines.value.forEach(grid => {
+    if (grid.state === 'BOUGHT' && grid.buyPrice && grid.buyAmount) {
+      totalAmount += Number(grid.buyAmount)
+      totalQuantity += Number(grid.buyAmount) / Number(grid.buyPrice)
+    }
+  })
+  
+  return totalQuantity > 0 ? totalAmount / totalQuantity : 0
+})
+
+const averageBuyPrice = computed(() => {
+  if (!tradeRecords.value.length) return 0
+  
+  let totalAmount = 0
+  let totalQuantity = 0
+  
+  tradeRecords.value.forEach(record => {
+    if (record.type === 'BUY' && record.price && record.amount) {
+      totalAmount += Number(record.amount)
+      totalQuantity += Number(record.amount) / Number(record.price)
+    }
+  })
+  
+  return totalQuantity > 0 ? totalAmount / totalQuantity : 0
 })
 
 const strategyTitle = computed(() => {
@@ -569,18 +609,21 @@ const strategyTitle = computed(() => {
   return strategy.value.name || strategy.value.symbol || '策略详情'
 })
 
-// ✅ 可操作的网格列表（等待买入 或 已买入）
+const getProfitPercent = () => {
+  if (!strategy.value || !strategy.value.basePrice || calculatedInvestedAmount.value === 0) return '--'
+  const percent = (realizedProfit.value / calculatedInvestedAmount.value) * 100
+  return (percent >= 0 ? '+' : '') + percent.toFixed(2) + '%'
+}
+
 const availableGrids = computed(() => {
   return gridLines.value.filter(g =>
     g.state === 'WAIT_BUY' || g.state === 'BOUGHT'
   ).sort((a, b) => a.level - b.level)
 })
 
-// ✅ 用户手动切换网格时，自动更新建议的交易类型
 const handleGridChange = (gridLineId) => {
   const selectedGrid = gridLines.value.find(g => g.id === gridLineId)
   if (selectedGrid) {
-    // 根据网格状态自动设置交易类型
     if (selectedGrid.state === 'WAIT_BUY') {
       tradeType.value = 'BUY'
     } else if (selectedGrid.state === 'BOUGHT') {
@@ -593,44 +636,33 @@ onUnmounted(() => {
   isUnmounted = true
 })
 
-// 加载数据
 const loadData = async () => {
   const id = strategyId.value
   if (!id || isUnmounted) {
-    // ID无效或组件已销毁时静默返回
     loading.value = false
     return
   }
   
-  console.log('开始加载策略详情, id:', id)
   loading.value = true
   try {
-    // 分开请求，便于定位哪个失败
     const strategyRes = await getStrategyDetail(id)
-    console.log('策略详情加载成功:', strategyRes.data)
-    
     const gridRes = await getGridLines(id)
-    console.log('网格计划加载成功:', gridRes.data)
-    
     const recordRes = await getTradeRecords(id)
-    console.log('成交记录加载成功:', recordRes.data)
     
-    // 组件已销毁则不更新状态
     if (isUnmounted) return
     
     strategy.value = strategyRes.data
     gridLines.value = gridRes.data.gridPlans?.sort((a, b) => a.level - b.level) || []
     tradeRecords.value = recordRes.data || []
     
-    // 设置默认价格
-    if (!priceInput.value && strategy.value?.basePrice) {
+    if (!priceInput.value && strategy.value?.lastPrice) {
+      priceInput.value = Number(strategy.value.lastPrice).toFixed(2)
+    } else if (!priceInput.value && strategy.value?.basePrice) {
       priceInput.value = Number(strategy.value.basePrice).toFixed(2)
     }
   } catch (error) {
-    // 组件已销毁则不显示错误
     if (isUnmounted) return
-    console.error('加载失败, 详细错误:', error)
-    console.error('错误响应:', error.response)
+    console.error('加载失败:', error)
     ElMessage.error('加载失败: ' + (error.response?.data?.message || error.message || '未知错误'))
   } finally {
     if (!isUnmounted) {
@@ -639,52 +671,24 @@ const loadData = async () => {
   }
 }
 
-// 执行价格触发
-const handleExecute = async () => {
-  const price = parseFloat(priceInput.value)
-  if (!price || price <= 0) {
-    ElMessage.warning('请输入有效价格')
-    return
-  }
-
-  try {
-    // ✅ 调用推荐接口，获取推荐的网格和交易类型
-    const suggestRes = await suggestGridByPrice(strategyId.value, price)
-    const suggestion = suggestRes.data
-
-    if (!suggestion || !suggestion.gridLineId) {
-      ElMessage.warning('未找到匹配的网格，请检查价格')
-      return
-    }
-
-    // ✅ 保存完整的推荐信息
-    suggestedGrid.value = suggestion
-    selectedGridLineId.value = suggestion.gridLineId
-    tradeType.value = suggestion.suggestedType
-
-    // 设置默认交易日期为当前时间
-    const now = new Date()
-    const year = now.getFullYear()
-    const month = String(now.getMonth() + 1).padStart(2, '0')
-    const day = String(now.getDate()).padStart(2, '0')
-    const hours = String(now.getHours()).padStart(2, '0')
-    const minutes = String(now.getMinutes()).padStart(2, '0')
-    const seconds = String(now.getSeconds()).padStart(2, '0')
-    tradeTime.value = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`
-
-    // 清空输入
-    tradeQuantity.value = ''
-    tradeFee.value = ''
-
-    // 弹窗
-    tickFeeDialogVisible.value = true
-  } catch (error) {
-    console.error('获取推荐网格失败:', error)
-    ElMessage.error(error.response?.data?.message || '获取推荐失败')
+const onPriceChange = () => {
+  if (smartSuggestionRef.value && priceInput.value) {
+    smartSuggestionRef.value.fetchSuggestions(parseFloat(priceInput.value))
   }
 }
 
-// 格式化
+const handleSuggestionUpdated = (data) => {
+  risks.value = data.risks || []
+}
+
+const refreshPrice = () => {
+  if (strategy.value?.lastPrice) {
+    priceInput.value = Number(strategy.value.lastPrice).toFixed(2)
+  } else if (strategy.value?.basePrice) {
+    priceInput.value = Number(strategy.value.basePrice).toFixed(2)
+  }
+}
+
 const formatPrice = (val) => val == null ? '-' : Number(val).toFixed(3)
 const formatAmount = (val) => val == null ? '0' : Math.round(Number(val)).toString()
 const formatQuantity = (val) => val == null ? '0' : Math.round(Number(val)).toString()
@@ -699,14 +703,12 @@ const formatTime = (dateStr) => {
   return `${d.getMonth()+1}/${d.getDate()} ${d.getHours()}:${String(d.getMinutes()).padStart(2,'0')}`
 }
 
-// 打开费用编辑弹窗
 const openFeeDialog = (record) => {
   editingRecord.value = record
   feeInput.value = record.fee ? Number(record.fee).toString() : ''
   feeDialogVisible.value = true
 }
 
-// 保存费用
 const saveFee = async () => {
   const fee = parseFloat(feeInput.value)
   if (isNaN(fee) || fee < 0) {
@@ -717,7 +719,6 @@ const saveFee = async () => {
   savingFee.value = true
   try {
     await updateTradeFee(editingRecord.value.id, fee)
-    // 更新本地数据
     const record = tradeRecords.value.find(r => r.id === editingRecord.value.id)
     if (record) {
       record.fee = fee
@@ -732,7 +733,6 @@ const saveFee = async () => {
   }
 }
 
-// 保存并执行交易
 const saveTrade = async () => {
   const price = parseFloat(priceInput.value)
   const quantity = parseFloat(tradeQuantity.value)
@@ -750,9 +750,8 @@ const saveTrade = async () => {
 
   savingTrade.value = true
   try {
-    // ✅ 调用 executeTick 的手动模式，传递完整参数
     await executeTick(strategyId.value, {
-      gridLineId: selectedGridLineId.value, // ✅ 传递推荐的网格ID
+      gridLineId: selectedGridLineId.value,
       type: tradeType.value,
       price: price,
       quantity: quantity,
@@ -771,16 +770,13 @@ const saveTrade = async () => {
   }
 }
 
-// 取消交易
 const cancelTrade = () => {
   tickFeeDialogVisible.value = false
   ElMessage.info('已取消')
 }
 
-// 记录已加载的ID，避免重复加载
 let loadedId = null
 
-// 监听 strategyId 变化，确保在路由参数可用时加载数据
 watch(strategyId, (newId) => {
   if (newId && newId !== loadedId) {
     loadedId = newId
@@ -922,7 +918,6 @@ const handleOcrImport = async () => {
   }
 }
 
-// 匹配状态标签类型
 const matchTagType = (status) => {
   switch (status) {
     case 'MATCHED':
@@ -946,7 +941,6 @@ const sortOcrRecords = (records) => {
   })
 }
 
-// 网格类型格式化
 const getGridTypeName = (type) => {
   const map = {
     'SMALL': '小网',
@@ -965,15 +959,13 @@ const getGridTypeTag = (type) => {
   return map[type] || ''
 }
 
-// 计算偏离度
 const calculateDeviation = () => {
   if (!strategy.value || !strategy.value.basePrice) return 0
-  const currentPrice = strategy.value.lastPrice || strategy.value.basePrice
+  const currentPrice = parseFloat(priceInput.value) || strategy.value.lastPrice || strategy.value.basePrice
   const deviation = ((currentPrice - strategy.value.basePrice) / strategy.value.basePrice) * 100
   return deviation.toFixed(2)
 }
 
-// 获取偏离度样式
 const getDeviationClass = () => {
   const deviation = calculateDeviation()
   if (parseFloat(deviation) > 0) return 'profit'
@@ -981,15 +973,12 @@ const getDeviationClass = () => {
   return ''
 }
 
-// 获取最近网格信息
 const getNearestGridInfo = () => {
   if (!gridLines.value || gridLines.value.length === 0) return '无'
-  // 简单实现：返回第一个网格
   const firstGrid = gridLines.value[0]
   return `第${firstGrid.level}网 (${getGridTypeName(firstGrid.gridType)})`
 }
 
-// 网格状态格式化
 const getStateName = (state) => {
   const map = {
     'WAIT_BUY': '等待买入',
@@ -1009,7 +998,6 @@ const getStateTag = (state) => {
   }
   return map[state] || ''
 }
-// ...existing code...
 </script>
 
 <style scoped>
@@ -1021,166 +1009,167 @@ const getStateTag = (state) => {
   color: #667eea;
 }
 
-/* 概览卡片 */
-.overview-card {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border-radius: 16px;
-  padding: 20px;
-  color: #fff;
-  margin-bottom: 12px;
+.broker-header {
+  background: #fff;
+  padding: 16px;
+  margin-bottom: 8px;
 }
 
-.overview-header {
+.header-top {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.risk-icon-wrapper {
+  margin-left: auto;
   display: flex;
   align-items: center;
-  gap: 10px;
-  margin-bottom: 16px;
+  cursor: pointer;
 }
 
-.symbol-block {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
+.risk-icon {
+  font-size: 24px;
+  color: #e6a23c;
 }
 
-.symbol {
-  font-size: 22px;
-  font-weight: 700;
+.symbol-name-big {
+  font-size: 24px;
+  font-weight: 600;
+  color: #303133;
 }
 
 .symbol-code {
-  font-size: 13px;
-  opacity: 0.85;
+  font-size: 16px;
+  color: #909399;
 }
 
-.overview-stats {
-  text-align: center;
+.symbol-sub {
+  font-size: 16px;
+  color: #909399;
+  margin-bottom: 16px;
+}
+
+.divider-line {
+  height: 8px;
+  background: #f5f7fa;
+  margin: 0 -16px;
+  margin-bottom: 16px;
+}
+
+.profit-section {
+  display: flex;
+  gap: 24px;
   margin-bottom: 20px;
 }
 
-/* 价格信息区域 */
-.price-info-section {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-  margin-bottom: 20px;
-  padding: 16px;
-  background: rgba(255,255,255,0.1);
-  border-radius: 12px;
-  backdrop-filter: blur(10px);
-}
-
-.price-item {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.price-label {
-  font-size: 12px;
-  opacity: 0.75;
-}
-
-.price-value {
-  font-size: 15px;
-  font-weight: 600;
-  color: #fff;
-}
-
-.price-value.profit {
-  color: #7dffb3;
-}
-
-.price-value.negative {
-  color: #ffb3b3;
-}
-
-.stat-item.main .stat-label {
-  font-size: 13px;
-  opacity: 0.85;
-}
-
-.stat-item.main .stat-value {
-  font-size: 32px;
-  font-weight: 700;
-}
-
-.stat-value.profit {
-  color: #7dffb3;
-}
-
-.stat-value.profit.negative {
-  color: #ffb3b3;
-}
-
-.overview-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-}
-
-.overview-grid .stat-item {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.overview-grid .stat-label {
-  font-size: 12px;
-  opacity: 0.75;
-}
-
-.overview-grid .stat-value {
-  font-size: 15px;
-  font-weight: 600;
-}
-
-/* 执行区域 */
-.execute-card {
-  background: #fff;
-  border-radius: 12px;
-  padding: 16px;
-  margin-bottom: 12px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
-}
-
-.execute-title {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 15px;
-  font-weight: 600;
-  color: #303133;
-  margin-bottom: 12px;
-}
-
-.execute-form {
-  display: flex;
-  gap: 10px;
-}
-
-.price-input {
+.profit-col {
   flex: 1;
 }
 
-.execute-btn {
-  width: 80px;
-}
-
-.execute-hint {
-  margin-top: 10px;
-  font-size: 12px;
+.profit-label {
+  font-size: 14px;
   color: #909399;
-  text-align: center;
+  margin-bottom: 6px;
 }
 
-/* Tab切换 */
+.profit-value {
+  font-size: 28px;
+  font-weight: 600;
+  color: #51cf66;
+  margin-bottom: 4px;
+}
+
+.profit-value.negative {
+  color: #ff6b6b;
+}
+
+.profit-percent {
+  font-size: 18px;
+  font-weight: 600;
+  color: #51cf66;
+}
+
+.profit-percent.negative {
+  color: #ff6b6b;
+}
+
+.stats-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.stat-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.stat-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.stat-label {
+  font-size: 14px;
+  color: #909399;
+}
+
+.stat-value {
+  font-size: 16px;
+  font-weight: 500;
+  color: #303133;
+}
+
+.stat-value.profit {
+  color: #ff6b6b;
+}
+
+.stat-value.negative {
+  color: #51cf66;
+}
+
+.stat-value.fee {
+  color: #e6a23c;
+}
+
+.price-item {
+  align-items: center;
+}
+
+.price-input-wrapper {
+  display: flex;
+  align-items: center;
+}
+
+.inline-price-input {
+  width: 100px;
+}
+
+.inline-price-input :deep(.el-input__wrapper) {
+  background: #f5f7fa;
+  box-shadow: none;
+  padding: 6px 8px;
+  border-radius: 4px;
+}
+
+.inline-price-input :deep(.el-input__inner) {
+  color: #303133;
+  font-size: 16px;
+  font-weight: 500;
+  text-align: right;
+  padding: 0;
+}
+
 .tab-switcher {
   display: flex;
   background: #fff;
   border-radius: 12px;
   padding: 4px;
-  margin-bottom: 12px;
+  margin: 12px 16px;
   box-shadow: 0 2px 8px rgba(0,0,0,0.06);
 }
 
@@ -1201,7 +1190,17 @@ const getStateTag = (state) => {
   color: #fff;
 }
 
-/* 成交记录 */
+.tab-content {
+  min-height: 200px;
+  padding: 0 16px;
+}
+
+.grid-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
 .record-list {
   display: flex;
   flex-direction: column;
@@ -1265,19 +1264,6 @@ const getStateTag = (state) => {
   font-style: italic;
 }
 
-/* 网格列表 */
-.grid-list {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-/* 费用栏位样式 */
-.stat-value.fee {
-  color: #ffcc80;
-}
-
-/* 费用弹窗样式 */
 .fee-dialog-content {
   padding: 10px 0;
 }
@@ -1298,12 +1284,10 @@ const getStateTag = (state) => {
   width: 100%;
 }
 
-/* 交易执行弹窗样式 */
 .tick-fee-content {
   padding: 0;
 }
 
-/* 推荐网格信息 */
 .suggested-grid-info {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   border-radius: 12px;
@@ -1343,7 +1327,6 @@ const getStateTag = (state) => {
   font-weight: 600;
 }
 
-/* 网格选择器 */
 .grid-selector {
   margin-bottom: 16px;
   padding: 12px;
@@ -1422,13 +1405,6 @@ const getStateTag = (state) => {
   font-weight: 500;
 }
 
-/* OCR导入样式 */
-.ocr-action {
-  display: flex;
-  justify-content: flex-end;
-  margin-bottom: 10px;
-}
-
 .ocr-section {
   display: flex;
   align-items: center;
@@ -1488,5 +1464,28 @@ const getStateTag = (state) => {
 
 .warn-icon {
   color: #e6a23c;
+}
+
+.risk-dialog-content {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.risk-dialog-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 12px;
+  background: #fff7e6;
+  border-radius: 8px;
+  color: #d46b08;
+  font-size: 14px;
+}
+
+.risk-dialog-item .el-icon {
+  font-size: 18px;
+  flex-shrink: 0;
+  margin-top: 2px;
 }
 </style>

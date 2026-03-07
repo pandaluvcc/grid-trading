@@ -1,5 +1,5 @@
 <template>
-  <div class="mobile-home">
+  <MobileLayout title="我的网格" :show-back="false" :show-tab-bar="false">
     <!-- 顶部渐变背景区 -->
     <div class="header-area">
       <div class="header-top">
@@ -196,24 +196,6 @@
       </div>
     </div>
 
-    <!-- 底部导航 -->
-    <div class="bottom-nav">
-      <div class="nav-item active">
-        <el-icon><HomeFilled /></el-icon>
-        <span>首页</span>
-      </div>
-      <div class="nav-item main" @click="goToQuickRecord">
-        <div class="nav-main-btn">
-          <el-icon><Plus /></el-icon>
-        </div>
-        <span>录入</span>
-      </div>
-      <div class="nav-item" @click="goToHistory">
-        <el-icon><List /></el-icon>
-        <span>记录</span>
-      </div>
-    </div>
-
     <!-- 执行确认弹窗 -->
     <el-dialog
       v-model="executeDialogVisible"
@@ -317,7 +299,7 @@
         <el-button type="primary" :loading="updating" @click="handleBatchUpdate">确认更新</el-button>
       </template>
     </el-dialog>
-  </div>
+  </MobileLayout>
 </template>
 
 <script setup>
@@ -325,9 +307,10 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { 
-  HomeFilled, Plus, List, RefreshRight, BellFilled, Warning, Bell
+  RefreshRight, BellFilled, Warning, Bell
 } from '@element-plus/icons-vue'
 import { getAllStrategies, updateStrategyLastPrice, getSmartSuggestions, executeTick } from '../../api'
+import MobileLayout from './MobileLayout.vue'
 
 const router = useRouter()
 
@@ -634,17 +617,12 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.mobile-home {
-  min-height: 100vh;
-  background: #f5f6fa;
-  padding-bottom: 80px;
-}
-
 /* 顶部区域 */
 .header-area {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  padding: 20px 16px 30px;
-  border-radius: 0 0 24px 24px;
+  padding: 16px;
+  border-radius: 16px;
+  margin-bottom: 12px;
 }
 
 .header-top {
@@ -679,7 +657,6 @@ onMounted(() => {
   background: rgba(255,255,255,0.1);
   border-radius: 12px;
   backdrop-filter: blur(10px);
-  margin: 0 16px;
 }
 
 .profit-label {
@@ -713,7 +690,6 @@ onMounted(() => {
 
 /* 快速操作区 */
 .action-area {
-  padding: 0 16px;
   margin-top: -20px;
 }
 
@@ -788,7 +764,6 @@ onMounted(() => {
 
 /* 策略列表 */
 .strategy-section {
-  padding: 20px 16px;
 }
 
 .section-header {
@@ -1106,66 +1081,9 @@ onMounted(() => {
   font-size: 18px;
 }
 
-/* 底部导航 */
-.bottom-nav {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  height: 60px;
-  background: #fff;
-  display: flex;
-  align-items: center;
-  justify-content: space-around;
-  box-shadow: 0 -2px 10px rgba(0,0,0,0.06);
-  padding-bottom: env(safe-area-inset-bottom);
-  z-index: 100;
-}
-
-.nav-item {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 2px;
-  color: #909399;
-  font-size: 10px;
-  cursor: pointer;
-  padding: 8px 20px;
-}
-
-.nav-item .el-icon {
-  font-size: 22px;
-}
-
-.nav-item.active {
-  color: #667eea;
-}
-
-.nav-item.main {
-  position: relative;
-  top: -10px;
-}
-
-.nav-main-btn {
-  width: 50px;
-  height: 50px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #fff;
-  font-size: 26px;
-  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
-}
-
-.nav-item.main span {
-  margin-top: 4px;
-}
-
 /* 智能建议区域 */
 .suggestion-area {
-  margin: -30px 16px 16px;
+  margin: -30px 0 16px;
   position: relative;
   z-index: 2;
 }
