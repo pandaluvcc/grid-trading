@@ -967,4 +967,74 @@ public class StrategyController {
 
         return suggestionService.getSmartSuggestions(id, price);
     }
+
+    /**
+     * 获取所有暂缓网格
+     */
+    @GetMapping("/{id}/deferred-grids")
+    public List<SuggestionResponse.DeferredGrid> getDeferredGrids(@PathVariable Long id) {
+        Strategy strategy = strategyRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("策略不存在"));
+
+        List<GridLine> deferredGrids = gridLineRepository.findByStrategyIdAndDeferredTrue(id);
+
+        return deferredGrids.stream().map(grid -> {
+            SuggestionResponse.DeferredGrid deferredGrid = new SuggestionResponse.DeferredGrid();
+            deferredGrid.setGridLineId(grid.getId());
+            deferredGrid.setGridLevel(grid.getLevel());
+            deferredGrid.setGridType(grid.getGridType().name());
+            deferredGrid.setDeferredReason(grid.getDeferredReason());
+            deferredGrid.setDeferredAt(grid.getDeferredAt().toString());
+            deferredGrid.setCanResume(true); // 默认可以恢复
+            deferredGrid.setResumeCondition("手动恢复操作");
+            return deferredGrid;
+        }).collect(Collectors.toList());
+    }
+
+    /**
+     * 手动补买暂缓网格
+     */
+    @PostMapping("/{id}/grids/{gridId}/resume-buy")
+    public Map<String, Object> resumeBuy(
+            @PathVariable Long id,
+            @PathVariable Long gridId,
+            @RequestBody TickRequest request) {
+        Strategy strategy = strategyRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("策略不存在"));
+
+        GridLine gridLine = gridLineRepository.findById(gridId)
+                .orElseThrow(() -> new RuntimeException("网格不存在"));
+
+        // 验证网格是否属于该策略
+        if (!gridLine.getStrategy().getId().equals(id)) {
+            throw new RuntimeException("网格不属于该策略");
+        }
+
+        // 验证网格是否处于暂缓状态
+        if (!gridLine.getDeferred()) {
+            throw new RuntimeException("网格未处于暂缓状态");
+        }
+
+        // 执行买入操作
+        gridEngine.processManualTrade(
+                id,
+                gridId,
+                TradeType.BUY,
+                request.getPrice(),
+                request.getQuantity(),
+                request.getFee(),
+                LocalDateTime.parse(request.getTradeTime())
+        );
+
+        // 更新网格状态为非暂缓
+        gridLine.setDeferred(false);
+        gridLine.setDeferredReason(null);
+        gridLine.setDeferredAt(null);
+        gridLineRepository.save(gridLine);
+
+        Map<String, Object> result = new HashMap<>();
+        result.put("success", true);
+        result.put("message", "手动补买成功");
+        return result;
+    }
 }

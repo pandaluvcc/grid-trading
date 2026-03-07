@@ -47,6 +47,11 @@ public interface GridLineRepository extends JpaRepository<GridLine, Long> {
      * 通过策略ID查询网格线（用于OCR匹配）
      */
     List<GridLine> findByStrategyId(Long strategyId);
+    
+    /**
+     * 通过策略ID查询所有暂缓网格
+     */
+    List<GridLine> findByStrategyIdAndDeferredTrue(Long strategyId);
 
     /**
      * 查询所有网格线（按level排序）

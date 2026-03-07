@@ -58,6 +58,19 @@ public class SuggestionService {
         List<Map<String, Object>> optimizations = generateOptimizations(strategy, gridLines);
         result.put("optimizations", optimizations);
 
+        // 5. 暂缓网格
+        List<GridLine> deferredGridLines = gridLineRepository.findByStrategyIdAndDeferredTrue(strategyId);
+        List<Map<String, Object>> deferredGrids = deferredGridLines.stream().map(grid -> {
+            Map<String, Object> deferredGrid = new HashMap<>();
+            deferredGrid.put("gridLineId", grid.getId());
+            deferredGrid.put("gridLevel", grid.getLevel());
+            deferredGrid.put("gridType", grid.getGridType().name());
+            deferredGrid.put("deferredReason", grid.getDeferredReason());
+            deferredGrid.put("deferredAt", grid.getDeferredAt());
+            return deferredGrid;
+        }).collect(Collectors.toList());
+        result.put("deferredGrids", deferredGrids);
+
         return result;
     }
 
@@ -115,14 +128,16 @@ public class SuggestionService {
         if (!buyTriggered.isEmpty()) {
             for (GridLine grid : buyTriggered) {
                 Map<String, Object> suggestion = new HashMap<>();
+                suggestion.put("gridLineId", grid.getId());
                 suggestion.put("type", "BUY");
                 suggestion.put("priority", calculatePriority(grid, currentPrice));
                 suggestion.put("gridLevel", grid.getLevel());
-                suggestion.put("gridType", grid.getGridType());
+                suggestion.put("gridType", grid.getGridType().name());
                 suggestion.put("price", grid.getBuyPrice());
                 suggestion.put("triggerPrice", grid.getBuyTriggerPrice());
                 suggestion.put("quantity", grid.getBuyQuantity());
                 suggestion.put("amount", grid.getBuyAmount());
+                suggestion.put("quantityRatio", calculateQuantityRatio(grid, strategy));
                 suggestion.put("reason", generateBuyReason(grid, currentPrice));
                 suggestions.add(suggestion);
             }
@@ -138,14 +153,16 @@ public class SuggestionService {
         if (!sellTriggered.isEmpty()) {
             for (GridLine grid : sellTriggered) {
                 Map<String, Object> suggestion = new HashMap<>();
+                suggestion.put("gridLineId", grid.getId());
                 suggestion.put("type", "SELL");
                 suggestion.put("priority", calculatePriority(grid, currentPrice));
                 suggestion.put("gridLevel", grid.getLevel());
-                suggestion.put("gridType", grid.getGridType());
+                suggestion.put("gridType", grid.getGridType().name());
                 suggestion.put("price", grid.getSellPrice());
                 suggestion.put("triggerPrice", grid.getSellTriggerPrice());
                 suggestion.put("quantity", grid.getBuyQuantity());
                 suggestion.put("amount", grid.getSellAmount());
+                suggestion.put("quantityRatio", calculateQuantityRatio(grid, strategy));
                 suggestion.put("expectedProfit", grid.getProfit());
                 suggestion.put("reason", generateSellReason(grid, currentPrice));
                 suggestions.add(suggestion);
@@ -316,6 +333,16 @@ public class SuggestionService {
         } else {
             return "LOW";
         }
+    }
+
+    /**
+     * 计算买入数量占持仓比例
+     */
+    private BigDecimal calculateQuantityRatio(GridLine grid, Strategy strategy) {
+        if (strategy.getInvestedAmount() == null || strategy.getInvestedAmount().compareTo(BigDecimal.ZERO) == 0) {
+            return BigDecimal.ONE;
+        }
+        return grid.getBuyAmount().divide(strategy.getInvestedAmount(), 4, RoundingMode.HALF_UP);
     }
 
     /**

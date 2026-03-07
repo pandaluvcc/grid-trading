@@ -4,15 +4,27 @@
     <div class="header-area">
       <div class="header-top">
         <div class="greeting">我的网格</div>
-        <el-button 
-          type="primary" 
-          size="small" 
-          @click="showBatchUpdateDialog"
-          class="update-price-btn"
-        >
-          <el-icon><RefreshRight /></el-icon>
-          更新行情
-        </el-button>
+        <div class="header-right">
+          <el-button 
+            text
+            class="message-center-btn"
+            @click="goToMessageCenter"
+          >
+            <el-badge v-if="totalSuggestionsCount > 0" :value="totalSuggestionsCount" class="message-badge">
+              <el-icon class="bell-icon"><Bell /></el-icon>
+            </el-badge>
+            <el-icon v-else class="bell-icon"><Bell /></el-icon>
+          </el-button>
+          <el-button 
+            type="primary" 
+            size="small" 
+            @click="showBatchUpdateDialog"
+            class="update-price-btn"
+          >
+            <el-icon><RefreshRight /></el-icon>
+            更新行情
+          </el-button>
+        </div>
       </div>
       
       <!-- 收益卡片 -->
@@ -83,12 +95,41 @@
               <div class="strategy-name">{{ s.name || s.symbol }}</div>
               <div class="strategy-code" v-if="s.name">{{ s.symbol }}</div>
             </div>
-            <el-tag 
-              size="small" 
-              :type="s.status === 'RUNNING' ? 'success' : 'info'"
-            >
-              {{ s.status === 'RUNNING' ? '运行中' : '已停止' }}
-            </el-tag>
+            <div class="strategy-header-right">
+              <div class="strategy-icons" v-if="strategySuggestions[s.id]">
+                <!-- 风险提示图标 -->
+                <el-tooltip 
+                  v-if="getStrategyRisks(s.id).length > 0"
+                  :content="formatRisksTooltip(s.id)"
+                  placement="top"
+                  effect="dark"
+                >
+                  <span class="suggestion-icon risk-icon" @click.stop>
+                    <el-icon color="#e6a23c"><Warning /></el-icon>
+                    <span class="icon-count">{{ getStrategyRisks(s.id).length }}</span>
+                  </span>
+                </el-tooltip>
+
+                <!-- 建议操作数量图标 -->
+                <el-tooltip 
+                  v-if="getStrategySuggestionsCount(s.id) > 0"
+                  :content="`有${getStrategySuggestionsCount(s.id)}条建议操作`"
+                  placement="top"
+                  effect="dark"
+                >
+                  <span class="suggestion-icon action-icon" @click.stop>
+                    <el-icon color="#409eff"><Bell /></el-icon>
+                    <span class="icon-count">{{ getStrategySuggestionsCount(s.id) }}</span>
+                  </span>
+                </el-tooltip>
+              </div>
+              <el-tag 
+                size="small" 
+                :type="s.status === 'RUNNING' ? 'success' : 'info'"
+              >
+                {{ s.status === 'RUNNING' ? '运行中' : '已停止' }}
+              </el-tag>
+            </div>
           </div>
 
           <!-- 现价和涨跌 -->
@@ -117,40 +158,39 @@
             </div>
           </div>
 
-          <!-- 智能建议图标区 -->
-          <div class="strategy-suggestion-icons" v-if="strategySuggestions[s.id]">
-            <!-- 风险提示图标 -->
-            <el-tooltip 
-              v-if="getStrategyRisks(s.id).length > 0"
-              :content="formatRisksTooltip(s.id)"
-              placement="top"
-              effect="dark"
-            >
-              <span class="suggestion-icon risk-icon" @click.stop>
-                <el-icon color="#e6a23c"><Warning /></el-icon>
-                <span class="icon-count">{{ getStrategyRisks(s.id).length }}</span>
-              </span>
-            </el-tooltip>
 
-            <!-- 建议操作数量图标 -->
-            <el-tooltip 
-              v-if="getStrategySuggestionsCount(s.id) > 0"
-              :content="`有${getStrategySuggestionsCount(s.id)}条建议操作`"
-              placement="top"
-              effect="dark"
-            >
-              <span class="suggestion-icon action-icon" @click.stop>
-                <el-icon color="#409eff"><Bell /></el-icon>
-                <span class="icon-count">{{ getStrategySuggestionsCount(s.id) }}</span>
-              </span>
-            </el-tooltip>
-          </div>
 
           <!-- 触发提醒 -->
           <div class="strategy-alerts" v-if="s.triggerCount > 0">
             <el-icon color="#ff9800"><BellFilled /></el-icon>
             <span>{{ s.triggerCount }}条触发提醒</span>
             <span class="alert-detail">{{ formatTriggers(s.triggers) }}</span>
+          </div>
+
+          <!-- 建议预览卡片（方案A：底部建议条） -->
+          <div class="suggestion-preview" v-if="getTopSuggestion(s.id)">
+            <div class="preview-header">
+              <div class="preview-content">
+                <span class="preview-icon">💡</span>
+                <span class="preview-text">
+                  {{ getTopSuggestion(s.id).type === 'BUY' ? '建议买入' : '建议卖出' }}
+                  第{{ getTopSuggestion(s.id).gridLevel }}网 · ¥{{ formatPrice(getTopSuggestion(s.id).price) }}
+                </span>
+                <span class="more-suggestions-inline" v-if="getMoreSuggestionsCount(s.id) > 0" @click.stop="goToDetail(s)">
+                  还有{{ getMoreSuggestionsCount(s.id) }}条建议 &gt;
+                </span>
+              </div>
+            </div>
+            <div class="preview-actions">
+              <el-button size="small" text @click.stop="goToDetail(s)">详情</el-button>
+              <el-button 
+                size="small" 
+                type="primary" 
+                @click.stop="quickExecute(s, getTopSuggestion(s.id))"
+              >
+                执行
+              </el-button>
+            </div>
           </div>
         </div>
       </div>
@@ -173,6 +213,72 @@
         <span>记录</span>
       </div>
     </div>
+
+    <!-- 执行确认弹窗 -->
+    <el-dialog
+      v-model="executeDialogVisible"
+      :title="`确认执行${currentSuggestion?.type === 'BUY' ? '买入' : '卖出'}`"
+      width="90%"
+      :close-on-click-modal="false"
+    >
+      <div class="execute-dialog-content" v-if="currentSuggestion && currentStrategy">
+        <div class="strategy-info">
+          <span class="strategy-name">{{ currentStrategy.name || currentStrategy.symbol }}</span>
+          <el-tag size="small" type="info">{{ currentStrategy.symbol }}</el-tag>
+        </div>
+        <div class="suggestion-summary">
+          <div class="summary-item">
+            <span class="label">网格：</span>
+            <span class="value">第{{ currentSuggestion.gridLevel }}网（{{ getGridTypeName(currentSuggestion.gridType) }}）</span>
+          </div>
+          <div class="summary-item">
+            <span class="label">价格：</span>
+            <span class="value">¥{{ formatPrice(currentSuggestion.price) }}</span>
+          </div>
+          <div class="summary-item">
+            <span class="label">数量：</span>
+            <span class="value">{{ formatQuantity(currentSuggestion.quantity) }}股</span>
+          </div>
+          <div class="summary-item">
+            <span class="label">金额：</span>
+            <span class="value">¥{{ formatAmount(currentSuggestion.amount) }}</span>
+          </div>
+        </div>
+        
+        <div class="input-section">
+          <div class="input-group">
+            <label>交易时间</label>
+            <el-date-picker
+              v-model="tradeTime"
+              type="datetime"
+              format="YYYY-MM-DD HH:mm:ss"
+              value-format="YYYY-MM-DD HH:mm:ss"
+              placeholder="选择交易时间"
+              size="large"
+              style="width: 100%"
+            />
+          </div>
+          <div class="input-group">
+            <label>手续费（可选）</label>
+            <el-input
+              v-model="feeInput"
+              type="number"
+              placeholder="输入手续费"
+              size="large"
+            >
+              <template #prefix>¥</template>
+            </el-input>
+          </div>
+        </div>
+      </div>
+      
+      <template #footer>
+        <el-button @click="cancelExecute">取消</el-button>
+        <el-button type="primary" :loading="executing" @click="confirmExecute">
+          确认执行
+        </el-button>
+      </template>
+    </el-dialog>
 
     <!-- 批量更新行情弹窗 -->
     <el-dialog
@@ -221,7 +327,7 @@ import { ElMessage } from 'element-plus'
 import { 
   HomeFilled, Plus, List, RefreshRight, BellFilled, Warning, Bell
 } from '@element-plus/icons-vue'
-import { getAllStrategies, updateStrategyLastPrice, getSmartSuggestions } from '../../api'
+import { getAllStrategies, updateStrategyLastPrice, getSmartSuggestions, executeTick } from '../../api'
 
 const router = useRouter()
 
@@ -232,6 +338,14 @@ const priceInputs = ref({})
 const updating = ref(false)
 const strategySuggestions = ref({}) // 存储每个策略的智能建议
 
+// 执行确认弹窗相关状态
+const executeDialogVisible = ref(false)
+const currentSuggestion = ref(null)
+const currentStrategy = ref(null)
+const tradeTime = ref('')
+const feeInput = ref('')
+const executing = ref(false)
+
 // 总收益
 const totalProfit = computed(() => {
   return strategies.value.reduce((sum, s) => sum + Number(s.realizedProfit || 0), 0)
@@ -239,6 +353,15 @@ const totalProfit = computed(() => {
 
 // 今日收益（模拟，实际需要后端支持）
 const todayProfit = computed(() => 0)
+
+// 总建议数量
+const totalSuggestionsCount = computed(() => {
+  let count = 0
+  for (const strategyId in strategySuggestions.value) {
+    count += getStrategySuggestionsCount(strategyId)
+  }
+  return count
+})
 
 // 显示批量更新弹窗
 const showBatchUpdateDialog = () => {
@@ -406,6 +529,105 @@ const formatPrice = (val) => {
   return Number(val).toFixed(3)
 }
 
+const formatQuantity = (value) => {
+  if (value === null || value === undefined) return '0'
+  return Math.round(Number(value)).toString()
+}
+
+const formatAmount = (value) => {
+  if (value === null || value === undefined) return '0'
+  return Math.round(Number(value)).toString()
+}
+
+// 获取策略的顶级建议
+const getTopSuggestion = (strategyId) => {
+  const suggestion = strategySuggestions.value[strategyId]
+  if (!suggestion || !suggestion.suggestions || suggestion.suggestions.length === 0) {
+    return null
+  }
+  return suggestion.suggestions[0]
+}
+
+// 获取剩余建议数量
+const getMoreSuggestionsCount = (strategyId) => {
+  const suggestion = strategySuggestions.value[strategyId]
+  if (!suggestion || !suggestion.suggestions) {
+    return 0
+  }
+  return Math.max(0, suggestion.suggestions.length - 1)
+}
+
+const getGridTypeName = (type) => {
+  const map = {
+    'SMALL': '小网',
+    'MEDIUM': '中网',
+    'LARGE': '大网'
+  }
+  return map[type] || type
+}
+
+// 前往消息中心
+const goToMessageCenter = () => {
+  router.push('/m/messages')
+}
+
+// 快速执行
+const quickExecute = (strategy, suggestion) => {
+  currentStrategy.value = strategy
+  currentSuggestion.value = suggestion
+  const now = new Date()
+  const year = now.getFullYear()
+  const month = String(now.getMonth() + 1).padStart(2, '0')
+  const day = String(now.getDate()).padStart(2, '0')
+  const hours = String(now.getHours()).padStart(2, '0')
+  const minutes = String(now.getMinutes()).padStart(2, '0')
+  const seconds = String(now.getSeconds()).padStart(2, '0')
+  tradeTime.value = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`
+  feeInput.value = ''
+  executeDialogVisible.value = true
+}
+
+// 取消执行
+const cancelExecute = () => {
+  executeDialogVisible.value = false
+  currentSuggestion.value = null
+  currentStrategy.value = null
+}
+
+// 确认执行
+const confirmExecute = async () => {
+  if (!tradeTime.value) {
+    ElMessage.warning('请选择交易时间')
+    return
+  }
+  if (!currentStrategy.value || !currentSuggestion.value) {
+    ElMessage.error('参数错误')
+    return
+  }
+
+  executing.value = true
+  try {
+    await executeTick(currentStrategy.value.id, {
+      gridLineId: currentSuggestion.value.gridLineId,
+      type: currentSuggestion.value.type,
+      price: currentSuggestion.value.price,
+      quantity: currentSuggestion.value.quantity,
+      fee: feeInput.value ? parseFloat(feeInput.value) : null,
+      tradeTime: tradeTime.value
+    })
+    ElMessage.success('执行成功')
+    executeDialogVisible.value = false
+    currentSuggestion.value = null
+    currentStrategy.value = null
+    await loadData()
+  } catch (error) {
+    console.error('执行失败:', error)
+    ElMessage.error('执行失败: ' + (error.response?.data?.message || error.message))
+  } finally {
+    executing.value = false
+  }
+}
+
 onMounted(() => {
   loadData()
 })
@@ -453,7 +675,11 @@ onMounted(() => {
 
 .profit-card {
   text-align: center;
-  padding: 20px 0;
+  padding: 16px 0;
+  background: rgba(255,255,255,0.1);
+  border-radius: 12px;
+  backdrop-filter: blur(10px);
+  margin: 0 16px;
 }
 
 .profit-label {
@@ -464,9 +690,15 @@ onMounted(() => {
 
 .profit-value {
   color: #7dffb3;
-  font-size: 36px;
-  font-weight: 700;
+  font-size: 28px;
+  font-weight: 600;
   font-family: 'DIN', 'Helvetica Neue', sans-serif;
+  text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  transition: all 0.3s ease;
+}
+
+.profit-value:hover {
+  transform: scale(1.05);
 }
 
 .profit-value.negative {
@@ -622,8 +854,21 @@ onMounted(() => {
 .strategy-header {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
   margin-bottom: 10px;
+}
+
+.strategy-header-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+}
+
+.strategy-icons {
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .strategy-title {
@@ -702,16 +947,6 @@ onMounted(() => {
   color: #67c23a;
 }
 
-/* 智能建议图标区 */
-.strategy-suggestion-icons {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-top: 10px;
-  padding-top: 10px;
-  border-top: 1px dashed #eee;
-}
-
 .suggestion-icon {
   display: flex;
   align-items: center;
@@ -720,6 +955,7 @@ onMounted(() => {
   background: #f5f7fa;
   border-radius: 12px;
   cursor: pointer;
+  font-size: 12px;
 }
 
 .suggestion-icon:hover {
@@ -727,7 +963,7 @@ onMounted(() => {
 }
 
 .suggestion-icon .icon-count {
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 600;
 }
 
@@ -932,5 +1168,134 @@ onMounted(() => {
   margin: -30px 16px 16px;
   position: relative;
   z-index: 2;
+}
+
+/* 建议预览卡片样式 */
+.suggestion-preview {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px dashed #eee;
+}
+
+.preview-header {
+  margin-bottom: 8px;
+}
+
+.preview-content {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+
+
+.more-suggestions-inline {
+  font-size: 12px;
+  color: #409eff;
+  cursor: pointer;
+  margin-right: 8px;
+  white-space: nowrap;
+}
+
+.more-suggestions-inline:hover {
+  text-decoration: underline;
+}
+
+.preview-icon {
+  font-size: 18px;
+}
+
+.preview-text {
+  flex: 1;
+  font-size: 14px;
+  color: #303133;
+  font-weight: 500;
+}
+
+.preview-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+
+
+/* 执行弹窗样式 */
+.execute-dialog-content {
+  padding: 10px 0;
+}
+
+.strategy-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #eee;
+}
+
+.strategy-name {
+  font-size: 16px;
+  font-weight: 600;
+  color: #303133;
+}
+
+.suggestion-summary {
+  background: #f5f7fa;
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 20px;
+}
+
+.summary-item {
+  display: flex;
+  justify-content: space-between;
+  padding: 6px 0;
+  font-size: 14px;
+}
+
+.summary-item .label {
+  color: #909399;
+}
+
+.summary-item .value {
+  color: #303133;
+  font-weight: 500;
+}
+
+.input-section {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.input-group label {
+  font-size: 13px;
+  color: #606266;
+  font-weight: 500;
+}
+
+/* 消息中心按钮样式 */
+.message-center-btn {
+  padding: 6px 8px;
+  position: relative;
+}
+
+.message-badge {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+}
+
+.bell-icon {
+  font-size: 20px;
+  color: rgba(255,255,255,0.9);
 }
 </style>

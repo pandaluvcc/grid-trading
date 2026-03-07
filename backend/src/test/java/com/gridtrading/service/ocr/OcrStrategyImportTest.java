@@ -3,6 +3,7 @@ package com.gridtrading.service.ocr;
 import com.gridtrading.domain.GridLine;
 import com.gridtrading.domain.GridLineState;
 import com.gridtrading.domain.Strategy;
+import com.gridtrading.engine.GridEngine;
 import com.gridtrading.repository.GridLineRepository;
 import com.gridtrading.repository.StrategyRepository;
 import com.gridtrading.repository.TradeRecordRepository;
@@ -32,6 +33,7 @@ class OcrStrategyImportTest {
         StrategyRepository strategyRepository = Mockito.mock(StrategyRepository.class);
         GridLineRepository gridLineRepository = Mockito.mock(GridLineRepository.class);
         TradeRecordRepository tradeRecordRepository = Mockito.mock(TradeRecordRepository.class);
+        GridEngine gridEngine = Mockito.mock(GridEngine.class);
         Mockito.when(strategyRepository.save(Mockito.any())).thenAnswer(invocation -> {
             Strategy strategy = invocation.getArgument(0);
             if (strategy.getId() == null) {
@@ -46,8 +48,9 @@ class OcrStrategyImportTest {
                 strategyRepository,
                 gridLineRepository,
                 tradeRecordRepository,
+                gridEngine,
                 new BigDecimal("0.005"),
-                30
+                30L
         );
 
         MockMultipartFile file = new MockMultipartFile(
@@ -57,7 +60,7 @@ class OcrStrategyImportTest {
                 "fake".getBytes()
         );
 
-        Strategy strategy = service.createStrategyFromOcr(List.of(file), "EASTMONEY", null, null);
+        Strategy strategy = service.createStrategyFromOcr(List.of(file), "EASTMONEY", null, null, null);
 
         assertNotNull(strategy.getId());
         assertEquals(19, strategy.getGridLines().size());

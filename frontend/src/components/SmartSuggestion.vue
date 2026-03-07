@@ -52,60 +52,75 @@
       </div>
     </div>
 
-    <!-- 建议操作列表 -->
+    <!-- 风险提示区 -->
+    <div class="risk-section" v-if="risks && risks.length > 0">
+      <div class="section-title">
+        <el-icon><Warning /></el-icon>
+        <span>风险提示</span>
+      </div>
+      <div class="risk-list">
+        <div v-for="(risk, index) in risks" :key="index" class="risk-item">
+          · {{ risk.message }}
+        </div>
+      </div>
+    </div>
+
+    <!-- 建议操作区 -->
     <div class="suggestions-section" v-if="suggestions && suggestions.length > 0">
       <div class="section-title">
         <el-icon><Bell /></el-icon>
         <span>建议操作</span>
         <el-tag size="small" type="danger">{{ suggestions.length }}</el-tag>
+        <el-button
+          text
+          size="small"
+          @click="toggleSuggestions"
+          class="expand-btn"
+        >
+          <el-icon>{{ expanded ? ArrowUp : ArrowDown }}</el-icon>
+          {{ expanded ? '收起' : `展开${suggestions.length - 1}条` }}
+        </el-button>
       </div>
 
       <div class="suggestion-list">
-        <div
-          v-for="(item, index) in suggestions"
-          :key="index"
-          class="suggestion-item"
-          :class="[`priority-${item.priority.toLowerCase()}`, item.type.toLowerCase()]"
-          @click="handleSuggestion(item)"
-        >
-          <div class="suggestion-icon">
-            <el-icon v-if="item.type === 'BUY'"><Bottom /></el-icon>
-            <el-icon v-else><Top /></el-icon>
+        <!-- 第一条建议始终显示 -->
+        <SuggestionCard
+          v-if="suggestions[0]"
+          :key="suggestions[0].gridLineId"
+          :suggestion="suggestions[0]"
+          @view-grid="handleViewGrid"
+          @execute="handleExecute"
+        />
+        
+        <!-- 其余建议折叠显示 -->
+        <transition-group name="suggestion-fade" tag="div" v-if="expanded">
+          <SuggestionCard
+            v-for="(item, index) in suggestions.slice(1)"
+            :key="item.gridLineId"
+            :suggestion="item"
+            @view-grid="handleViewGrid"
+            @execute="handleExecute"
+          />
+        </transition-group>
+      </div>
+    </div>
+
+    <!-- 暂缓网格区 -->
+    <div class="deferred-section" v-if="deferredGrids && deferredGrids.length > 0">
+      <div class="section-title">
+        <el-icon><VideoPause /></el-icon>
+        <span>暂缓买入</span>
+        <el-tag size="small" type="info">{{ deferredGrids.length }}</el-tag>
+      </div>
+      <div class="deferred-list">
+        <div v-for="(grid, index) in deferredGrids" :key="index" class="deferred-item">
+          <div class="deferred-info">
+            <span class="deferred-grid">第{{ grid.gridLevel }}网（{{ getGridTypeName(grid.gridType) }}）</span>
+            <span class="deferred-reason">- {{ getDeferredReasonText(grid.deferredReason) }}</span>
           </div>
-
-          <div class="suggestion-content">
-            <div class="suggestion-header">
-              <span class="suggestion-type">
-                {{ item.type === 'BUY' ? '建议买入' : '建议卖出' }}
-              </span>
-              <el-tag
-                size="small"
-                :type="getPriorityType(item.priority)"
-              >
-                {{ getPriorityText(item.priority) }}
-              </el-tag>
-            </div>
-
-            <div class="suggestion-detail">
-              <span>第{{ item.gridLevel }}格</span>
-              <span class="dot">·</span>
-              <span>{{ getGridTypeText(item.gridType) }}</span>
-              <span class="dot">·</span>
-              <span class="price">¥{{ formatPrice(item.price) }}</span>
-            </div>
-
-            <div class="suggestion-amount" v-if="item.type === 'SELL'">
-              预期收益: <span class="profit">+¥{{ formatPrice(item.expectedProfit) }}</span>
-            </div>
-
-            <div class="suggestion-reason">
-              {{ item.reason }}
-            </div>
-          </div>
-
-          <div class="suggestion-action">
-            <el-icon><ArrowRight /></el-icon>
-          </div>
+          <el-button size="small" type="primary" @click="handleResumeBuy(grid)">
+            手动补买
+          </el-button>
         </div>
       </div>
     </div>
@@ -116,7 +131,71 @@
       <p>当前价格暂无待操作建议</p>
     </div>
 
-    <!-- 风险提示和优化建议已移至首页策略卡片图标显示 -->
+    <!-- 执行确认弹窗 -->
+    <el-dialog
+      v-model="executeDialogVisible"
+      :title="`确认执行${currentSuggestion?.type === 'BUY' ? '买入' : '卖出'}`"
+      width="90%"
+      :close-on-click-modal="false"
+    >
+      <div class="execute-dialog-content" v-if="currentSuggestion">
+        <div class="suggestion-summary">
+          <div class="summary-item">
+            <span class="label">网格：</span>
+            <span class="value">第{{ currentSuggestion.gridLevel }}网（{{ getGridTypeName(currentSuggestion.gridType) }}）</span>
+          </div>
+          <div class="summary-item">
+            <span class="label">价格：</span>
+            <span class="value">¥{{ formatPrice(currentSuggestion.price) }}</span>
+          </div>
+          <div class="summary-item">
+            <span class="label">数量：</span>
+            <span class="value">{{ formatQuantity(currentSuggestion.quantity) }}股</span>
+          </div>
+          <div class="summary-item">
+            <span class="label">金额：</span>
+            <span class="value">¥{{ formatAmount(currentSuggestion.amount) }}</span>
+          </div>
+          <div class="summary-item" v-if="currentSuggestion.quantityRatio < 1">
+            <span class="label">仓位：</span>
+            <span class="value">{{ currentSuggestion.quantityRatio === 0.5 ? '半仓' : `${currentSuggestion.quantityRatio * 100}%仓` }}</span>
+          </div>
+        </div>
+        
+        <div class="input-section">
+          <div class="input-group">
+            <label>交易时间</label>
+            <el-date-picker
+              v-model="tradeTime"
+              type="datetime"
+              format="YYYY-MM-DD HH:mm:ss"
+              value-format="YYYY-MM-DD HH:mm:ss"
+              placeholder="选择交易时间"
+              size="large"
+              style="width: 100%"
+            />
+          </div>
+          <div class="input-group">
+            <label>手续费（可选）</label>
+            <el-input
+              v-model="feeInput"
+              type="number"
+              placeholder="输入手续费"
+              size="large"
+            >
+              <template #prefix>¥</template>
+            </el-input>
+          </div>
+        </div>
+      </div>
+      
+      <template #footer>
+        <el-button @click="cancelExecute">取消</el-button>
+        <el-button type="primary" :loading="executing" @click="confirmExecute">
+          确认执行
+        </el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -125,16 +204,15 @@ import { ref, watch, onMounted } from 'vue'
 import {
   RefreshRight,
   Bell,
-  Bottom,
-  Top,
-  ArrowRight,
   CircleCheck,
   Warning,
-  Sunny,
-  InfoFilled
+  VideoPause,
+  ArrowUp,
+  ArrowDown
 } from '@element-plus/icons-vue'
 import { getSmartSuggestions } from '../api.js'
 import { ElMessage } from 'element-plus'
+import SuggestionCard from './SuggestionCard.vue'
 
 const props = defineProps({
   strategyId: {
@@ -147,16 +225,58 @@ const props = defineProps({
   }
 })
 
-const emit = defineEmits(['priceUpdated', 'suggestionUpdated', 'viewDetails'])
+const emit = defineEmits(['priceUpdated', 'suggestionUpdated', 'viewDetails', 'viewGrid', 'execute'])
 
 const currentPriceInput = ref('')
 const loading = ref(false)
 const priceAnalysis = ref(null)
 const suggestions = ref([])
 const risks = ref([])
-const optimizations = ref([])
+const deferredGrids = ref([])
 
-// 初始化价格
+const executeDialogVisible = ref(false)
+const currentSuggestion = ref(null)
+const tradeTime = ref('')
+const feeInput = ref('')
+const executing = ref(false)
+const expanded = ref(false)
+
+const toggleSuggestions = () => {
+  expanded.value = !expanded.value
+}
+
+const formatPrice = (value) => {
+  if (value === null || value === undefined) return '0.000'
+  return parseFloat(value).toFixed(3)
+}
+
+const formatQuantity = (value) => {
+  if (value === null || value === undefined) return '0'
+  return Math.round(Number(value)).toString()
+}
+
+const formatAmount = (value) => {
+  if (value === null || value === undefined) return '0'
+  return Math.round(Number(value)).toString()
+}
+
+const getGridTypeName = (type) => {
+  const map = {
+    'SMALL': '小网',
+    'MEDIUM': '中网',
+    'LARGE': '大网'
+  }
+  return map[type] || type
+}
+
+const getDeferredReasonText = (reason) => {
+  const map = {
+    'DENSE_BUY': '短期密集买入',
+    'POSITION_LIMIT': '持仓比例达到上限'
+  }
+  return map[reason] || reason
+}
+
 onMounted(() => {
   if (props.initialLastPrice) {
     currentPriceInput.value = props.initialLastPrice.toString()
@@ -164,14 +284,12 @@ onMounted(() => {
   }
 })
 
-// 监听策略变化
 watch(() => props.strategyId, () => {
   if (currentPriceInput.value) {
     fetchSuggestions()
   }
 })
 
-// 价格变化处理
 const onPriceChange = () => {
   if (currentPriceInput.value) {
     fetchSuggestions()
@@ -179,7 +297,6 @@ const onPriceChange = () => {
   }
 }
 
-// 刷新建议
 const refreshSuggestions = () => {
   if (!currentPriceInput.value) {
     ElMessage.warning('请先输入当前价格')
@@ -188,7 +305,6 @@ const refreshSuggestions = () => {
   fetchSuggestions()
 }
 
-// 获取智能建议
 const fetchSuggestions = async () => {
   if (!currentPriceInput.value || loading.value) return
 
@@ -200,7 +316,7 @@ const fetchSuggestions = async () => {
     priceAnalysis.value = data.priceAnalysis
     suggestions.value = data.suggestions || []
     risks.value = data.risks || []
-    optimizations.value = data.optimizations || []
+    deferredGrids.value = data.deferredGrids || []
 
     emit('suggestionUpdated', data)
   } catch (error) {
@@ -211,55 +327,56 @@ const fetchSuggestions = async () => {
   }
 }
 
-// 处理建议点击
-const handleSuggestion = (item) => {
-  emit('viewDetails', item)
+const handleViewGrid = (suggestion) => {
+  emit('viewGrid', suggestion)
 }
 
-// 格式化价格
-const formatPrice = (value) => {
-  if (value === null || value === undefined) return '0.00'
-  return parseFloat(value).toFixed(2)
+const handleExecute = (suggestion) => {
+  currentSuggestion.value = suggestion
+  const now = new Date()
+  const year = now.getFullYear()
+  const month = String(now.getMonth() + 1).padStart(2, '0')
+  const day = String(now.getDate()).padStart(2, '0')
+  const hours = String(now.getHours()).padStart(2, '0')
+  const minutes = String(now.getMinutes()).padStart(2, '0')
+  const seconds = String(now.getSeconds()).padStart(2, '0')
+  tradeTime.value = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`
+  feeInput.value = ''
+  executeDialogVisible.value = true
 }
 
-// 获取优先级类型
-const getPriorityType = (priority) => {
-  const typeMap = {
-    'HIGH': 'danger',
-    'MEDIUM': 'warning',
-    'LOW': 'info'
+const cancelExecute = () => {
+  executeDialogVisible.value = false
+  currentSuggestion.value = null
+}
+
+const confirmExecute = async () => {
+  if (!tradeTime.value) {
+    ElMessage.warning('请选择交易时间')
+    return
   }
-  return typeMap[priority] || 'info'
+
+  executing.value = true
+  try {
+    emit('execute', {
+      ...currentSuggestion.value,
+      fee: feeInput.value ? parseFloat(feeInput.value) : null,
+      tradeTime: tradeTime.value
+    })
+    executeDialogVisible.value = false
+    currentSuggestion.value = null
+    ElMessage.success('执行成功')
+    fetchSuggestions()
+  } catch (error) {
+    console.error('执行失败:', error)
+    ElMessage.error('执行失败')
+  } finally {
+    executing.value = false
+  }
 }
 
-// 获取优先级文本
-const getPriorityText = (priority) => {
-  const textMap = {
-    'HIGH': '高优先级',
-    'MEDIUM': '中优先级',
-    'LOW': '低优先级'
-  }
-  return textMap[priority] || priority
-}
-
-// 获取网格类型文本
-const getGridTypeText = (type) => {
-  const textMap = {
-    'SMALL': '小网',
-    'MEDIUM': '中网',
-    'LARGE': '大网'
-  }
-  return textMap[type] || type
-}
-
-// 获取风险类型
-const getRiskType = (level) => {
-  const typeMap = {
-    'HIGH': 'error',
-    'MEDIUM': 'warning',
-    'LOW': 'info'
-  }
-  return typeMap[level] || 'info'
+const handleResumeBuy = (grid) => {
+  ElMessage.info('暂缓补买功能开发中')
 }
 </script>
 
@@ -268,7 +385,6 @@ const getRiskType = (level) => {
   padding: 0 16px 16px;
 }
 
-/* 价格卡片 */
 .price-card {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   border-radius: 16px;
@@ -332,7 +448,7 @@ const getRiskType = (level) => {
 
 .analysis-label {
   font-size: 12px;
-  opacity: 0.8;
+  opacity: 0.85;
 }
 
 .analysis-value {
@@ -348,15 +464,6 @@ const getRiskType = (level) => {
   color: #4caf50;
 }
 
-/* 建议操作区域 */
-.suggestions-section {
-  margin-top: 16px;
-  background: white;
-  border-radius: 16px;
-  padding: 16px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-}
-
 .section-title {
   display: flex;
   align-items: center;
@@ -365,11 +472,49 @@ const getRiskType = (level) => {
   font-weight: bold;
   color: #303133;
   margin-bottom: 12px;
+  justify-content: space-between;
 }
 
 .section-title .el-icon {
   font-size: 18px;
+}
+
+.expand-btn {
+  margin-left: auto;
+  font-size: 12px;
   color: #409eff;
+}
+
+/* 建议卡片过渡动画 */
+.suggestion-fade-enter-active,
+.suggestion-fade-leave-active {
+  transition: all 0.3s ease;
+}
+
+.suggestion-fade-enter-from,
+.suggestion-fade-leave-to {
+  opacity: 0;
+  transform: translateY(-10px);
+}
+
+.risk-section, .suggestions-section, .deferred-section {
+  margin-top: 16px;
+  background: white;
+  border-radius: 16px;
+  padding: 16px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.risk-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.risk-item {
+  font-size: 14px;
+  color: #e6a23c;
+  line-height: 1.6;
 }
 
 .suggestion-list {
@@ -378,120 +523,37 @@ const getRiskType = (level) => {
   gap: 12px;
 }
 
-.suggestion-item {
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-  padding: 16px;
-  background: #f8f9fa;
-  border-radius: 12px;
-  border-left: 4px solid #409eff;
-  cursor: pointer;
-  transition: all 0.3s;
-}
-
-.suggestion-item:active {
-  transform: scale(0.98);
-}
-
-.suggestion-item.buy {
-  border-left-color: #67c23a;
-}
-
-.suggestion-item.buy .suggestion-icon {
-  color: #67c23a;
-  background: #f0f9ff;
-}
-
-.suggestion-item.sell {
-  border-left-color: #f56c6c;
-}
-
-.suggestion-item.sell .suggestion-icon {
-  color: #f56c6c;
-  background: #fef0f0;
-}
-
-.suggestion-item.priority-high {
-  background: linear-gradient(135deg, #fff5f5 0%, #ffe5e5 100%);
-}
-
-.suggestion-icon {
-  width: 36px;
-  height: 36px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: white;
-  border-radius: 50%;
-  font-size: 20px;
-  flex-shrink: 0;
-}
-
-.suggestion-content {
-  flex: 1;
+.deferred-list {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 12px;
 }
 
-.suggestion-header {
+.deferred-item {
   display: flex;
-  align-items: center;
   justify-content: space-between;
-  gap: 8px;
-}
-
-.suggestion-type {
-  font-size: 16px;
-  font-weight: bold;
-  color: #303133;
-}
-
-.suggestion-detail {
-  display: flex;
   align-items: center;
-  gap: 6px;
+  padding: 12px;
+  background: #f5f7fa;
+  border-radius: 8px;
+}
+
+.deferred-info {
+  flex: 1;
   font-size: 14px;
   color: #606266;
 }
 
-.suggestion-detail .dot {
-  color: #dcdfe6;
+.deferred-grid {
+  font-weight: 500;
+  color: #303133;
 }
 
-.suggestion-detail .price {
-  color: #409eff;
-  font-weight: bold;
-}
-
-.suggestion-amount {
-  font-size: 13px;
+.deferred-reason {
   color: #909399;
+  margin-left: 4px;
 }
 
-.suggestion-amount .profit {
-  color: #67c23a;
-  font-weight: bold;
-}
-
-.suggestion-reason {
-  font-size: 12px;
-  color: #909399;
-  line-height: 1.5;
-  margin-top: 4px;
-  padding-top: 8px;
-  border-top: 1px solid #ebeef5;
-}
-
-.suggestion-action {
-  display: flex;
-  align-items: center;
-  color: #909399;
-  font-size: 18px;
-}
-
-/* 无建议提示 */
 .no-suggestions {
   text-align: center;
   padding: 40px 20px;
@@ -512,9 +574,48 @@ const getRiskType = (level) => {
   margin: 0;
 }
 
-/* 风险提示和优化建议已移至首页策略卡片图标显示 */
+.execute-dialog-content {
+  padding: 10px 0;
+}
+
+.suggestion-summary {
+  background: #f5f7fa;
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 20px;
+}
+
+.summary-item {
+  display: flex;
+  justify-content: space-between;
+  padding: 6px 0;
+  font-size: 14px;
+}
+
+.summary-item .label {
+  color: #909399;
+}
+
+.summary-item .value {
+  color: #303133;
+  font-weight: 500;
+}
+
+.input-section {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.input-group label {
+  font-size: 13px;
+  color: #606266;
+  font-weight: 500;
+}
 </style>
-
-
-
-

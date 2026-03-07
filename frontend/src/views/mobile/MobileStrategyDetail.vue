@@ -30,6 +30,28 @@
           </div>
         </div>
 
+        <!-- 价格信息区域 -->
+        <div class="price-info-section">
+          <div class="price-item">
+            <span class="price-label">当前价格</span>
+            <span class="price-value">¥{{ formatPrice(strategy.lastPrice || strategy.basePrice) }}</span>
+          </div>
+          <div class="price-item">
+            <span class="price-label">基准价</span>
+            <span class="price-value">¥{{ formatPrice(strategy.basePrice) }}</span>
+          </div>
+          <div class="price-item">
+            <span class="price-label">偏离度</span>
+            <span class="price-value" :class="getDeviationClass()">
+              {{ calculateDeviation() }}%
+            </span>
+          </div>
+          <div class="price-item">
+            <span class="price-label">最近网格</span>
+            <span class="price-value">{{ getNearestGridInfo() }}</span>
+          </div>
+        </div>
+
         <div class="overview-grid">
           <div class="stat-item">
             <span class="stat-label">单格数量</span>
@@ -55,6 +77,14 @@
           </div>
         </div>
       </div>
+
+      <!-- 智能建议区域 -->
+      <SmartSuggestion
+        v-if="strategy"
+        :strategy-id="Number(strategyId)"
+        :initial-last-price="strategy.lastPrice"
+        @price-updated="(p) => priceInput = p.toString()"
+      />
 
       <!-- 快速执行区域 -->
       <div class="execute-card">
@@ -86,14 +116,6 @@
           输入价格后系统将自动判断买卖
         </div>
       </div>
-
-      <!-- 智能建议区域 -->
-      <SmartSuggestion
-        v-if="strategy"
-        :strategy-id="Number(strategyId)"
-        :initial-last-price="strategy.lastPrice"
-        @price-updated="(p) => priceInput = p.toString()"
-      />
 
       <!-- Tab切换 -->
       <div class="tab-switcher">
@@ -943,6 +965,30 @@ const getGridTypeTag = (type) => {
   return map[type] || ''
 }
 
+// 计算偏离度
+const calculateDeviation = () => {
+  if (!strategy.value || !strategy.value.basePrice) return 0
+  const currentPrice = strategy.value.lastPrice || strategy.value.basePrice
+  const deviation = ((currentPrice - strategy.value.basePrice) / strategy.value.basePrice) * 100
+  return deviation.toFixed(2)
+}
+
+// 获取偏离度样式
+const getDeviationClass = () => {
+  const deviation = calculateDeviation()
+  if (parseFloat(deviation) > 0) return 'profit'
+  if (parseFloat(deviation) < 0) return 'negative'
+  return ''
+}
+
+// 获取最近网格信息
+const getNearestGridInfo = () => {
+  if (!gridLines.value || gridLines.value.length === 0) return '无'
+  // 简单实现：返回第一个网格
+  const firstGrid = gridLines.value[0]
+  return `第${firstGrid.level}网 (${getGridTypeName(firstGrid.gridType)})`
+}
+
 // 网格状态格式化
 const getStateName = (state) => {
   const map = {
@@ -1010,6 +1056,43 @@ const getStateTag = (state) => {
 .overview-stats {
   text-align: center;
   margin-bottom: 20px;
+}
+
+/* 价格信息区域 */
+.price-info-section {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 20px;
+  padding: 16px;
+  background: rgba(255,255,255,0.1);
+  border-radius: 12px;
+  backdrop-filter: blur(10px);
+}
+
+.price-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.price-label {
+  font-size: 12px;
+  opacity: 0.75;
+}
+
+.price-value {
+  font-size: 15px;
+  font-weight: 600;
+  color: #fff;
+}
+
+.price-value.profit {
+  color: #7dffb3;
+}
+
+.price-value.negative {
+  color: #ffb3b3;
 }
 
 .stat-item.main .stat-label {

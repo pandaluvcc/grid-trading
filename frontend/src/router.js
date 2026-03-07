@@ -6,6 +6,7 @@ import MobileRecord from './views/mobile/MobileRecord.vue'
 import MobileHistory from './views/mobile/MobileHistory.vue'
 import MobileStrategyCreate from './views/mobile/MobileStrategyCreate.vue'
 import MobileStrategyDetail from './views/mobile/MobileStrategyDetail.vue'
+import MobileMessageCenter from './views/mobile/MobileMessageCenter.vue'
 
 const routes = [
   // 根路由 - 直接跳转到移动端首页
@@ -19,6 +20,11 @@ const routes = [
     path: '/m',
     name: 'MobileHome',
     component: MobileHome
+  },
+  {
+    path: '/m/messages',
+    name: 'MobileMessageCenter',
+    component: MobileMessageCenter
   },
   {
     path: '/m/record',
