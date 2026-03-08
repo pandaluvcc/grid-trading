@@ -34,6 +34,15 @@ public class StrategyDetailDTO {
     private String gridModelDescription;
     private Integer totalGridCount;
 
+    // 持仓相关字段
+    private BigDecimal costPrice;
+    private BigDecimal avgBuyPrice;
+    private BigDecimal totalFee;
+    private Integer holdingDays;
+    private BigDecimal positionProfit;
+    private BigDecimal positionProfitPercent;
+    private BigDecimal positionRatio;
+
     public StrategyDetailDTO() {
     }
 
@@ -64,6 +73,15 @@ public class StrategyDetailDTO {
         // 网格模型说明
         dto.setGridModelDescription("锚点回撤式网格：小网阶梯回撤，中网锚点反弹，大网极端反弹");
         dto.setTotalGridCount(19);
+
+        // 持仓相关字段
+        dto.setCostPrice(strategy.getCostPrice() != null ? strategy.getCostPrice() : BigDecimal.ZERO);
+        dto.setAvgBuyPrice(strategy.getAvgBuyPrice() != null ? strategy.getAvgBuyPrice() : BigDecimal.ZERO);
+        dto.setTotalFee(strategy.getTotalFee() != null ? strategy.getTotalFee() : BigDecimal.ZERO);
+        dto.setHoldingDays(strategy.getHoldingDays() != null ? strategy.getHoldingDays() : 0);
+        dto.setPositionProfit(strategy.getPositionProfit() != null ? strategy.getPositionProfit() : BigDecimal.ZERO);
+        dto.setPositionProfitPercent(strategy.getPositionProfitPercent() != null ? strategy.getPositionProfitPercent() : BigDecimal.ZERO);
+        dto.setPositionRatio(strategy.getPositionRatio() != null ? strategy.getPositionRatio() : BigDecimal.ZERO);
 
         return dto;
     }
@@ -212,5 +230,61 @@ public class StrategyDetailDTO {
 
     public void setExpectedProfit(BigDecimal expectedProfit) {
         this.expectedProfit = expectedProfit;
+    }
+
+    public BigDecimal getCostPrice() {
+        return costPrice;
+    }
+
+    public void setCostPrice(BigDecimal costPrice) {
+        this.costPrice = costPrice;
+    }
+
+    public BigDecimal getAvgBuyPrice() {
+        return avgBuyPrice;
+    }
+
+    public void setAvgBuyPrice(BigDecimal avgBuyPrice) {
+        this.avgBuyPrice = avgBuyPrice;
+    }
+
+    public BigDecimal getTotalFee() {
+        return totalFee;
+    }
+
+    public void setTotalFee(BigDecimal totalFee) {
+        this.totalFee = totalFee;
+    }
+
+    public Integer getHoldingDays() {
+        return holdingDays;
+    }
+
+    public void setHoldingDays(Integer holdingDays) {
+        this.holdingDays = holdingDays;
+    }
+
+    public BigDecimal getPositionProfit() {
+        return positionProfit;
+    }
+
+    public void setPositionProfit(BigDecimal positionProfit) {
+        this.positionProfit = positionProfit;
+    }
+
+    public BigDecimal getPositionProfitPercent() {
+        return positionProfitPercent;
+    }
+
+    public void setPositionProfitPercent(BigDecimal positionProfitPercent) {
+        this.positionProfitPercent = positionProfitPercent;
+    }
+
+    public BigDecimal getPositionRatio() {
+        return positionRatio;
+    }
+
+    public void setPositionRatio(BigDecimal positionRatio) {
+        this.positionRatio = positionRatio;
     }
 }

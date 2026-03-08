@@ -4,6 +4,7 @@ import com.gridtrading.domain.*;
 import com.gridtrading.repository.GridLineRepository;
 import com.gridtrading.repository.StrategyRepository;
 import com.gridtrading.repository.TradeRecordRepository;
+import com.gridtrading.service.PositionCalculator;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -30,15 +31,18 @@ public class GridEngine {
     private final StrategyRepository strategyRepository;
     private final GridLineRepository gridLineRepository;
     private final TradeRecordRepository tradeRecordRepository;
+    private final PositionCalculator positionCalculator;
 
     public GridEngine(
             StrategyRepository strategyRepository,
             GridLineRepository gridLineRepository,
-            TradeRecordRepository tradeRecordRepository
+            TradeRecordRepository tradeRecordRepository,
+            PositionCalculator positionCalculator
     ) {
         this.strategyRepository = strategyRepository;
         this.gridLineRepository = gridLineRepository;
         this.tradeRecordRepository = tradeRecordRepository;
+        this.positionCalculator = positionCalculator;
     }
 
 
@@ -103,6 +107,9 @@ public class GridEngine {
         } else {
             executeManualSell(strategy, gridLine, price, quantity, amount);
         }
+
+        // 计算持仓相关字段
+        positionCalculator.calculateAndUpdate(strategy);
 
         // 保存策略和网格线
         gridLineRepository.save(gridLine);

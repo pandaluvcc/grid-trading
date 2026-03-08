@@ -1,6 +1,7 @@
 package com.gridtrading.domain;
 
 import jakarta.persistence.*;
+import lombok.Data;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -12,6 +13,7 @@ import java.util.List;
  */
 @Entity
 @Table(name = "strategy")
+@Data
 public class Strategy {
 
     /**
@@ -62,6 +64,12 @@ public class Strategy {
      */
     @Column(nullable = false, precision = 20, scale = 2)
     private BigDecimal amountPerGrid;
+
+    /**
+     * 每格买入数量（创建策略时设置，用于建议操作）
+     */
+    @Column(name = "quantity_per_grid", precision = 20, scale = 2)
+    private BigDecimal quantityPerGrid;
 
     /**
      * 网格模型版本（固定 v2.0）
@@ -167,6 +175,78 @@ public class Strategy {
     private List<TradeRecord> tradeRecords = new ArrayList<>();
 
     /**
+     * 成本价（持仓净投入 / 持仓数量）
+     */
+    @Column(name = "cost_price", precision = 20, scale = 8)
+    private BigDecimal costPrice = BigDecimal.ZERO;
+
+    /**
+     * 买入均价（买入总金额 / 买入总数量）
+     */
+    @Column(name = "avg_buy_price", precision = 20, scale = 8)
+    private BigDecimal avgBuyPrice = BigDecimal.ZERO;
+
+    /**
+     * 累计税费
+     */
+    @Column(name = "total_fee", precision = 20, scale = 2)
+    private BigDecimal totalFee = BigDecimal.ZERO;
+
+    /**
+     * 持股天数
+     */
+    @Column(name = "holding_days")
+    private Integer holdingDays = 0;
+
+    /**
+     * 首次买入时间
+     */
+    @Column(name = "first_buy_time")
+    private LocalDateTime firstBuyTime;
+
+    /**
+     * 持仓盈亏
+     */
+    @Column(name = "position_profit", precision = 20, scale = 2)
+    private BigDecimal positionProfit = BigDecimal.ZERO;
+
+    /**
+     * 持仓盈亏百分比
+     */
+    @Column(name = "position_profit_percent", precision = 10, scale = 4)
+    private BigDecimal positionProfitPercent = BigDecimal.ZERO;
+
+    /**
+     * 个股仓位比例
+     */
+    @Column(name = "position_ratio", precision = 10, scale = 4)
+    private BigDecimal positionRatio = BigDecimal.ZERO;
+
+    /**
+     * 累计买入金额
+     */
+    @Column(name = "total_buy_amount", precision = 20, scale = 2)
+    private BigDecimal totalBuyAmount = BigDecimal.ZERO;
+
+    /**
+     * 累计买入数量
+     */
+    @Column(name = "total_buy_quantity", precision = 20, scale = 8)
+    private BigDecimal totalBuyQuantity = BigDecimal.ZERO;
+
+    /**
+     * 累计卖出金额
+     */
+    @Column(name = "total_sell_amount", precision = 20, scale = 2)
+    private BigDecimal totalSellAmount = BigDecimal.ZERO;
+
+    /**
+     * 累计卖出数量
+     */
+    @Column(name = "total_sell_quantity", precision = 20, scale = 8)
+    private BigDecimal totalSellQuantity = BigDecimal.ZERO;
+
+    /**
      * JPA 要求的无参构造器
      */
     public Strategy() {
@@ -180,207 +260,5 @@ public class Strategy {
         if (createdAt == null) {
             createdAt = LocalDateTime.now();
         }
-    }
-
-    // ==================== Getter 和 Setter ====================
-
-    public Long getId() {
-        return id;
-    }
-
-    public void setId(Long id) {
-        this.id = id;
-    }
-
-    public String getName() {
-        return name;
-    }
-
-    public void setName(String name) {
-        this.name = name;
-    }
-
-    public String getSymbol() {
-        return symbol;
-    }
-
-    public void setSymbol(String symbol) {
-        this.symbol = symbol;
-    }
-
-    public BigDecimal getBasePrice() {
-        return basePrice;
-    }
-
-    public void setBasePrice(BigDecimal basePrice) {
-        this.basePrice = basePrice;
-    }
-
-    public BigDecimal getGridPercent() {
-        return gridPercent;
-    }
-
-    public void setGridPercent(BigDecimal gridPercent) {
-        this.gridPercent = gridPercent;
-    }
-
-    public Integer getGridCountDown() {
-        return gridCountDown;
-    }
-
-    public void setGridCountDown(Integer gridCountDown) {
-        this.gridCountDown = gridCountDown;
-    }
-
-    public Integer getGridCountUp() {
-        return gridCountUp;
-    }
-
-    public void setGridCountUp(Integer gridCountUp) {
-        this.gridCountUp = gridCountUp;
-    }
-
-    public BigDecimal getAmountPerGrid() {
-        return amountPerGrid;
-    }
-
-    public void setAmountPerGrid(BigDecimal amountPerGrid) {
-        this.amountPerGrid = amountPerGrid;
-    }
-
-    public BigDecimal getSmallGap() {
-        return smallGap;
-    }
-
-    public void setSmallGap(BigDecimal smallGap) {
-        this.smallGap = smallGap;
-    }
-
-    public BigDecimal getMediumGap() {
-        return mediumGap;
-    }
-
-    public void setMediumGap(BigDecimal mediumGap) {
-        this.mediumGap = mediumGap;
-    }
-
-    public BigDecimal getLargeGap() {
-        return largeGap;
-    }
-
-    public void setLargeGap(BigDecimal largeGap) {
-        this.largeGap = largeGap;
-    }
-
-    public BigDecimal getMaxCapital() {
-        return maxCapital;
-    }
-
-    public void setMaxCapital(BigDecimal maxCapital) {
-        this.maxCapital = maxCapital;
-    }
-
-    public StrategyStatus getStatus() {
-        return status;
-    }
-
-    public void setStatus(StrategyStatus status) {
-        this.status = status;
-    }
-
-    public LocalDateTime getCreatedAt() {
-        return createdAt;
-    }
-
-    public void setCreatedAt(LocalDateTime createdAt) {
-        this.createdAt = createdAt;
-    }
-
-    public BigDecimal getLastPrice() {
-        return lastPrice;
-    }
-
-    public void setLastPrice(BigDecimal lastPrice) {
-        this.lastPrice = lastPrice;
-    }
-
-    public BigDecimal getAvailableCash() {
-        return availableCash;
-    }
-
-    public void setAvailableCash(BigDecimal availableCash) {
-        this.availableCash = availableCash;
-    }
-
-    public BigDecimal getInvestedAmount() {
-        return investedAmount;
-    }
-
-    public void setInvestedAmount(BigDecimal investedAmount) {
-        this.investedAmount = investedAmount;
-    }
-
-    public BigDecimal getPosition() {
-        return position;
-    }
-
-    public void setPosition(BigDecimal position) {
-        this.position = position;
-    }
-
-    public BigDecimal getRealizedProfit() {
-        return realizedProfit;
-    }
-
-    public void setRealizedProfit(BigDecimal realizedProfit) {
-        this.realizedProfit = realizedProfit;
-    }
-
-    public List<GridLine> getGridLines() {
-        return gridLines;
-    }
-
-    public void setGridLines(List<GridLine> gridLines) {
-        this.gridLines = gridLines;
-    }
-
-    public List<TradeRecord> getTradeRecords() {
-        return tradeRecords;
-    }
-
-    public void setTradeRecords(List<TradeRecord> tradeRecords) {
-        this.tradeRecords = tradeRecords;
-    }
-
-    public String getGridModelVersion() {
-        return gridModelVersion;
-    }
-
-    public void setGridModelVersion(String gridModelVersion) {
-        this.gridModelVersion = gridModelVersion;
-    }
-
-    public String getGridSummary() {
-        return gridSummary;
-    }
-
-    public void setGridSummary(String gridSummary) {
-        this.gridSummary = gridSummary;
-    }
-
-    public String getGridCalculationMode() {
-        return gridCalculationMode;
-    }
-
-    public void setGridCalculationMode(String gridCalculationMode) {
-        this.gridCalculationMode = gridCalculationMode;
-    }
-
-    public BigDecimal getMaxPositionRatio() {
-        return maxPositionRatio;
-    }
-
-    public void setMaxPositionRatio(BigDecimal maxPositionRatio) {
-        this.maxPositionRatio = maxPositionRatio;
     }
 }

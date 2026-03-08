@@ -40,7 +40,7 @@ public interface TradeRecordRepository extends JpaRepository<TradeRecord, Long> 
     /**
      * 查询某个网格的所有交易记录（按时间升序）
      */
-    List<TradeRecord> findByGridLineIdOrderByTradeTimeAsc(Long gridLineId);
+    List<TradeRecord> findByGridLine_IdOrderByTradeTimeAsc(Long gridLineId);
 
     /**
      * 查询策略的所有交易记录（按时间升序）- 用于批量计算收益

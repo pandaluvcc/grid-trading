@@ -6,6 +6,7 @@ import com.gridtrading.engine.GridEngine;
 import com.gridtrading.repository.GridLineRepository;
 import com.gridtrading.repository.StrategyRepository;
 import com.gridtrading.repository.TradeRecordRepository;
+import com.gridtrading.service.PositionCalculator;
 import com.gridtrading.service.suggestion.SuggestionService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -80,6 +81,9 @@ public class StrategyController {
     @Autowired
     private SuggestionService suggestionService;
 
+    @Autowired
+    private PositionCalculator positionCalculator;
+
     /**
      * 获取所有策略列表
      */
@@ -128,6 +132,7 @@ public class StrategyController {
         strategy.setSymbol(request.getSymbol());
         strategy.setBasePrice(request.getBasePrice());
         strategy.setAmountPerGrid(amountPerGrid);
+        strategy.setQuantityPerGrid(quantityPerGrid);
         
         // 固定网格参数（基于百分比计算价差）
         BigDecimal smallGap = request.getBasePrice().multiply(SMALL_PERCENT);
@@ -516,6 +521,10 @@ public class StrategyController {
     public StrategyDetailDTO getStrategyDetail(@PathVariable Long id) {
         Strategy strategy = strategyRepository.findByIdWithGridLines(id)
                 .orElseThrow(() -> new RuntimeException("策略不存在: " + id));
+        
+        // 每次获取详情时都重新计算持仓相关字段（确保数据一致性）
+        positionCalculator.calculateAndUpdate(strategy);
+        strategyRepository.save(strategy);
         
         StrategyDetailDTO dto = StrategyDetailDTO.fromEntity(strategy);
         
@@ -937,12 +946,13 @@ public class StrategyController {
      * 更新最新价格
      */
     @PutMapping("/{id}/last-price")
-    public Strategy updateLastPrice(@PathVariable Long id, @RequestBody UpdateLastPriceRequest request) {
+    public StrategyDetailDTO updateLastPrice(@PathVariable Long id, @RequestBody UpdateLastPriceRequest request) {
         Strategy strategy = strategyRepository.findById(id)
             .orElseThrow(() -> new RuntimeException("策略不存在"));
 
-        strategy.setLastPrice(request.getLastPrice());
-        return strategyRepository.save(strategy);
+        positionCalculator.updateByLastPrice(strategy, request.getLastPrice());
+        Strategy saved = strategyRepository.save(strategy);
+        return StrategyDetailDTO.fromEntity(saved);
     }
 
     /**

@@ -8,6 +8,9 @@ import MobileStrategyCreate from './views/mobile/MobileStrategyCreate.vue'
 import MobileStrategyDetail from './views/mobile/MobileStrategyDetail.vue'
 import MobileMessageCenter from './views/mobile/MobileMessageCenter.vue'
 
+// PC端页面
+import ApkFolderGenerator from './views/pc/ApkFolderGenerator.vue'
+
 const routes = [
   // 根路由 - 直接跳转到移动端首页
   {
@@ -45,6 +48,13 @@ const routes = [
     path: '/m/strategy/:id',
     name: 'MobileStrategyDetail',
     component: MobileStrategyDetail
+  },
+
+  // ========== PC端工具路由 ==========
+  {
+    path: '/pc/apk-generator',
+    name: 'ApkFolderGenerator',
+    component: ApkFolderGenerator
   }
 ]
 

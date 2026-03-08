@@ -19,9 +19,9 @@
       </div>
       <div class="info-row">
         <span>金额：¥{{ formatAmount(suggestion.amount) }}</span>
-        <span v-if="suggestion.quantityRatio < 1" class="ratio-tag">
-          {{ suggestion.quantityRatio === 0.5 ? '半仓' : `${suggestion.quantityRatio * 100}%仓` }}
-        </span>
+      </div>
+      <div class="risk-warning" v-if="suggestion.riskWarning">
+        ⚠️ {{ suggestion.riskWarning }}
       </div>
       <div class="reason" v-if="suggestion.reason">
         {{ suggestion.reason }}
@@ -32,9 +32,6 @@
     </div>
     
     <div class="card-footer">
-      <el-button size="small" text @click="$emit('viewGrid', suggestion)">
-        查看网格
-      </el-button>
       <el-button 
         size="small" 
         :type="suggestion.type === 'BUY' ? 'danger' : 'success'"
@@ -47,8 +44,6 @@
 </template>
 
 <script setup>
-import { defineProps, defineEmits } from 'vue'
-
 const props = defineProps({
   suggestion: {
     type: Object,
@@ -152,6 +147,15 @@ const getGridTypeName = (type) => {
   border-radius: 4px;
   font-size: 12px;
   font-weight: 500;
+}
+
+.risk-warning {
+  font-size: 12px;
+  color: #e6a23c;
+  background: #fdf6ec;
+  padding: 6px 10px;
+  border-radius: 4px;
+  margin-top: 4px;
 }
 
 .reason {

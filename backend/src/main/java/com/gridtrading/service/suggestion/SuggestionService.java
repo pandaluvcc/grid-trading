@@ -46,13 +46,13 @@ public class SuggestionService {
         Map<String, Object> priceAnalysis = analyzePricePosition(strategy, gridLines, currentPrice);
         result.put("priceAnalysis", priceAnalysis);
 
-        // 2. 建议操作
-        List<Map<String, Object>> suggestions = generateSuggestions(strategy, gridLines, currentPrice);
-        result.put("suggestions", suggestions);
-
-        // 3. 风险提示
+        // 2. 风险提示（先生成风险，用于调整建议）
         List<Map<String, Object>> risks = analyzeRisks(strategy, gridLines, currentPrice);
         result.put("risks", risks);
+
+        // 3. 建议操作（根据风险等级调整）
+        List<Map<String, Object>> suggestions = generateSuggestions(strategy, gridLines, currentPrice, risks);
+        result.put("suggestions", suggestions);
 
         // 4. 优化建议
         List<Map<String, Object>> optimizations = generateOptimizations(strategy, gridLines);
@@ -115,8 +115,18 @@ public class SuggestionService {
     /**
      * 生成操作建议
      */
-    private List<Map<String, Object>> generateSuggestions(Strategy strategy, List<GridLine> gridLines, BigDecimal currentPrice) {
+    private List<Map<String, Object>> generateSuggestions(Strategy strategy, List<GridLine> gridLines, BigDecimal currentPrice, List<Map<String, Object>> risks) {
         List<Map<String, Object>> suggestions = new ArrayList<>();
+
+        BigDecimal quantityPerGrid = strategy.getQuantityPerGrid();
+
+        // 根据风险等级决定是否显示买入建议
+        boolean hasHighRisk = risks.stream()
+                .anyMatch(r -> "HIGH".equals(r.get("level")));
+        boolean hasHeavyPosition = risks.stream()
+                .anyMatch(r -> "HEAVY_POSITION".equals(r.get("type")));
+        boolean hasFrequentBuy = risks.stream()
+                .anyMatch(r -> "FREQUENT_BUY".equals(r.get("type")));
 
         // 1. 检查待买入触发
         List<GridLine> buyTriggered = gridLines.stream()
@@ -135,8 +145,34 @@ public class SuggestionService {
                 suggestion.put("gridType", grid.getGridType().name());
                 suggestion.put("price", grid.getBuyPrice());
                 suggestion.put("triggerPrice", grid.getBuyTriggerPrice());
-                suggestion.put("quantity", grid.getBuyQuantity());
-                suggestion.put("amount", grid.getBuyAmount());
+                
+                // 根据风险等级调整建议数量
+                BigDecimal suggestedQuantity;
+                BigDecimal suggestedAmount;
+                
+                if (quantityPerGrid != null) {
+                    suggestedQuantity = quantityPerGrid;
+                    suggestedAmount = quantityPerGrid.multiply(grid.getBuyPrice()).setScale(2, RoundingMode.DOWN);
+                } else {
+                    suggestedQuantity = grid.getBuyQuantity();
+                    suggestedAmount = grid.getBuyAmount();
+                }
+                
+                // 高风险时，建议数量减半
+                if (hasHighRisk || hasHeavyPosition) {
+                    suggestedQuantity = suggestedQuantity.divide(BigDecimal.valueOf(2), 0, RoundingMode.DOWN);
+                    suggestedAmount = suggestedQuantity.multiply(grid.getBuyPrice()).setScale(2, RoundingMode.DOWN);
+                    suggestion.put("riskWarning", "当前风险较高，建议减半买入");
+                }
+                
+                // 连续买入频繁时，添加提示
+                if (hasFrequentBuy) {
+                    suggestion.put("riskWarning", "近期买入频繁，建议谨慎操作");
+                }
+                
+                suggestion.put("quantity", suggestedQuantity);
+                suggestion.put("amount", suggestedAmount);
+                
                 suggestion.put("quantityRatio", calculateQuantityRatio(grid, strategy));
                 suggestion.put("reason", generateBuyReason(grid, currentPrice));
                 suggestions.add(suggestion);
@@ -160,8 +196,15 @@ public class SuggestionService {
                 suggestion.put("gridType", grid.getGridType().name());
                 suggestion.put("price", grid.getSellPrice());
                 suggestion.put("triggerPrice", grid.getSellTriggerPrice());
-                suggestion.put("quantity", grid.getBuyQuantity());
-                suggestion.put("amount", grid.getSellAmount());
+                
+                if (quantityPerGrid != null) {
+                    suggestion.put("quantity", quantityPerGrid);
+                    suggestion.put("amount", quantityPerGrid.multiply(grid.getSellPrice()).setScale(2, RoundingMode.DOWN));
+                } else {
+                    suggestion.put("quantity", grid.getBuyQuantity());
+                    suggestion.put("amount", grid.getSellAmount());
+                }
+                
                 suggestion.put("quantityRatio", calculateQuantityRatio(grid, strategy));
                 suggestion.put("expectedProfit", grid.getProfit());
                 suggestion.put("reason", generateSellReason(grid, currentPrice));
@@ -203,20 +246,30 @@ public class SuggestionService {
             }
         }
 
-        // 2. 检查持仓过重风险
+        // 2. 检查持仓过重风险（使用 positionRatio）
         long boughtCount = gridLines.stream()
                 .filter(g -> "BOUGHT".equals(g.getState().name()))
                 .count();
 
-        BigDecimal investedRatio = strategy.getInvestedAmount()
-                .divide(strategy.getMaxCapital(), 4, RoundingMode.HALF_UP);
+        BigDecimal positionRatio = strategy.getPositionRatio();
+        if (positionRatio == null) {
+            positionRatio = BigDecimal.ZERO;
+        }
 
-        if (investedRatio.compareTo(BigDecimal.valueOf(0.8)) > 0) {
+        if (positionRatio.compareTo(BigDecimal.valueOf(0.7)) > 0) {
+            Map<String, Object> risk = new HashMap<>();
+            risk.put("type", "HEAVY_POSITION");
+            risk.put("level", "HIGH");
+            risk.put("message", "当前仓位已达" + positionRatio.multiply(BigDecimal.valueOf(100)).setScale(0, RoundingMode.HALF_UP) + "%，建议暂停买入");
+            risk.put("positionRatio", positionRatio.multiply(BigDecimal.valueOf(100)));
+            risk.put("boughtGridCount", boughtCount);
+            risks.add(risk);
+        } else if (positionRatio.compareTo(BigDecimal.valueOf(0.5)) > 0) {
             Map<String, Object> risk = new HashMap<>();
             risk.put("type", "HEAVY_POSITION");
             risk.put("level", "MEDIUM");
             risk.put("message", "持仓较重，建议关注卖出机会");
-            risk.put("investedRatio", investedRatio.multiply(BigDecimal.valueOf(100)));
+            risk.put("positionRatio", positionRatio.multiply(BigDecimal.valueOf(100)));
             risk.put("boughtGridCount", boughtCount);
             risks.add(risk);
         }
@@ -231,6 +284,31 @@ public class SuggestionService {
             risk.put("level", "HIGH");
             risk.put("message", "价格持续下跌，已偏离基准价超过15%");
             risk.put("deviation", deviation.multiply(BigDecimal.valueOf(100)));
+            risks.add(risk);
+        }
+
+        // 4. 检查连续买入频率风险（近7日买入次数）
+        LocalDateTime sevenDaysAgo = LocalDateTime.now().minusDays(7);
+        List<TradeRecord> recentTrades = tradeRecordRepository.findByStrategyIdOrderByTradeTimeDesc(strategy.getId());
+        
+        long recentBuyCount = recentTrades.stream()
+                .filter(t -> "BUY".equals(t.getType().name()))
+                .filter(t -> t.getTradeTime().isAfter(sevenDaysAgo))
+                .count();
+
+        if (recentBuyCount >= 5) {
+            Map<String, Object> risk = new HashMap<>();
+            risk.put("type", "FREQUENT_BUY");
+            risk.put("level", "HIGH");
+            risk.put("message", "近7日已买入" + recentBuyCount + "次，建议控制买入节奏");
+            risk.put("recentBuyCount", recentBuyCount);
+            risks.add(risk);
+        } else if (recentBuyCount >= 3) {
+            Map<String, Object> risk = new HashMap<>();
+            risk.put("type", "FREQUENT_BUY");
+            risk.put("level", "MEDIUM");
+            risk.put("message", "近7日已买入" + recentBuyCount + "次，注意控制节奏");
+            risk.put("recentBuyCount", recentBuyCount);
             risks.add(risk);
         }
 
@@ -250,7 +328,7 @@ public class SuggestionService {
                 .collect(Collectors.toList());
 
         for (GridLine grid : boughtGrids) {
-            List<TradeRecord> trades = tradeRecordRepository.findByGridLineIdOrderByTradeTimeAsc(grid.getId());
+            List<TradeRecord> trades = tradeRecordRepository.findByGridLine_IdOrderByTradeTimeAsc(grid.getId());
             if (!trades.isEmpty()) {
                 TradeRecord lastTrade = trades.get(trades.size() - 1);
                 if (lastTrade.getTradeTime().isBefore(oneWeekAgo)) {

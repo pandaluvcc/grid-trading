@@ -2,14 +2,17 @@ package com.gridtrading.domain;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
+import lombok.Data;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 
 /**
  * 网格线实体
  */
 @Entity
 @Table(name = "grid_line")
+@Data
 public class GridLine {
 
     /**
@@ -147,189 +150,11 @@ public class GridLine {
      * 暂缓时间（预留功能）
      */
     @Column(name = "deferred_at")
-    private java.time.LocalDateTime deferredAt;
+    private LocalDateTime deferredAt;
 
     /**
      * JPA 要求的无参构造器
      */
     public GridLine() {
-    }
-
-    // ==================== Getter 和 Setter ====================
-
-    public Long getId() {
-        return id;
-    }
-
-    public void setId(Long id) {
-        this.id = id;
-    }
-
-    public Strategy getStrategy() {
-        return strategy;
-    }
-
-    public void setStrategy(Strategy strategy) {
-        this.strategy = strategy;
-    }
-
-    public BigDecimal getBuyPrice() {
-        return buyPrice;
-    }
-
-    public void setBuyPrice(BigDecimal buyPrice) {
-        this.buyPrice = buyPrice;
-    }
-
-    public BigDecimal getSellPrice() {
-        return sellPrice;
-    }
-
-    public void setSellPrice(BigDecimal sellPrice) {
-        this.sellPrice = sellPrice;
-    }
-
-    public GridLineState getState() {
-        return state;
-    }
-
-    public void setState(GridLineState state) {
-        this.state = state;
-    }
-
-    public Integer getLevel() {
-        return level;
-    }
-
-    public void setLevel(Integer level) {
-        this.level = level;
-    }
-
-    public BigDecimal getBuyTriggerPrice() {
-        return buyTriggerPrice;
-    }
-
-    public void setBuyTriggerPrice(BigDecimal buyTriggerPrice) {
-        this.buyTriggerPrice = buyTriggerPrice;
-    }
-
-    public BigDecimal getSellTriggerPrice() {
-        return sellTriggerPrice;
-    }
-
-    public void setSellTriggerPrice(BigDecimal sellTriggerPrice) {
-        this.sellTriggerPrice = sellTriggerPrice;
-    }
-
-    public GridType getGridType() {
-        return gridType;
-    }
-
-    public void setGridType(GridType gridType) {
-        this.gridType = gridType;
-    }
-
-    public BigDecimal getBuyAmount() {
-        return buyAmount;
-    }
-
-    public void setBuyAmount(BigDecimal buyAmount) {
-        this.buyAmount = buyAmount;
-    }
-
-    public BigDecimal getBuyQuantity() {
-        return buyQuantity;
-    }
-
-    public void setBuyQuantity(BigDecimal buyQuantity) {
-        this.buyQuantity = buyQuantity;
-    }
-
-    public BigDecimal getSellAmount() {
-        return sellAmount;
-    }
-
-    public void setSellAmount(BigDecimal sellAmount) {
-        this.sellAmount = sellAmount;
-    }
-
-    public BigDecimal getProfit() {
-        return profit;
-    }
-
-    public void setProfit(BigDecimal profit) {
-        this.profit = profit;
-    }
-
-    public BigDecimal getProfitRate() {
-        return profitRate;
-    }
-
-    public void setProfitRate(BigDecimal profitRate) {
-        this.profitRate = profitRate;
-    }
-
-    public BigDecimal getActualBuyPrice() {
-        return actualBuyPrice;
-    }
-
-    public void setActualBuyPrice(BigDecimal actualBuyPrice) {
-        this.actualBuyPrice = actualBuyPrice;
-    }
-
-    public BigDecimal getActualSellPrice() {
-        return actualSellPrice;
-    }
-
-    public void setActualSellPrice(BigDecimal actualSellPrice) {
-        this.actualSellPrice = actualSellPrice;
-    }
-
-    public Integer getBuyCount() {
-        return buyCount;
-    }
-
-    public void setBuyCount(Integer buyCount) {
-        this.buyCount = buyCount;
-    }
-
-    public Integer getSellCount() {
-        return sellCount;
-    }
-
-    public void setSellCount(Integer sellCount) {
-        this.sellCount = sellCount;
-    }
-
-    public BigDecimal getActualProfit() {
-        return actualProfit;
-    }
-
-    public void setActualProfit(BigDecimal actualProfit) {
-        this.actualProfit = actualProfit;
-    }
-
-    public Boolean getDeferred() {
-        return deferred;
-    }
-
-    public void setDeferred(Boolean deferred) {
-        this.deferred = deferred;
-    }
-
-    public String getDeferredReason() {
-        return deferredReason;
-    }
-
-    public void setDeferredReason(String deferredReason) {
-        this.deferredReason = deferredReason;
-    }
-
-    public java.time.LocalDateTime getDeferredAt() {
-        return deferredAt;
-    }
-
-    public void setDeferredAt(java.time.LocalDateTime deferredAt) {
-        this.deferredAt = deferredAt;
     }
 }

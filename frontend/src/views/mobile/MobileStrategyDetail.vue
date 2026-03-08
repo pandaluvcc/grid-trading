@@ -66,7 +66,7 @@
           <div class="stat-row">
             <div class="stat-item">
               <span class="stat-label">税费合计</span>
-              <span class="stat-value fee">¥{{ totalFee.toFixed(2) }}</span>
+              <span class="stat-value fee">¥{{ formatFee(totalFee) }}</span>
             </div>
             <div class="stat-item">
               <span class="stat-label">买入均价</span>
@@ -83,6 +83,37 @@
         ref="smartSuggestionRef"
         @suggestion-updated="handleSuggestionUpdated"
       />
+
+      <div class="execute-card">
+        <div class="execute-title">
+          <el-icon><Promotion /></el-icon>
+          <span>价格触发</span>
+        </div>
+        <div class="execute-form">
+          <el-input
+            v-model="priceInput"
+            type="number"
+            placeholder="输入当前价格"
+            size="large"
+            class="price-input"
+            @change="onPriceChange"
+          >
+            <template #prefix>¥</template>
+          </el-input>
+          <el-button
+            type="primary"
+            size="large"
+            class="execute-btn"
+            :loading="executing"
+            @click="handleExecute"
+          >
+            执行
+          </el-button>
+        </div>
+        <div class="execute-hint">
+          输入价格后系统将自动判断买卖
+        </div>
+      </div>
 
       <div class="tab-switcher">
         <div 
@@ -440,7 +471,7 @@
 import { ref, computed, watch, onUnmounted, nextTick } from 'vue'
 import { useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { Loading, Promotion, WarningFilled, RefreshRight, Warning } from '@element-plus/icons-vue'
+import { Loading, Promotion, WarningFilled, RefreshRight, Warning, TrendCharts } from '@element-plus/icons-vue'
 import {
   getStrategyDetail,
   getGridLines,
@@ -450,7 +481,8 @@ import {
   suggestGridByPrice,
   ocrRecognize,
   ocrImport,
-  ocrRematch
+  ocrRematch,
+  updateLastPrice
 } from '../../api'
 import MobileLayout from './MobileLayout.vue'
 import MobileGridCard from './MobileGridCard.vue'
@@ -495,111 +527,26 @@ const ocrError = ref('')
 const showRiskDialog = ref(false)
 const risks = ref([])
 
-const totalFee = computed(() => {
-  return tradeRecords.value.reduce((sum, r) => {
-    return sum + (r.fee ? Number(r.fee) : 0)
-  }, 0)
-})
+const totalFee = computed(() => strategy.value?.totalFee ?? 0)
 
-const calculatedInvestedAmount = computed(() => {
-  return gridLines.value
-    .filter(g => g.state === 'BOUGHT')
-    .reduce((sum, g) => sum + (g.buyAmount ? Number(g.buyAmount) : 0), 0)
-})
-
-const realizedProfit = computed(() => {
-  return gridLines.value
-    .filter(g => g.actualProfit)
-    .reduce((sum, g) => sum + Number(g.actualProfit), 0)
-})
-
-const completedGridIds = computed(() => {
-  return new Set(gridLines.value.filter(g => g.actualSellPrice).map(g => g.id))
-})
-
-const completedTradeFee = computed(() => {
-  return tradeRecords.value
-    .filter(r => completedGridIds.value.has(r.gridLineId))
-    .reduce((sum, r) => sum + (r.fee ? Number(r.fee) : 0), 0)
-})
-
-const netProfit = computed(() => {
-  return realizedProfit.value - completedTradeFee.value
-})
-
-// 持仓盈亏计算
-const positionProfit = computed(() => {
-  if (!strategy.value || !gridLines.value.length) return 0
-  const currentPrice = parseFloat(priceInput.value) || strategy.value.lastPrice || strategy.value.basePrice
-  let totalProfit = 0
-  
-  gridLines.value.forEach(grid => {
-    if (grid.state === 'BOUGHT' && grid.buyPrice) {
-      const buyPrice = Number(grid.buyPrice)
-      const quantity = grid.buyAmount ? Number(grid.buyAmount) / buyPrice : 0
-      totalProfit += (currentPrice - buyPrice) * quantity
-    }
-  })
-  
-  return totalProfit
-})
+const positionProfit = computed(() => strategy.value?.positionProfit ?? 0)
 
 const positionProfitPercent = computed(() => {
-  if (!calculatedInvestedAmount.value || calculatedInvestedAmount.value === 0) return '--'
-  const percent = (positionProfit.value / calculatedInvestedAmount.value) * 100
-  return (percent >= 0 ? '+' : '') + percent.toFixed(3) + '%'
+  if (!strategy.value?.positionProfitPercent) return '--'
+  const val = Number(strategy.value.positionProfitPercent)
+  return (val >= 0 ? '+' : '') + val.toFixed(3) + '%'
 })
 
-// 持股天数
-const holdingDays = computed(() => {
-  if (!strategy.value || !strategy.value.createdAt) return 0
-  const created = new Date(strategy.value.createdAt)
-  const now = new Date()
-  const diff = now - created
-  return Math.floor(diff / (1000 * 60 * 60 * 24))
-})
+const holdingDays = computed(() => strategy.value?.holdingDays ?? 0)
 
-// 个股仓位
 const positionRatio = computed(() => {
-  if (!strategy.value || !strategy.value.maxCapital || strategy.value.maxCapital === 0) return '0.00'
-  const maxCapital = Number(strategy.value.maxCapital)
-  const invested = calculatedInvestedAmount.value
-  const ratio = (invested / maxCapital) * 100
-  return ratio.toFixed(2)
+  if (!strategy.value?.positionRatio) return '0.00'
+  return Number(strategy.value.positionRatio).toFixed(2)
 })
 
-// 成本价和买入均价
-const costPrice = computed(() => {
-  if (!gridLines.value.length) return 0
-  
-  let totalAmount = 0
-  let totalQuantity = 0
-  
-  gridLines.value.forEach(grid => {
-    if (grid.state === 'BOUGHT' && grid.buyPrice && grid.buyAmount) {
-      totalAmount += Number(grid.buyAmount)
-      totalQuantity += Number(grid.buyAmount) / Number(grid.buyPrice)
-    }
-  })
-  
-  return totalQuantity > 0 ? totalAmount / totalQuantity : 0
-})
+const costPrice = computed(() => strategy.value?.costPrice ?? 0)
 
-const averageBuyPrice = computed(() => {
-  if (!tradeRecords.value.length) return 0
-  
-  let totalAmount = 0
-  let totalQuantity = 0
-  
-  tradeRecords.value.forEach(record => {
-    if (record.type === 'BUY' && record.price && record.amount) {
-      totalAmount += Number(record.amount)
-      totalQuantity += Number(record.amount) / Number(record.price)
-    }
-  })
-  
-  return totalQuantity > 0 ? totalAmount / totalQuantity : 0
-})
+const averageBuyPrice = computed(() => strategy.value?.avgBuyPrice ?? 0)
 
 const strategyTitle = computed(() => {
   if (!strategy.value) return '策略详情'
@@ -609,17 +556,42 @@ const strategyTitle = computed(() => {
   return strategy.value.name || strategy.value.symbol || '策略详情'
 })
 
-const getProfitPercent = () => {
-  if (!strategy.value || !strategy.value.basePrice || calculatedInvestedAmount.value === 0) return '--'
-  const percent = (realizedProfit.value / calculatedInvestedAmount.value) * 100
-  return (percent >= 0 ? '+' : '') + percent.toFixed(2) + '%'
-}
-
 const availableGrids = computed(() => {
   return gridLines.value.filter(g =>
     g.state === 'WAIT_BUY' || g.state === 'BOUGHT'
   ).sort((a, b) => a.level - b.level)
 })
+
+const handleExecute = async () => {
+  const price = parseFloat(priceInput.value)
+  if (!price || price <= 0) {
+    ElMessage.warning('请输入有效的价格')
+    return
+  }
+
+  executing.value = true
+  try {
+    const res = await suggestGridByPrice(strategyId.value, price)
+    suggestedGrid.value = res.data
+    
+    if (suggestedGrid.value) {
+      selectedGridLineId.value = suggestedGrid.value.gridLineId
+      tradeType.value = suggestedGrid.value.suggestedType || 'BUY'
+    }
+    
+    const now = new Date()
+    tradeTime.value = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`
+    tradeQuantity.value = strategy.value?.amountPerGrid ? Math.round(strategy.value.amountPerGrid / price).toString() : ''
+    tradeFee.value = ''
+    
+    tickFeeDialogVisible.value = true
+  } catch (error) {
+    console.error('获取建议失败:', error)
+    ElMessage.error('获取建议失败: ' + (error.response?.data?.message || error.message || '未知错误'))
+  } finally {
+    executing.value = false
+  }
+}
 
 const handleGridChange = (gridLineId) => {
   const selectedGrid = gridLines.value.find(g => g.id === gridLineId)
@@ -656,9 +628,9 @@ const loadData = async () => {
     tradeRecords.value = recordRes.data || []
     
     if (!priceInput.value && strategy.value?.lastPrice) {
-      priceInput.value = Number(strategy.value.lastPrice).toFixed(2)
+      priceInput.value = Number(strategy.value.lastPrice).toFixed(3)
     } else if (!priceInput.value && strategy.value?.basePrice) {
-      priceInput.value = Number(strategy.value.basePrice).toFixed(2)
+      priceInput.value = Number(strategy.value.basePrice).toFixed(3)
     }
   } catch (error) {
     if (isUnmounted) return
@@ -671,9 +643,19 @@ const loadData = async () => {
   }
 }
 
-const onPriceChange = () => {
-  if (smartSuggestionRef.value && priceInput.value) {
-    smartSuggestionRef.value.fetchSuggestions(parseFloat(priceInput.value))
+const onPriceChange = async () => {
+  if (!priceInput.value || !strategy.value) return
+  
+  try {
+    await updateLastPrice(strategy.value.id, parseFloat(priceInput.value))
+    await loadData()
+    
+    if (smartSuggestionRef.value) {
+      smartSuggestionRef.value.fetchSuggestions(parseFloat(priceInput.value))
+    }
+  } catch (error) {
+    console.error('更新价格失败:', error)
+    ElMessage.error('更新价格失败')
   }
 }
 
@@ -683,14 +665,16 @@ const handleSuggestionUpdated = (data) => {
 
 const refreshPrice = () => {
   if (strategy.value?.lastPrice) {
-    priceInput.value = Number(strategy.value.lastPrice).toFixed(2)
+    priceInput.value = Number(strategy.value.lastPrice).toFixed(3)
   } else if (strategy.value?.basePrice) {
-    priceInput.value = Number(strategy.value.basePrice).toFixed(2)
+    priceInput.value = Number(strategy.value.basePrice).toFixed(3)
   }
 }
 
 const formatPrice = (val) => val == null ? '-' : Number(val).toFixed(3)
+const formatTriggerPrice = (val) => val == null ? '-' : Number(val).toFixed(3)
 const formatAmount = (val) => val == null ? '0' : Math.round(Number(val)).toString()
+const formatFee = (val) => val == null ? '0.00' : Number(val).toFixed(2)
 const formatQuantity = (val) => val == null ? '0' : Math.round(Number(val)).toString()
 const formatProfit = (val) => {
   if (val == null) return '0.00'
@@ -1487,5 +1471,47 @@ const getStateTag = (state) => {
   font-size: 18px;
   flex-shrink: 0;
   margin-top: 2px;
+}
+
+.execute-card {
+  background: #fff;
+  border-radius: 16px;
+  padding: 16px;
+  margin: 0 16px 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.execute-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 15px;
+  font-weight: 600;
+  color: #303133;
+  margin-bottom: 12px;
+}
+
+.execute-title .el-icon {
+  font-size: 18px;
+  color: #667eea;
+}
+
+.execute-form {
+  display: flex;
+  gap: 12px;
+}
+
+.price-input {
+  flex: 1;
+}
+
+.execute-btn {
+  flex-shrink: 0;
+}
+
+.execute-hint {
+  margin-top: 10px;
+  font-size: 13px;
+  color: #909399;
 }
 </style>

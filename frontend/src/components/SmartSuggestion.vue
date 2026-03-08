@@ -5,35 +5,39 @@
         <el-icon><Bell /></el-icon>
         <span>建议操作</span>
         <el-tag size="small" type="danger">{{ suggestions.length }}</el-tag>
-        <el-button
-          text
-          size="small"
-          @click="toggleSuggestions"
-          class="expand-btn"
-        >
-          <el-icon>{{ expanded ? ArrowUp : ArrowDown }}</el-icon>
-          {{ expanded ? '收起' : `展开${suggestions.length - 1}条` }}
-        </el-button>
+        <span class="page-indicator">[{{ currentIndex + 1 }}/{{ suggestions.length }}]</span>
+        <div class="nav-buttons">
+          <el-button 
+            size="small" 
+            :disabled="currentIndex === 0"
+            @click="goPrev"
+          >
+            <el-icon><ArrowLeft /></el-icon>
+          </el-button>
+          <el-button 
+            size="small" 
+            :disabled="currentIndex === suggestions.length - 1"
+            @click="goNext"
+          >
+            <el-icon><ArrowRight /></el-icon>
+          </el-button>
+        </div>
       </div>
 
-      <div class="suggestion-list">
-        <SuggestionCard
-          v-if="suggestions[0]"
-          :key="suggestions[0].gridLineId"
-          :suggestion="suggestions[0]"
-          @view-grid="handleViewGrid"
-          @execute="handleExecute"
-        />
-        
-        <transition-group name="suggestion-fade" tag="div" v-if="expanded">
+      <div 
+        class="suggestion-list"
+        @touchstart="handleTouchStart"
+        @touchmove="handleTouchMove"
+        @touchend="handleTouchEnd"
+      >
+        <transition name="suggestion-fade" mode="out-in">
           <SuggestionCard
-            v-for="(item, index) in suggestions.slice(1)"
-            :key="item.gridLineId"
-            :suggestion="item"
-            @view-grid="handleViewGrid"
+            v-if="suggestions[currentIndex]"
+            :key="suggestions[currentIndex].gridLineId"
+            :suggestion="suggestions[currentIndex]"
             @execute="handleExecute"
           />
-        </transition-group>
+        </transition>
       </div>
     </div>
 
@@ -79,15 +83,11 @@
           </div>
           <div class="summary-item">
             <span class="label">数量：</span>
-            <span class="value">{{ formatQuantity(currentSuggestion.quantity) }}股</span>
+            <span class="value">1000股</span>
           </div>
           <div class="summary-item">
             <span class="label">金额：</span>
-            <span class="value">¥{{ formatAmount(currentSuggestion.amount) }}</span>
-          </div>
-          <div class="summary-item" v-if="currentSuggestion.quantityRatio < 1">
-            <span class="label">仓位：</span>
-            <span class="value">{{ currentSuggestion.quantityRatio === 0.5 ? '半仓' : `${currentSuggestion.quantityRatio * 100}%仓` }}</span>
+            <span class="value">¥{{ formatAmount(currentSuggestion.price * 1000) }}</span>
           </div>
         </div>
         
@@ -133,10 +133,9 @@ import { ref, watch, onMounted } from 'vue'
 import {
   Bell,
   CircleCheck,
-  Warning,
   VideoPause,
-  ArrowUp,
-  ArrowDown
+  ArrowLeft,
+  ArrowRight
 } from '@element-plus/icons-vue'
 import { getSmartSuggestions } from '../api.js'
 import { ElMessage } from 'element-plus'
@@ -153,7 +152,7 @@ const props = defineProps({
   }
 })
 
-const emit = defineEmits(['priceUpdated', 'suggestionUpdated', 'viewDetails', 'viewGrid', 'execute'])
+const emit = defineEmits(['priceUpdated', 'suggestionUpdated', 'viewDetails', 'execute'])
 
 const loading = ref(false)
 const priceAnalysis = ref(null)
@@ -166,10 +165,44 @@ const currentSuggestion = ref(null)
 const tradeTime = ref('')
 const feeInput = ref('')
 const executing = ref(false)
-const expanded = ref(false)
+const currentIndex = ref(0)
 
-const toggleSuggestions = () => {
-  expanded.value = !expanded.value
+const touchStartX = ref(0)
+const touchEndX = ref(0)
+const touchStartTime = ref(0)
+
+const goPrev = () => {
+  if (currentIndex.value > 0) {
+    currentIndex.value--
+  }
+}
+
+const goNext = () => {
+  if (currentIndex.value < suggestions.value.length - 1) {
+    currentIndex.value++
+  }
+}
+
+const handleTouchStart = (e) => {
+  touchStartX.value = e.touches[0].clientX
+  touchStartTime.value = Date.now()
+}
+
+const handleTouchMove = (e) => {
+  touchEndX.value = e.touches[0].clientX
+}
+
+const handleTouchEnd = () => {
+  const touchDiff = touchStartX.value - touchEndX.value
+  const timeDiff = Date.now() - touchStartTime.value
+  
+  if (timeDiff < 300 && Math.abs(touchDiff) > 50) {
+    if (touchDiff > 0) {
+      goNext()
+    } else {
+      goPrev()
+    }
+  }
 }
 
 const formatPrice = (value) => {
@@ -224,6 +257,8 @@ const fetchSuggestions = async (price) => {
     suggestions.value = data.suggestions || []
     risks.value = data.risks || []
     deferredGrids.value = data.deferredGrids || []
+    
+    currentIndex.value = 0
 
     emit('suggestionUpdated', data)
   } catch (error) {
@@ -231,10 +266,6 @@ const fetchSuggestions = async (price) => {
   } finally {
     loading.value = false
   }
-}
-
-const handleViewGrid = (suggestion) => {
-  emit('viewGrid', suggestion)
 }
 
 const handleExecute = (suggestion) => {
@@ -266,6 +297,8 @@ const confirmExecute = async () => {
   try {
     emit('execute', {
       ...currentSuggestion.value,
+      quantity: 1000,
+      amount: currentSuggestion.value.price * 1000,
       fee: feeInput.value ? parseFloat(feeInput.value) : null,
       tradeTime: tradeTime.value
     })
@@ -322,13 +355,20 @@ defineExpose({
   position: relative;
 }
 
-.expand-btn {
-  margin-left: auto;
+.page-indicator {
   font-size: 12px;
-  color: #409eff;
-  flex-shrink: 0;
-  z-index: 11;
-  white-space: nowrap;
+  color: #909399;
+  margin-left: 8px;
+}
+
+.nav-buttons {
+  display: flex;
+  gap: 4px;
+  margin-left: auto;
+}
+
+.nav-buttons .el-button {
+  padding: 4px 8px;
 }
 
 .suggestion-fade-enter-active,
@@ -339,7 +379,7 @@ defineExpose({
 .suggestion-fade-enter-from,
 .suggestion-fade-leave-to {
   opacity: 0;
-  transform: translateY(-10px);
+  transform: translateX(20px);
 }
 
 .suggestions-section, .deferred-section {

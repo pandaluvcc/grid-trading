@@ -8,6 +8,7 @@ import com.gridtrading.engine.GridEngine;
 import com.gridtrading.repository.GridLineRepository;
 import com.gridtrading.repository.StrategyRepository;
 import com.gridtrading.repository.TradeRecordRepository;
+import com.gridtrading.service.PositionCalculator;
 import com.gridtrading.service.grid.GridPlanGenerator;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -42,6 +43,7 @@ public class OcrService {
     private final GridLineRepository gridLineRepository;
     private final TradeRecordRepository tradeRecordRepository;
     private final GridEngine gridEngine;
+    private final PositionCalculator positionCalculator;
 
     private final BigDecimal tolerancePercent;
     private final long timeWindowSeconds;
@@ -53,6 +55,7 @@ public class OcrService {
             GridLineRepository gridLineRepository,
             TradeRecordRepository tradeRecordRepository,
             GridEngine gridEngine,
+            PositionCalculator positionCalculator,
             @Value("${ocr.match.tolerance-percent:0.005}") BigDecimal tolerancePercent,
                 @Value("${ocr.match.time-window-seconds:30}") long timeWindowSeconds
     ) {
@@ -62,6 +65,7 @@ public class OcrService {
         this.gridLineRepository = gridLineRepository;
         this.tradeRecordRepository = tradeRecordRepository;
         this.gridEngine = gridEngine;
+        this.positionCalculator = positionCalculator;
         this.tolerancePercent = tolerancePercent;
         this.timeWindowSeconds = timeWindowSeconds;
     }
@@ -186,6 +190,7 @@ public class OcrService {
         OcrTradeRecord baseRecord = findBaseRecord(records);
         BigDecimal basePrice = baseRecord.getPrice();
         BigDecimal amountPerGrid = resolveAmountPerGrid(baseRecord);
+        BigDecimal quantityPerGrid = baseRecord.getQuantity();
         if (basePrice == null || amountPerGrid == null) {
             throw new IllegalArgumentException("basePrice or amountPerGrid not found");
         }
@@ -198,7 +203,7 @@ public class OcrService {
     String calculationMode = gridCalculationMode != null && !gridCalculationMode.trim().isEmpty() 
             ? gridCalculationMode : "INDEPENDENT";
 
-    Strategy strategy = buildStrategy(resolvedName, resolvedSymbol, basePrice, amountPerGrid, calculationMode);
+    Strategy strategy = buildStrategy(resolvedName, resolvedSymbol, basePrice, amountPerGrid, quantityPerGrid, calculationMode);
         strategy = strategyRepository.save(strategy);
 
         List<GridLine> orderedGridLines = new ArrayList<>(strategy.getGridLines());
@@ -242,6 +247,9 @@ public class OcrService {
 
         // 计算每个网格的真实累计收益
         calculateActualProfits(strategy);
+
+        // ✅ 计算持仓相关字段（成本价、买入均价、持仓盈亏等）
+        positionCalculator.calculateAndUpdate(strategy);
 
         // ✅ 设置lastPrice为最新交易记录的价格
         BigDecimal latestPrice = findLatestTradePrice(records);
@@ -389,6 +397,7 @@ public class OcrService {
                                    String symbol,
                                    BigDecimal basePrice,
                                    BigDecimal amountPerGrid,
+                                   BigDecimal quantityPerGrid,
                                    String gridCalculationMode) {
         Strategy strategy = new Strategy();
         String safeName = name != null && !name.trim().isEmpty()
@@ -402,6 +411,7 @@ public class OcrService {
         strategy.setSymbol(safeSymbol);
         strategy.setBasePrice(basePrice);
         strategy.setAmountPerGrid(amountPerGrid);
+        strategy.setQuantityPerGrid(quantityPerGrid);
         strategy.setGridCalculationMode(gridCalculationMode);
 
         BigDecimal smallGap = basePrice.multiply(GridPlanGenerator.SMALL_PERCENT);

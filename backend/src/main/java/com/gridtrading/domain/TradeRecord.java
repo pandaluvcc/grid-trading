@@ -2,6 +2,7 @@ package com.gridtrading.domain;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
+import lombok.Data;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -11,6 +12,7 @@ import java.time.LocalDateTime;
  */
 @Entity
 @Table(name = "trade_record")
+@Data
 public class TradeRecord {
 
     /**
@@ -89,84 +91,17 @@ public class TradeRecord {
         }
     }
 
-    // ==================== Getter 和 Setter ====================
-
-    public Long getId() {
-        return id;
-    }
-
-    public void setId(Long id) {
-        this.id = id;
-    }
-
-    public Strategy getStrategy() {
-        return strategy;
-    }
-
-    public void setStrategy(Strategy strategy) {
-        this.strategy = strategy;
-    }
-
-    public GridLine getGridLine() {
-        return gridLine;
-    }
-
-    public void setGridLine(GridLine gridLine) {
-        this.gridLine = gridLine;
-    }
-
-    public TradeType getType() {
-        return type;
-    }
-
-    public void setType(TradeType type) {
-        this.type = type;
-    }
-
-    public BigDecimal getPrice() {
-        return price;
-    }
-
-    public void setPrice(BigDecimal price) {
-        this.price = price;
-    }
-
-    public BigDecimal getAmount() {
-        return amount;
-    }
-
-    public void setAmount(BigDecimal amount) {
-        this.amount = amount;
-    }
-
-    public BigDecimal getQuantity() {
-        return quantity;
-    }
-
-    public void setQuantity(BigDecimal quantity) {
-        this.quantity = quantity;
-    }
-
-    public LocalDateTime getTradeTime() {
-        return tradeTime;
-    }
-
-    public void setTradeTime(LocalDateTime tradeTime) {
-        this.tradeTime = tradeTime;
-    }
-
-    public BigDecimal getFee() {
-        return fee;
-    }
-
-    public void setFee(BigDecimal fee) {
-        this.fee = fee;
-    }
-
     /**
      * 获取网格层级（用于 JSON 序列化）
      */
     public Integer getGridLevel() {
         return gridLine != null ? gridLine.getLevel() : null;
+    }
+
+    /**
+     * 获取网格线ID（用于前端匹配）
+     */
+    public Long getGridLineId() {
+        return gridLine != null ? gridLine.getId() : null;
     }
 }
