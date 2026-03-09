@@ -170,7 +170,8 @@ export function ocrCreateStrategy({ files, brokerType = 'EASTMONEY', name, symbo
   }
 
   return api.post('/ocr/import-create', formData, {
-    headers: { 'Content-Type': 'multipart/form-data' }
+    headers: { 'Content-Type': 'multipart/form-data' },
+    timeout: 60000
   })
 }
 

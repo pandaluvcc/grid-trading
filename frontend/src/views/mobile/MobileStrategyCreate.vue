@@ -5,13 +5,27 @@
       <div class="import-section">
         <div class="section-title">成交截图导入</div>
         <div class="section-hint">上传成交记录截图，自动创建策略并匹配前 N 条网格</div>
-        <input
-          class="file-input"
-          type="file"
-          accept="image/*"
+        <el-upload
+          ref="uploadRef"
+          class="file-uploader"
+          :auto-upload="false"
+          :on-change="handleFileChange"
+          :on-remove="handleFileRemove"
+          :file-list="uploadFileList"
           multiple
-          @change="handleImportFiles"
-        />
+          accept="image/*"
+          drag
+        >
+          <el-icon class="el-icon--upload"><upload-filled /></el-icon>
+          <div class="el-upload__text">
+            将截图拖到此处，或<em>点击上传</em>
+          </div>
+          <template #tip>
+            <div class="el-upload__tip">
+              支持 jpg/png/jpeg 格式，最多上传 20 张截图
+            </div>
+          </template>
+        </el-upload>
         <div class="file-count" v-if="importFiles.length">
           已选择 {{ importFiles.length }} 张截图
         </div>
@@ -166,13 +180,16 @@
 import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
+import { UploadFilled } from '@element-plus/icons-vue'
 import { createStrategy, ocrCreateStrategy } from '../../api'
 
 const router = useRouter()
 const submitting = ref(false)
 const importing = ref(false)
-const mode = ref('amount')  // 'amount' 或 'quantity'
+const mode = ref('amount')
 const importFiles = ref([])
+const uploadFileList = ref([])
+const uploadRef = ref(null)
 
 const form = ref({
   name: '',
@@ -216,9 +233,17 @@ const goBack = () => {
   router.back()
 }
 
-const handleImportFiles = (event) => {
-  const files = Array.from(event.target.files || [])
-  importFiles.value = files
+const handleFileChange = (file, fileList) => {
+  uploadFileList.value = fileList
+  importFiles.value = uploadFileList.value.map(f => f.raw)
+}
+
+const handleFileRemove = (file) => {
+  const index = uploadFileList.value.findIndex(f => f.uid === file.uid)
+  if (index > -1) {
+    uploadFileList.value.splice(index, 1)
+    importFiles.value = uploadFileList.value.map(f => f.raw)
+  }
 }
 
 const submitImport = async () => {
@@ -428,20 +453,52 @@ const handleSubmit = async () => {
   margin-bottom: 12px;
 }
 
-.file-input {
+.file-uploader {
+  margin-bottom: 12px;
+}
+
+.file-uploader :deep(.el-upload-dragger) {
   width: 100%;
-  font-size: 14px;
-  padding: 10px 12px;
-  border: 1px dashed #d5d8e3;
-  border-radius: 10px;
-  background: #fafbff;
-  box-sizing: border-box;
+  height: 180px;
+  background: linear-gradient(135deg, #f8f9fa 0%, #f0f4ff 100%);
+  border: 2px dashed #d5d8e3;
+  border-radius: 16px;
+  transition: all 0.3s;
+}
+
+.file-uploader :deep(.el-upload-dragger:hover) {
+  border-color: #667eea;
+  background: linear-gradient(135deg, #f0f4ff 0%, #e8ecff 100%);
+}
+
+.file-uploader :deep(.el-icon--upload) {
+  font-size: 56px;
+  color: #667eea;
+  margin-bottom: 8px;
+}
+
+.file-uploader :deep(.el-upload__text) {
+  font-size: 15px;
+  color: #666;
+}
+
+.file-uploader :deep(.el-upload__text em) {
+  color: #667eea;
+  font-style: normal;
+  font-weight: 600;
+}
+
+.file-uploader :deep(.el-upload__tip) {
+  font-size: 12px;
+  color: #999;
+  margin-top: 8px;
 }
 
 .file-count {
-  font-size: 12px;
-  color: #666;
-  margin-top: 8px;
+  font-size: 13px;
+  color: #667eea;
+  font-weight: 500;
+  margin-bottom: 12px;
 }
 
 .import-btn {

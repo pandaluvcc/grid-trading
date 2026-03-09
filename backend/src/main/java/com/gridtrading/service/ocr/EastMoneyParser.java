@@ -28,6 +28,7 @@ public class EastMoneyParser {
     private static final Pattern AMOUNT_PATTERN = Pattern.compile("(金额|成交金额|成交额)[:\\s]*([0-9]+(?:\\.[0-9]+)?)");
     private static final Pattern PRICE_PATTERN = Pattern.compile("(价格|成交价|单价)[:\\s]*([0-9]+(?:\\.[0-9]+)?)");
     private static final Pattern FEE_PATTERN = Pattern.compile("(费用|手续费|佣金|过户费|印花税)[:\\s]*([0-9]+(?:\\.[0-9]+)?)");
+    private static final Pattern CURRENT_PRICE_PATTERN = Pattern.compile("(现价|当前价|最新价|当前价格)[:\\s]*([0-9]+(?:\\.[0-9]+)?)");
 
     private static final DateTimeFormatter DATETIME_WITH_SECONDS = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss", Locale.ROOT);
     private static final DateTimeFormatter DATETIME_WITHOUT_SECONDS = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm", Locale.ROOT);
@@ -43,11 +44,40 @@ public class EastMoneyParser {
 
         Builder current = null;
         boolean inTradeSection = false;
+        BigDecimal globalCurrentPrice = null;
+        boolean pendingCurrentPrice = false;
 
-        for (String line : lines) {
+        for (int i = 0; i < lines.length; i++) {
+            String line = lines[i];
             String trimmed = line.trim();
             if (trimmed.isEmpty()) {
                 continue;
+            }
+
+            // 在交易记录区域外解析现价
+            if (!inTradeSection) {
+                // 处理多行格式：上一行是"现价"，这一行应该是数字
+                if (pendingCurrentPrice && globalCurrentPrice == null) {
+                    Matcher numMatcher = NUMBER_PATTERN.matcher(trimmed);
+                    if (numMatcher.find()) {
+                        globalCurrentPrice = new BigDecimal(numMatcher.group(1));
+                        System.out.println("[OCR解析] 发现现价(多行格式): " + globalCurrentPrice);
+                    }
+                    pendingCurrentPrice = false;
+                }
+                
+                // 尝试解析现价
+                if (globalCurrentPrice == null) {
+                    Matcher matcher = CURRENT_PRICE_PATTERN.matcher(trimmed);
+                    if (matcher.find()) {
+                        globalCurrentPrice = new BigDecimal(matcher.group(2));
+                        System.out.println("[OCR解析] 发现现价(同行格式): " + globalCurrentPrice);
+                    } else if (trimmed.contains("现价") || trimmed.contains("当前价") || trimmed.contains("最新价")) {
+                        // 当前行包含现价标签但没有数字，标记下一行需要解析
+                        pendingCurrentPrice = true;
+                        System.out.println("[OCR解析] 发现现价标签，等待下一行解析数值");
+                    }
+                }
             }
 
             if (trimmed.startsWith("FILE:")) {
@@ -102,6 +132,14 @@ public class EastMoneyParser {
             records.add(current.build());
         }
 
+        // 将全局现价设置到所有交易记录中
+        if (globalCurrentPrice != null) {
+            for (OcrTradeRecord record : records) {
+                record.setCurrentPrice(globalCurrentPrice);
+            }
+            System.out.println("[OCR解析] 已将现价 " + globalCurrentPrice + " 设置到 " + records.size() + " 条记录中");
+        }
+
         return records;
     }
 
@@ -146,6 +184,8 @@ public class EastMoneyParser {
         private BigDecimal amount;
         private BigDecimal price;
         private BigDecimal fee;
+
+        private BigDecimal currentPrice;
 
         private PendingField pendingField;
         private String datePart;
@@ -214,6 +254,10 @@ public class EastMoneyParser {
                 fee = parseNumberWithPattern(line, FEE_PATTERN);
             }
 
+            if (currentPrice == null) {
+                currentPrice = parseNumberWithPattern(line, CURRENT_PRICE_PATTERN);
+            }
+
             if (line.contains("数量") && quantity == null) {
                 pendingField = PendingField.QUANTITY;
             } else if (line.contains("金额") && amount == null) {
@@ -252,6 +296,7 @@ public class EastMoneyParser {
             record.setAmount(amount);
             record.setPrice(price);
             record.setFee(fee);
+            record.setCurrentPrice(currentPrice);
             record.setOpening(opening);
             record.setClosing(closing);
             return record;

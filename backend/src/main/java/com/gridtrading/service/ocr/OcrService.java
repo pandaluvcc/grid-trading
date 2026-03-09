@@ -167,6 +167,8 @@ public class OcrService {
             }
             try {
                 String rawText = baiduOcrClient.recognize(file);
+                System.out.println("[OCR原始文本] 文件: " + file.getOriginalFilename());
+                System.out.println("[OCR原始文本] 内容:\n" + rawText);
                 if (rawTextBuilder.length() > 0) {
                     rawTextBuilder.append("\n");
                 }
@@ -251,11 +253,17 @@ public class OcrService {
         // ✅ 计算持仓相关字段（成本价、买入均价、持仓盈亏等）
         positionCalculator.calculateAndUpdate(strategy);
 
-        // ✅ 设置lastPrice为最新交易记录的价格
-        BigDecimal latestPrice = findLatestTradePrice(records);
-        if (latestPrice != null) {
-            strategy.setLastPrice(latestPrice);
-            System.out.println("[OCR导入] 设置lastPrice: " + latestPrice);
+        // ✅ 设置lastPrice：优先使用截图中的现价，如果没有则使用最新交易价格
+        BigDecimal currentPrice = findCurrentPrice(records);
+        if (currentPrice != null) {
+            strategy.setLastPrice(currentPrice);
+            System.out.println("[OCR导入] 使用截图中的现价: " + currentPrice);
+        } else {
+            BigDecimal latestPrice = findLatestTradePrice(records);
+            if (latestPrice != null) {
+                strategy.setLastPrice(latestPrice);
+                System.out.println("[OCR导入] 使用最新交易价格: " + latestPrice);
+            }
         }
 
         return strategyRepository.save(strategy);
@@ -1317,6 +1325,18 @@ public class OcrService {
     /**
      * 从交易记录中找出最新的价格（按交易时间排序）
      */
+    private BigDecimal findCurrentPrice(List<OcrTradeRecord> records) {
+        if (records == null || records.isEmpty()) {
+            return null;
+        }
+        
+        return records.stream()
+            .filter(r -> r != null && r.getCurrentPrice() != null)
+            .map(OcrTradeRecord::getCurrentPrice)
+            .findFirst()
+            .orElse(null);
+    }
+
     private BigDecimal findLatestTradePrice(List<OcrTradeRecord> records) {
         if (records == null || records.isEmpty()) {
             return null;

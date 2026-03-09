@@ -59,11 +59,11 @@ public class PositionCalculator {
                 if (firstBuyTime == null || record.getTradeTime().isBefore(firstBuyTime)) {
                     firstBuyTime = record.getTradeTime();
                 }
-                System.out.println("[PositionCalculator] 买入记录: price=" + price + ", quantity=" + quantity + ", amount=" + amount + ", fee=" + fee);
+                System.out.println("[PositionCalculator] 买入记录: price=" + formatPrice(price) + ", quantity=" + formatQuantity(quantity) + ", amount=" + formatAmount(amount) + ", fee=" + formatAmount(fee));
             } else if (record.getType() == TradeType.SELL) {
                 totalSellAmount = totalSellAmount.add(amount);
                 totalSellQuantity = totalSellQuantity.add(quantity);
-                System.out.println("[PositionCalculator] 卖出记录: price=" + price + ", quantity=" + quantity + ", amount=" + amount + ", fee=" + fee);
+                System.out.println("[PositionCalculator] 卖出记录: price=" + formatPrice(price) + ", quantity=" + formatQuantity(quantity) + ", amount=" + formatAmount(amount) + ", fee=" + formatAmount(fee));
             }
         }
 
@@ -113,33 +113,33 @@ public class PositionCalculator {
         }
 
         System.out.println("[PositionCalculator] 计算结果:");
-        System.out.println("  - 买入总金额: " + totalBuyAmount);
-        System.out.println("  - 买入总数量: " + totalBuyQuantity);
-        System.out.println("  - 卖出总金额: " + totalSellAmount);
-        System.out.println("  - 卖出总数量: " + totalSellQuantity);
-        System.out.println("  - 总费用: " + totalFee);
-        System.out.println("  - 当前持仓数量: " + currentPosition);
-        System.out.println("  - 成本价: " + costPrice);
-        System.out.println("  - 买入均价: " + avgBuyPrice);
+        System.out.println("  - 买入总金额: " + formatAmount(totalBuyAmount));
+        System.out.println("  - 买入总数量: " + formatQuantity(totalBuyQuantity));
+        System.out.println("  - 卖出总金额: " + formatAmount(totalSellAmount));
+        System.out.println("  - 卖出总数量: " + formatQuantity(totalSellQuantity));
+        System.out.println("  - 总费用: " + formatAmount(totalFee));
+        System.out.println("  - 当前持仓数量: " + formatQuantity(currentPosition));
+        System.out.println("  - 成本价: " + formatPrice(costPrice));
+        System.out.println("  - 买入均价: " + formatPrice(avgBuyPrice));
         System.out.println("  - 持股天数: " + holdingDays);
-        System.out.println("  - 现价: " + lastPrice);
-        System.out.println("  - 持仓盈亏: " + positionProfit);
-        System.out.println("  - 持仓盈亏%: " + positionProfitPercent);
-        System.out.println("  - 个股仓位: " + positionRatio);
+        System.out.println("  - 现价: " + formatPrice(lastPrice));
+        System.out.println("  - 持仓盈亏: " + formatAmount(positionProfit));
+        System.out.println("  - 持仓盈亏%: " + formatPercent(positionProfitPercent));
+        System.out.println("  - 个股仓位: " + formatPercent(positionRatio));
 
-        strategy.setTotalBuyAmount(totalBuyAmount.setScale(2, RoundingMode.HALF_UP));
+        strategy.setTotalBuyAmount(totalBuyAmount.setScale(3, RoundingMode.HALF_UP));
         strategy.setTotalBuyQuantity(totalBuyQuantity.setScale(3, RoundingMode.HALF_UP));
-        strategy.setTotalSellAmount(totalSellAmount.setScale(2, RoundingMode.HALF_UP));
+        strategy.setTotalSellAmount(totalSellAmount.setScale(3, RoundingMode.HALF_UP));
         strategy.setTotalSellQuantity(totalSellQuantity.setScale(3, RoundingMode.HALF_UP));
-        strategy.setTotalFee(totalFee.setScale(2, RoundingMode.HALF_UP));
-        strategy.setCostPrice(costPrice);
-        strategy.setAvgBuyPrice(avgBuyPrice);
+        strategy.setTotalFee(totalFee.setScale(3, RoundingMode.HALF_UP));
+        strategy.setCostPrice(costPrice.setScale(3, RoundingMode.HALF_UP));
+        strategy.setAvgBuyPrice(avgBuyPrice.setScale(3, RoundingMode.HALF_UP));
         strategy.setHoldingDays(holdingDays);
         strategy.setFirstBuyTime(firstBuyTime);
         strategy.setPosition(currentPosition.setScale(3, RoundingMode.HALF_UP));
-        strategy.setPositionProfit(positionProfit);
-        strategy.setPositionProfitPercent(positionProfitPercent);
-        strategy.setPositionRatio(positionRatio);
+        strategy.setPositionProfit(positionProfit.setScale(3, RoundingMode.HALF_UP));
+        strategy.setPositionProfitPercent(positionProfitPercent.setScale(3, RoundingMode.HALF_UP));
+        strategy.setPositionRatio(positionRatio.setScale(3, RoundingMode.HALF_UP));
     }
 
     /**
@@ -159,6 +159,26 @@ public class PositionCalculator {
         strategy.setPositionProfit(BigDecimal.ZERO);
         strategy.setPositionProfitPercent(BigDecimal.ZERO);
         strategy.setPositionRatio(BigDecimal.ZERO);
+    }
+
+    private String formatAmount(BigDecimal value) {
+        if (value == null) return "0.00";
+        return value.setScale(2, RoundingMode.HALF_UP).toPlainString();
+    }
+
+    private String formatQuantity(BigDecimal value) {
+        if (value == null) return "0";
+        return value.setScale(0, RoundingMode.HALF_UP).toPlainString();
+    }
+
+    private String formatPrice(BigDecimal value) {
+        if (value == null) return "0.000";
+        return value.setScale(3, RoundingMode.HALF_UP).toPlainString();
+    }
+
+    private String formatPercent(BigDecimal value) {
+        if (value == null) return "0.00";
+        return value.setScale(2, RoundingMode.HALF_UP).toPlainString();
     }
 
     /**

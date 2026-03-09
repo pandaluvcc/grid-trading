@@ -7,6 +7,7 @@ import com.gridtrading.engine.GridEngine;
 import com.gridtrading.repository.GridLineRepository;
 import com.gridtrading.repository.StrategyRepository;
 import com.gridtrading.repository.TradeRecordRepository;
+import com.gridtrading.service.PositionCalculator;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.springframework.mock.web.MockMultipartFile;
@@ -34,6 +35,7 @@ class OcrStrategyImportTest {
         GridLineRepository gridLineRepository = Mockito.mock(GridLineRepository.class);
         TradeRecordRepository tradeRecordRepository = Mockito.mock(TradeRecordRepository.class);
         GridEngine gridEngine = Mockito.mock(GridEngine.class);
+        PositionCalculator positionCalculator = Mockito.mock(PositionCalculator.class);
         Mockito.when(strategyRepository.save(Mockito.any())).thenAnswer(invocation -> {
             Strategy strategy = invocation.getArgument(0);
             if (strategy.getId() == null) {
@@ -49,6 +51,7 @@ class OcrStrategyImportTest {
                 gridLineRepository,
                 tradeRecordRepository,
                 gridEngine,
+                positionCalculator,
                 new BigDecimal("0.005"),
                 30L
         );

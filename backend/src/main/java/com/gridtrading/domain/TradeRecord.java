@@ -48,19 +48,19 @@ public class TradeRecord {
     /**
      * 成交价格
      */
-    @Column(nullable = false, precision = 20, scale = 8)
+    @Column(nullable = false, precision = 20, scale = 3)
     private BigDecimal price;
 
     /**
      * 成交金额
      */
-    @Column(nullable = false, precision = 20, scale = 2)
+    @Column(nullable = false, precision = 20, scale = 3)
     private BigDecimal amount;
 
     /**
      * 成交数量
      */
-    @Column(nullable = false, precision = 20, scale = 8)
+    @Column(nullable = false, precision = 20, scale = 3)
     private BigDecimal quantity;
 
     /**
@@ -72,7 +72,7 @@ public class TradeRecord {
     /**
      * 手续费（用户手动录入）
      */
-    @Column(precision = 20, scale = 8)
+    @Column(precision = 20, scale = 3)
     private BigDecimal fee;
 
     /**

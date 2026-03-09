@@ -33,37 +33,37 @@ public class GridLine {
     /**
      * 买入价格（触发价格）
      */
-    @Column(name = "buy_trigger_price", nullable = false, precision = 20, scale = 8)
+    @Column(name = "buy_trigger_price", nullable = false, precision = 20, scale = 3)
     private BigDecimal buyTriggerPrice;
 
     /**
      * 买入价格（实际成交价，兼容字段）
      */
-    @Column(nullable = false, precision = 20, scale = 8)
+    @Column(nullable = false, precision = 20, scale = 3)
     private BigDecimal buyPrice;
 
     /**
      * 卖出价格（触发价格）
      */
-    @Column(name = "sell_trigger_price", nullable = false, precision = 20, scale = 8)
+    @Column(name = "sell_trigger_price", nullable = false, precision = 20, scale = 3)
     private BigDecimal sellTriggerPrice;
 
     /**
      * 卖出价格（兼容字段）
      */
-    @Column(nullable = false, precision = 20, scale = 8)
+    @Column(nullable = false, precision = 20, scale = 3)
     private BigDecimal sellPrice;
 
     /**
-     * 实际买入价（用户可编辑，可为空表示未成交）
+     * 实际买入价（用户可编辑、可为空表示未成交）
      */
-    @Column(name = "actual_buy_price", precision = 20, scale = 8)
+    @Column(name = "actual_buy_price", precision = 20, scale = 3)
     private BigDecimal actualBuyPrice;
 
     /**
      * 实际卖出价（实际成交价，可为空表示未卖出）
      */
-    @Column(name = "actual_sell_price", precision = 20, scale = 8)
+    @Column(name = "actual_sell_price", precision = 20, scale = 3)
     private BigDecimal actualSellPrice;
 
     /**
@@ -89,31 +89,31 @@ public class GridLine {
     /**
      * 买入金额
      */
-    @Column(name = "buy_amount", nullable = false, precision = 20, scale = 2)
+    @Column(name = "buy_amount", nullable = false, precision = 20, scale = 3)
     private BigDecimal buyAmount;
 
     /**
      * 买入数量
      */
-    @Column(name = "buy_quantity", nullable = false, precision = 20, scale = 8)
+    @Column(name = "buy_quantity", nullable = false, precision = 20, scale = 3)
     private BigDecimal buyQuantity;
 
     /**
      * 卖出金额
      */
-    @Column(name = "sell_amount", nullable = false, precision = 20, scale = 2)
+    @Column(name = "sell_amount", nullable = false, precision = 20, scale = 3)
     private BigDecimal sellAmount;
 
     /**
      * 毛利润
      */
-    @Column(name = "profit", nullable = false, precision = 20, scale = 2)
+    @Column(name = "profit", nullable = false, precision = 20, scale = 3)
     private BigDecimal profit;
 
     /**
      * 利润率
      */
-    @Column(name = "profit_rate", nullable = false, precision = 10, scale = 6)
+    @Column(name = "profit_rate", nullable = false, precision = 10, scale = 3)
     private BigDecimal profitRate;
 
     /**
@@ -131,7 +131,7 @@ public class GridLine {
     /**
      * 真实累计收益（从实际交易记录计算，扣除手续费）
      */
-    @Column(name = "actual_profit", precision = 20, scale = 2)
+    @Column(name = "actual_profit", precision = 20, scale = 3)
     private BigDecimal actualProfit = BigDecimal.ZERO;
 
     /**

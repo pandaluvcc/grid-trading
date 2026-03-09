@@ -21,6 +21,8 @@ public class OcrTradeRecord {
     private BigDecimal price;
     private BigDecimal fee;
 
+    private BigDecimal currentPrice;
+
     private Long matchedGridLineId;
     private Integer matchedLevel;
     private OcrMatchStatus matchStatus;
@@ -77,6 +79,14 @@ public class OcrTradeRecord {
 
     public void setFee(BigDecimal fee) {
         this.fee = fee;
+    }
+
+    public BigDecimal getCurrentPrice() {
+        return currentPrice;
+    }
+
+    public void setCurrentPrice(BigDecimal currentPrice) {
+        this.currentPrice = currentPrice;
     }
 
     public Long getMatchedGridLineId() {
