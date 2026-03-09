@@ -29,12 +29,22 @@
       
       <!-- 收益卡片 -->
       <div class="profit-card">
-        <div class="profit-label">已实现收益</div>
-        <div class="profit-value" :class="{ negative: totalProfit < 0 }">
-          {{ formatProfit(totalProfit) }}
-        </div>
-        <div class="profit-sub">
-          <span>今日 {{ formatProfit(todayProfit) }}</span>
+        <div class="profit-row">
+          <div class="profit-col">
+            <div class="profit-label">证券市值</div>
+            <div class="profit-value market-value">
+              ¥{{ formatAmount(totalMarketValue) }}
+            </div>
+          </div>
+          <div class="profit-col">
+            <div class="profit-label">已实现收益</div>
+            <div class="profit-value" :class="{ negative: totalPositionProfit < 0 }">
+              {{ formatProfit(totalPositionProfit) }}
+            </div>
+            <div class="profit-sub">
+              <span>今日 {{ formatProfit(todayProfit) }}</span>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -144,17 +154,26 @@
           <div class="strategy-stats">
             <div class="stat-item">
               <span class="stat-label">成本</span>
-              <span class="stat-value">¥{{ formatPrice(s.basePrice) }}</span>
+              <span class="stat-value">¥{{ formatPrice(s.costPrice) }}</span>
             </div>
             <div class="stat-item">
               <span class="stat-label">持仓</span>
-              <span class="stat-value">{{ calculatePositionRatio(s) }}%</span>
+              <span class="stat-value">{{ formatQuantity(s.position) }}股</span>
             </div>
             <div class="stat-item">
+              <span class="stat-label">仓位</span>
+              <span class="stat-value">{{ formatPositionRatio(s.positionRatio) }}%</span>
+            </div>
+            <div class="stat-item profit-item">
               <span class="stat-label">盈亏</span>
-              <span class="stat-value profit" :class="{ negative: s.realizedProfit < 0 }">
-                {{ formatProfit(s.realizedProfit) }}
-              </span>
+              <div class="profit-group">
+                <span class="stat-value profit" :class="{ negative: s.positionProfit < 0 }">
+                  {{ formatProfit(s.positionProfit) }}
+                </span>
+                <span class="profit-percent" :class="{ negative: s.positionProfitPercent < 0 }">
+                  {{ formatProfitPercent(s.positionProfitPercent) }}
+                </span>
+              </div>
             </div>
           </div>
 
@@ -332,6 +351,20 @@ const executing = ref(false)
 // 总收益
 const totalProfit = computed(() => {
   return strategies.value.reduce((sum, s) => sum + Number(s.realizedProfit || 0), 0)
+})
+
+// 总市值
+const totalMarketValue = computed(() => {
+  return strategies.value.reduce((sum, s) => {
+    const lastPrice = Number(s.lastPrice || s.basePrice || 0)
+    const position = Number(s.position || 0)
+    return sum + lastPrice * position
+  }, 0)
+})
+
+// 总持仓盈亏
+const totalPositionProfit = computed(() => {
+  return strategies.value.reduce((sum, s) => sum + Number(s.positionProfit || 0), 0)
 })
 
 // 今日收益（模拟，实际需要后端支持）
@@ -522,6 +555,17 @@ const formatAmount = (value) => {
   return Math.round(Number(value)).toString()
 }
 
+const formatPositionRatio = (val) => {
+  if (val == null) return '0.0'
+  return Number(val).toFixed(1)
+}
+
+const formatProfitPercent = (val) => {
+  if (val == null) return '0.00%'
+  const num = Number(val)
+  return (num >= 0 ? '+' : '') + num.toFixed(2) + '%'
+}
+
 // 获取策略的顶级建议
 const getTopSuggestion = (strategyId) => {
   const suggestion = strategySuggestions.value[strategyId]
@@ -653,10 +697,20 @@ onMounted(() => {
 
 .profit-card {
   text-align: center;
-  padding: 16px 0;
+  padding: 16px;
   background: rgba(255,255,255,0.1);
   border-radius: 12px;
   backdrop-filter: blur(10px);
+}
+
+.profit-row {
+  display: flex;
+  justify-content: space-around;
+  gap: 16px;
+}
+
+.profit-col {
+  flex: 1;
 }
 
 .profit-label {
@@ -667,7 +721,7 @@ onMounted(() => {
 
 .profit-value {
   color: #7dffb3;
-  font-size: 28px;
+  font-size: 22px;
   font-weight: 600;
   font-family: 'DIN', 'Helvetica Neue', sans-serif;
   text-shadow: 0 2px 4px rgba(0,0,0,0.1);
@@ -680,6 +734,10 @@ onMounted(() => {
 
 .profit-value.negative {
   color: #ffb3b3;
+}
+
+.profit-value.market-value {
+  color: #fff;
 }
 
 .profit-sub {
@@ -891,8 +949,9 @@ onMounted(() => {
 }
 
 .strategy-stats {
-  display: flex;
-  justify-content: space-around;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
   margin: 10px 0;
 }
 
@@ -900,6 +959,17 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   align-items: center;
+}
+
+.stat-item.profit-item {
+  align-items: flex-start;
+}
+
+.profit-group {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
 }
 
 .stat-label {
@@ -919,6 +989,16 @@ onMounted(() => {
 }
 
 .stat-value.negative {
+  color: #67c23a;
+}
+
+.profit-percent {
+  font-size: 12px;
+  font-weight: 500;
+  color: #f56c6c;
+}
+
+.profit-percent.negative {
   color: #67c23a;
 }
 

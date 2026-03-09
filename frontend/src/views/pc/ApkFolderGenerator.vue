@@ -5,54 +5,82 @@
     </div>
 
     <div class="form-container">
-      <el-form :model="form" label-width="100px">
-        <el-form-item label="Excel文件">
-          <el-upload
-            ref="uploadRef"
-            :auto-upload="false"
-            :limit="1"
-            accept=".xlsx,.xls"
-            :on-change="handleFileChange"
-          >
-            <el-button type="primary">选择Excel文件</el-button>
-            <template #tip>
-              只支持 .xlsx, .xls 格式，第一行为表头
-            </template>
-          </el-upload>
-          <div v-if="form.file" class="file-name">
-            已选择: {{ form.file.name }}
+      <!-- Excel文件上传区域 -->
+      <div class="upload-section">
+        <div class="section-title">
+          <el-icon><Document /></el-icon>
+          <span>上传Excel文件</span>
+        </div>
+        <el-upload
+          ref="uploadRef"
+          :auto-upload="false"
+          :limit="1"
+          accept=".xlsx,.xls"
+          :on-change="handleFileChange"
+          class="upload-area"
+          :class="{ 'has-file': form.file }"
+        >
+          <div class="upload-content">
+            <el-icon class="upload-icon"><UploadFilled /></el-icon>
+            <div class="upload-text">
+              <div class="upload-main">点击或拖拽文件到此处</div>
+              <div class="upload-sub">支持 .xlsx, .xls 格式，第一行为表头</div>
+            </div>
           </div>
-        </el-form-item>
+        </el-upload>
+        <div v-if="form.file" class="file-selected">
+          <el-icon class="file-icon"><CircleCheck /></el-icon>
+          <span class="file-name">{{ form.file.name }}</span>
+          <el-button link type="danger" size="small" @click="clearFile">更换</el-button>
+        </div>
+      </div>
 
-        <el-form-item label="目标路径">
-          <el-input v-model="form.targetPath" placeholder="例如: D:\apk_folders">
-            <template #append>
-              <el-button @click="selectTargetPath">选择文件夹</el-button>
-            </template>
-          </el-input>
-          <div class="path-tip">
-            APK文件也从此路径下获取（不遍历子文件夹）
-          </div>
-        </el-form-item>
+      <!-- 目标路径选择区域 -->
+      <div class="path-section">
+        <div class="section-title">
+          <el-icon><FolderOpened /></el-icon>
+          <span>选择目标路径</span>
+        </div>
+        <div class="path-input-wrapper">
+          <el-input
+            v-model="form.targetPath"
+            placeholder="例如: D:\apk_folders"
+            size="large"
+            class="path-input"
+          />
+          <el-button type="primary" size="large" class="path-button" @click="selectTargetPath">
+            <el-icon><Folder /></el-icon>
+            选择文件夹
+          </el-button>
+        </div>
+        <div class="path-tip">
+          <el-icon><InfoFilled /></el-icon>
+          APK文件也从此路径下获取（不遍历子文件夹）
+        </div>
+      </div>
 
-        <el-form-item>
-          <el-button 
-            type="primary" 
-            size="large"
-            :loading="loading"
-            :disabled="!canSubmit"
-            @click="handleGenerate"
-          >
-            开始生成
-          </el-button>
-          <el-button 
-            size="large"
-            @click="showExportDialog"
-          >
-            导出知识库文件
-          </el-button>
-        </el-form-item>
-      </el-form>
+      <!-- 操作按钮区域 -->
+      <div class="action-section">
+        <el-button
+          type="primary"
+          size="large"
+          :loading="loading"
+          :disabled="!canSubmit"
+          class="action-button primary"
+          @click="handleGenerate"
+        >
+          <el-icon><VideoPlay /></el-icon>
+          开始生成
+        </el-button>
+        <el-button
+          size="large"
+          class="action-button secondary"
+          @click="showExportDialog"
+        >
+          <el-icon><Download /></el-icon>
+          导出知识库文件
+        </el-button>
+      </div>
     </div>
 
     <div v-if="result" class="result-container">
@@ -103,22 +131,24 @@
     </div>
 
     <el-dialog v-model="exportDialogVisible" title="导出知识库文件" width="500px">
-      <el-form label-width="100px">
-        <el-form-item label="CSV文件">
+      <div class="export-dialog-content">
+        <div class="export-upload-area">
           <el-upload
             ref="exportUploadRef"
             :auto-upload="false"
             :limit="1"
             accept=".csv"
             :on-change="handleExportFileChange"
+            class="export-upload"
           >
             <el-button type="primary">选择CSV文件</el-button>
           </el-upload>
-          <div v-if="exportFile" class="file-name">
-            已选择: {{ exportFile.name }}
+          <div v-if="exportFile" class="file-selected-small">
+            <el-icon color="#67c23a"><CircleCheck /></el-icon>
+            <span>{{ exportFile.name }}</span>
           </div>
-        </el-form-item>
-      </el-form>
+        </div>
+      </div>
       <template #footer>
         <el-button @click="exportDialogVisible = false">取消</el-button>
         <el-button type="primary" :loading="exportLoading" :disabled="!exportFile" @click="handleExport">
@@ -130,8 +160,11 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { ElMessage } from 'element-plus'
+import {
+  Document, UploadFilled, CircleCheck, FolderOpened, Folder, InfoFilled, VideoPlay, Download
+} from '@element-plus/icons-vue'
 import axios from 'axios'
 
 const form = ref({
@@ -142,6 +175,20 @@ const form = ref({
 const loading = ref(false)
 const result = ref(null)
 const uploadRef = ref(null)
+const isMobile = ref(false)
+
+const checkMobile = () => {
+  isMobile.value = window.innerWidth <= 768
+}
+
+onMounted(() => {
+  checkMobile()
+  window.addEventListener('resize', checkMobile)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('resize', checkMobile)
+})
 
 const exportDialogVisible = ref(false)
 const exportFile = ref(null)
@@ -156,6 +203,11 @@ const handleFileChange = (uploadFile) => {
   if (uploadFile) {
     form.value.file = uploadFile.raw
   }
+}
+
+const clearFile = () => {
+  form.value.file = null
+  uploadRef.value?.clearFiles()
 }
 
 const selectTargetPath = () => {
@@ -255,91 +307,383 @@ const handleExport = async () => {
 
 <style scoped>
 .apk-generator {
-  max-width: 900px;
+  max-width: 800px;
   margin: 0 auto;
-  padding: 20px;
+  padding: 24px;
 }
 
 .page-header {
-  margin-bottom: 30px;
+  margin-bottom: 28px;
 }
 
 .page-header h1 {
-  font-size: 24px;
-  color: #303133;
+  font-size: 26px;
+  font-weight: 700;
+  color: #1f2937;
   margin: 0;
+  letter-spacing: -0.3px;
 }
 
 .form-container {
   background: #fff;
-  padding: 30px;
-  border-radius: 8px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
-  margin-bottom: 20px;
+  padding: 32px;
+  border-radius: 16px;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.06);
+  margin-bottom: 24px;
 }
 
-.file-name {
-  margin-top: 10px;
+/* 上传区域 */
+.upload-section {
+  margin-bottom: 28px;
+}
+
+.section-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 15px;
+  font-weight: 600;
+  color: #374151;
+  margin-bottom: 12px;
+}
+
+.section-title .el-icon {
+  color: #667eea;
+  font-size: 18px;
+}
+
+.upload-area {
+  width: 100%;
+}
+
+.upload-area :deep(.el-upload) {
+  width: 100%;
+}
+
+.upload-content {
+  width: 100%;
+  padding: 32px 24px;
+  border: 2px dashed #d1d5db;
+  border-radius: 12px;
+  background: #fafbfc;
+  text-align: center;
+  transition: all 0.3s ease;
+  cursor: pointer;
+}
+
+.upload-area:hover .upload-content {
+  border-color: #667eea;
+  background: #f5f3ff;
+}
+
+.upload-area.has-file .upload-content {
+  border-color: #67c23a;
+  background: #f0fdf4;
+}
+
+.upload-icon {
+  font-size: 48px;
+  color: #9ca3af;
+  margin-bottom: 12px;
+  transition: color 0.3s ease;
+}
+
+.upload-area:hover .upload-icon {
+  color: #667eea;
+}
+
+.upload-area.has-file .upload-icon {
   color: #67c23a;
+}
+
+.upload-main {
+  font-size: 16px;
+  font-weight: 500;
+  color: #374151;
+  margin-bottom: 6px;
+}
+
+.upload-sub {
+  font-size: 13px;
+  color: #6b7280;
+}
+
+.file-selected {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 12px;
+  padding: 12px 16px;
+  background: #f0fdf4;
+  border-radius: 10px;
+  border: 1px solid #86efac;
+}
+
+.file-icon {
+  font-size: 20px;
+  color: #67c23a;
+}
+
+.file-selected .file-name {
+  flex: 1;
   font-size: 14px;
+  color: #166534;
+  font-weight: 500;
+}
+
+/* 路径选择区域 */
+.path-section {
+  margin-bottom: 32px;
+}
+
+.path-input-wrapper {
+  display: flex;
+  gap: 12px;
+}
+
+.path-input {
+  flex: 1;
+}
+
+.path-button {
+  white-space: nowrap;
+  padding: 0 20px;
 }
 
 .path-tip {
-  margin-top: 8px;
-  font-size: 12px;
-  color: #909399;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 10px;
+  font-size: 13px;
+  color: #6b7280;
 }
 
+.path-tip .el-icon {
+  color: #667eea;
+}
+
+/* 操作按钮区域 */
+.action-section {
+  display: flex;
+  gap: 16px;
+  padding-top: 8px;
+}
+
+.action-button {
+  flex: 1;
+  height: 48px;
+  font-size: 15px;
+  font-weight: 500;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: all 0.3s ease;
+}
+
+.action-button.primary {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border: none;
+  box-shadow: 0 4px 14px rgba(102, 126, 234, 0.3);
+}
+
+.action-button.primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+}
+
+.action-button.secondary {
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  color: #374151;
+}
+
+.action-button.secondary:hover {
+  background: #f3f4f6;
+  border-color: #d1d5db;
+}
+
+/* 结果区域 */
 .result-container {
-  margin-top: 20px;
+  margin-top: 24px;
 }
 
 .result-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-size: 18px;
-  font-weight: bold;
+  font-size: 17px;
+  font-weight: 600;
+  color: #1f2937;
 }
 
 .result-stats {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
-  gap: 20px;
-  margin-bottom: 20px;
+  gap: 16px;
+  margin-bottom: 24px;
 }
 
 .stat-item {
   text-align: center;
-  padding: 15px;
-  background: #f5f7fa;
-  border-radius: 8px;
+  padding: 20px 12px;
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  transition: transform 0.2s ease;
+}
+
+.stat-item:hover {
+  transform: translateY(-2px);
 }
 
 .stat-item .label {
   display: block;
-  font-size: 14px;
-  color: #909399;
+  font-size: 13px;
+  color: #64748b;
   margin-bottom: 8px;
+  font-weight: 500;
 }
 
-.stat-item .value{
+.stat-item .value {
   display: block;
-  font-size: 24px;
-  font-weight: bold;
-  color: #409eff;
+  font-size: 28px;
+  font-weight: 700;
+  color: #667eea;
+  letter-spacing: -1px;
 }
 
 .keyword-list {
-  margin-top: 20px;
+  margin-top: 24px;
 }
 
 .keyword-list-header {
-  font-size: 16px;
-  font-weight: bold;
-  color: #303133;
-  margin-bottom: 15px;
-  padding-bottom: 10px;
-  border-bottom: 1px solid #ebeef5;
+  font-size: 15px;
+  font-weight: 600;
+  color: #374151;
+  margin-bottom: 14px;
+  padding-bottom: 12px;
+  border-bottom: 2px solid #f1f5f9;
+}
+
+/* 导出弹窗 */
+.export-dialog-content {
+  padding: 10px 0;
+}
+
+.export-upload-area {
+  text-align: center;
+}
+
+.file-selected-small {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 12px;
+  padding: 10px 16px;
+  background: #f0fdf4;
+  border-radius: 8px;
+  font-size: 14px;
+  color: #166534;
+}
+
+/* 移动端适配 */
+@media (max-width: 768px) {
+  .apk-generator {
+    padding: 16px;
+    max-width: 100%;
+  }
+
+  .page-header {
+    margin-bottom: 20px;
+  }
+
+  .page-header h1 {
+    font-size: 20px;
+  }
+
+  .form-container {
+    padding: 20px 16px;
+    border-radius: 14px;
+  }
+
+  .upload-content {
+    padding: 24px 16px;
+  }
+
+  .upload-icon {
+    font-size: 40px;
+  }
+
+  .upload-main {
+    font-size: 14px;
+  }
+
+  .upload-sub {
+    font-size: 12px;
+  }
+
+  .path-input-wrapper {
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .path-button {
+    width: 100%;
+  }
+
+  .action-section {
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .action-button {
+    width: 100%;
+  }
+
+  .result-stats {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+
+  .stat-item {
+    padding: 16px 10px;
+  }
+
+  .stat-item .label {
+    font-size: 12px;
+    margin-bottom: 6px;
+  }
+
+  .stat-item .value {
+    font-size: 22px;
+  }
+
+  .keyword-list-header {
+    font-size: 14px;
+  }
+
+  .keyword-list {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .keyword-list .el-table {
+    min-width: 600px;
+  }
+
+  :deep(.el-dialog) {
+    width: 90% !important;
+    margin: 5vh auto !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .result-stats {
+    grid-template-columns: 1fr;
+  }
 }
 </style>

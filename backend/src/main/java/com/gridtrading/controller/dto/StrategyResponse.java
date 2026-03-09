@@ -21,6 +21,11 @@ public class StrategyResponse {
     private BigDecimal realizedProfit;
     private String symbol;
     private LocalDateTime createdAt;
+    private BigDecimal position;
+    private BigDecimal costPrice;
+    private BigDecimal positionProfit;
+    private BigDecimal positionProfitPercent;
+    private BigDecimal positionRatio;
 
     public StrategyResponse() {
     }
@@ -41,6 +46,11 @@ public class StrategyResponse {
         response.setLastPrice(strategy.getLastPrice());
         response.setRealizedProfit(strategy.getRealizedProfit());
         response.setCreatedAt(strategy.getCreatedAt());
+        response.setPosition(strategy.getPosition());
+        response.setCostPrice(strategy.getCostPrice());
+        response.setPositionProfit(strategy.getPositionProfit());
+        response.setPositionProfitPercent(strategy.getPositionProfitPercent());
+        response.setPositionRatio(strategy.getPositionRatio());
         return response;
     }
 
@@ -122,5 +132,45 @@ public class StrategyResponse {
 
     public void setSymbol(String symbol) {
         this.symbol = symbol;
+    }
+
+    public BigDecimal getPosition() {
+        return position;
+    }
+
+    public void setPosition(BigDecimal position) {
+        this.position = position;
+    }
+
+    public BigDecimal getCostPrice() {
+        return costPrice;
+    }
+
+    public void setCostPrice(BigDecimal costPrice) {
+        this.costPrice = costPrice;
+    }
+
+    public BigDecimal getPositionProfit() {
+        return positionProfit;
+    }
+
+    public void setPositionProfit(BigDecimal positionProfit) {
+        this.positionProfit = positionProfit;
+    }
+
+    public BigDecimal getPositionProfitPercent() {
+        return positionProfitPercent;
+    }
+
+    public void setPositionProfitPercent(BigDecimal positionProfitPercent) {
+        this.positionProfitPercent = positionProfitPercent;
+    }
+
+    public BigDecimal getPositionRatio() {
+        return positionRatio;
+    }
+
+    public void setPositionRatio(BigDecimal positionRatio) {
+        this.positionRatio = positionRatio;
     }
 }

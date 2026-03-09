@@ -90,7 +90,11 @@ public class StrategyController {
     @GetMapping
     public List<StrategyResponse> getAllStrategies() {
         return strategyRepository.findAll().stream()
-                .map(StrategyResponse::fromEntity)
+                .map(strategy -> {
+                    positionCalculator.calculateAndUpdate(strategy);
+                    strategyRepository.save(strategy);
+                    return StrategyResponse.fromEntity(strategy);
+                })
                 .collect(Collectors.toList());
     }
 
