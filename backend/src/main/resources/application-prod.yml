@@ -1,6 +1,6 @@
 # application-prod.yml - 生产环境配置
 server:
-  port: 8080
+  port: 9090
 
 spring:
   datasource:
