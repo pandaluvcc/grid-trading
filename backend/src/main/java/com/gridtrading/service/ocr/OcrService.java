@@ -211,12 +211,38 @@ public class OcrService {
         List<GridLine> orderedGridLines = new ArrayList<>(strategy.getGridLines());
         orderedGridLines.sort(Comparator.comparing(GridLine::getLevel));
 
-        GridLine lastMatchedLine = null;
+        int buyIndex = 0;
+        Deque<GridLine> openBuys = new ArrayDeque<>();
+
+        System.out.println("[OCR导入] 开始按时间顺序匹配记录，共 " + records.size() + " 条记录");
         for (OcrTradeRecord record : records) {
             if (record == null || record.getType() == null || record.getPrice() == null) {
                 continue;
             }
-            GridLine gridLine = findBestMatchLineForCreate(orderedGridLines, record);
+
+            GridLine gridLine = null;
+            if (record.getType() == TradeType.BUY) {
+                if (buyIndex < orderedGridLines.size()) {
+                    gridLine = orderedGridLines.get(buyIndex);
+                    System.out.println("[OCR导入] 买入记录: 时间=" + record.getTradeTime() + 
+                        " 价格=" + record.getPrice() + " → 匹配网格 " + gridLine.getLevel());
+                    buyIndex++;
+                    openBuys.push(gridLine);
+                } else {
+                    System.out.println("[OCR导入] 买入记录超出网格范围: " + record.getTradeTime() + " 价格=" + record.getPrice());
+                    continue;
+                }
+            } else if (record.getType() == TradeType.SELL) {
+                if (!openBuys.isEmpty()) {
+                    gridLine = openBuys.pop();
+                    System.out.println("[OCR导入] 卖出记录: 时间=" + record.getTradeTime() + 
+                        " 价格=" + record.getPrice() + " → 匹配网格 " + gridLine.getLevel());
+                } else {
+                    System.out.println("[OCR导入] 没有可匹配的买入网格用于卖出: " + record.getTradeTime() + " 价格=" + record.getPrice());
+                    continue;
+                }
+            }
+
             if (gridLine == null) {
                 continue;
             }
@@ -225,26 +251,6 @@ public class OcrService {
 
             TradeRecord tradeRecord = buildTradeRecord(strategy, gridLine, record);
             tradeRecordRepository.save(tradeRecord);
-
-            lastMatchedLine = gridLine;
-        }
-
-        // ✅ 统一调用GridEngine更新网格sellPrice（包含收益率保护）
-        System.out.println("[OCR导入] 更新已导入网格的sellPrice并触发级联更新");
-        for (GridLine gridLine : orderedGridLines) {
-            // 只更新已买入的网格
-            if (gridLine.getActualBuyPrice() != null && gridLine.getState() == GridLineState.BOUGHT) {
-                // 调用GridEngine的统一方法更新sellPrice
-                gridEngine.updateCurrentGridSellPriceAfterBuy(strategy, gridLine);
-            }
-        }
-
-        // 触发级联更新（更新后续未导入的网格）
-        if (lastMatchedLine != null && lastMatchedLine.getLevel() < orderedGridLines.size()) {
-            System.out.println("[OCR导入] 触发级联更新后续网格");
-            BigDecimal actualBuyPrice = lastMatchedLine.getActualBuyPrice() != null ?
-                lastMatchedLine.getActualBuyPrice() : lastMatchedLine.getBuyPrice();
-            gridEngine.recalculateSubsequentGridsAfterManualBuy(strategy, lastMatchedLine, actualBuyPrice);
         }
 
         // 计算每个网格的真实累计收益
@@ -836,12 +842,29 @@ public class OcrService {
         }
     }
 
+    /**
+     * 按时间顺序匹配记录（基于数量的智能匹配）
+     *
+     * 核心逻辑：
+     * 1. 从建仓记录获取基础交易数量（baseQuantity）
+     * 2. 累计买入数量，当达到baseQuantity时分配一个网格
+     * 3. 支持一次买入跨多网格，也支持多次买入合并为一网格
+     * 4. 卖出同样基于数量匹配（FIFO：先买先卖）
+     */
     private void matchSequentialRecords(List<OcrTradeRecord> records,
                                         List<MatchLine> matchLines,
                                         Map<Integer, GridLine> gridLineByLevel,
                                         List<TradeRecord> existingRecords) {
+        // 1. 从建仓记录获取基础交易数量
+        BigDecimal baseQuantity = findBaseQuantity(records);
+        System.out.println("[OCR匹配] 基础交易数量: " + baseQuantity);
+
         int buyIndex = 0;
-        Deque<MatchLine> openBuys = new ArrayDeque<>();
+        BigDecimal accumulatedBuyQty = BigDecimal.ZERO;  // 累计买入数量（用于分配网格）
+        List<MatchLine> openBuys = new ArrayList<>();    // 已买入但未卖完的网格列表（FIFO顺序）
+
+        // 记录每个网格的剩余持仓数量
+        Map<Integer, BigDecimal> gridRemainingQty = new HashMap<>();
 
         for (OcrTradeRecord record : records) {
             if (record == null) {
@@ -861,42 +884,146 @@ public class OcrService {
                 continue;
             }
 
-            MatchLine matched = null;
             if (record.getType() == TradeType.BUY) {
-                if (buyIndex < matchLines.size()) {
+                // 买入处理：基于数量分配网格
+                BigDecimal recordQty = record.getQuantity();
+                if (recordQty == null || recordQty.compareTo(BigDecimal.ZERO) <= 0) {
+                    record.setMatchStatus(OcrMatchStatus.INVALID);
+                    record.setMatchMessage("invalid quantity");
+                    continue;
+                }
+
+                // 累计买入数量
+                accumulatedBuyQty = accumulatedBuyQty.add(recordQty);
+                System.out.println("[OCR匹配] 买入: 价格=" + record.getPrice() + " 数量=" + recordQty +
+                                 " 累计=" + accumulatedBuyQty + " 基础=" + baseQuantity);
+
+                // 计算应该分配多少个网格
+                int gridsToAllocate = 0;
+                if (baseQuantity != null && baseQuantity.compareTo(BigDecimal.ZERO) > 0) {
+                    // 计算累计数量可以分配多少个完整网格
+                    int totalGrids = accumulatedBuyQty.divide(baseQuantity, 0, RoundingMode.DOWN).intValue();
+                    gridsToAllocate = totalGrids - openBuys.size();
+                } else {
+                    // 没有基础数量，每条记录一个网格
+                    gridsToAllocate = 1;
+                }
+
+                // 分配网格
+                MatchLine matched = null;
+                for (int i = 0; i < gridsToAllocate && buyIndex < matchLines.size(); i++) {
                     matched = matchLines.get(buyIndex);
                     buyIndex++;
-                    openBuys.push(matched);
+                    openBuys.add(matched);  // 添加到列表末尾（FIFO）
+                    gridRemainingQty.put(matched.level, baseQuantity);
+                    System.out.println("[OCR匹配]   -> 分配网格 " + matched.level);
                 }
+
+                if (matched == null && gridsToAllocate == 0) {
+                    // 这条记录的数量不足以分配新网格，但属于当前正在累积的网格
+                    // 找到最近分配的网格（列表最后一个）
+                    if (!openBuys.isEmpty()) {
+                        matched = openBuys.get(openBuys.size() - 1);
+                    }
+                }
+
+                if (matched == null) {
+                    markUnmatched(record, "no grid line left for buy");
+                    continue;
+                }
+
+                GridLine actual = gridLineByLevel.get(matched.level);
+                if (actual == null) {
+                    markUnmatched(record, "grid line missing");
+                    continue;
+                }
+
+                BigDecimal expected = matched.buyPrice;
+                boolean outOfRange = isOutOfRange(record.getPrice(), expected);
+
+                record.setMatchedGridLineId(actual.getId());
+                record.setMatchedLevel(matched.level);
+                record.setMatchStatus(OcrMatchStatus.MATCHED);
+                record.setForcedMatch(outOfRange);
+                record.setOutOfRange(outOfRange);
+                record.setMatchMessage(outOfRange ? "price out of range" : "matched");
+
             } else if (record.getType() == TradeType.SELL) {
-                if (!openBuys.isEmpty()) {
-                    matched = openBuys.pop();
+                // 卖出处理：基于数量匹配已买入的网格（FIFO：先买先卖）
+                BigDecimal recordQty = record.getQuantity();
+                if (recordQty == null || recordQty.compareTo(BigDecimal.ZERO) <= 0) {
+                    record.setMatchStatus(OcrMatchStatus.INVALID);
+                    record.setMatchMessage("invalid quantity");
+                    continue;
                 }
+
+                System.out.println("[OCR匹配] 卖出: 价格=" + record.getPrice() + " 数量=" + recordQty);
+
+                // 找到第一个有剩余持仓的网格（FIFO）
+                MatchLine matched = null;
+                for (MatchLine openGrid : openBuys) {
+                    BigDecimal remaining = gridRemainingQty.get(openGrid.level);
+                    if (remaining != null && remaining.compareTo(BigDecimal.ZERO) > 0) {
+                        matched = openGrid;
+                        break;
+                    }
+                }
+
+                if (matched == null) {
+                    markUnmatched(record, "no open buy to close");
+                    continue;
+                }
+
+                // 更新剩余持仓
+                BigDecimal remaining = gridRemainingQty.get(matched.level);
+                if (remaining != null) {
+                    remaining = remaining.subtract(recordQty);
+                    gridRemainingQty.put(matched.level, remaining);
+                    System.out.println("[OCR匹配]   -> 网格" + matched.level + " 剩余数量=" + remaining);
+
+                    // 如果剩余数量<=0，从openBuys中移除
+                    if (remaining.compareTo(BigDecimal.ZERO) <= 0) {
+                        openBuys.remove(matched);
+                        System.out.println("[OCR匹配]   -> 网格" + matched.level + " 已清仓");
+                    }
+                }
+
+                GridLine actual = gridLineByLevel.get(matched.level);
+                if (actual == null) {
+                    markUnmatched(record, "grid line missing");
+                    continue;
+                }
+
+                BigDecimal expected = matched.sellPrice;
+                boolean outOfRange = isOutOfRange(record.getPrice(), expected);
+
+                record.setMatchedGridLineId(actual.getId());
+                record.setMatchedLevel(matched.level);
+                record.setMatchStatus(OcrMatchStatus.MATCHED);
+                record.setForcedMatch(outOfRange);
+                record.setOutOfRange(outOfRange);
+                record.setMatchMessage(outOfRange ? "price out of range" : "matched");
             }
-
-            if (matched == null) {
-                markUnmatched(record, record.getType() == TradeType.BUY
-                        ? "no grid line left for buy"
-                        : "no open buy to close");
-                continue;
-            }
-
-            GridLine actual = gridLineByLevel.get(matched.level);
-            if (actual == null) {
-                markUnmatched(record, "grid line missing");
-                continue;
-            }
-
-            BigDecimal expected = record.getType() == TradeType.BUY ? matched.buyPrice : matched.sellPrice;
-            boolean outOfRange = isOutOfRange(record.getPrice(), expected);
-
-            record.setMatchedGridLineId(actual.getId());
-            record.setMatchedLevel(matched.level);
-            record.setMatchStatus(OcrMatchStatus.MATCHED);
-            record.setForcedMatch(outOfRange);
-            record.setOutOfRange(outOfRange);
-            record.setMatchMessage(outOfRange ? "price out of range" : "matched");
         }
+    }
+
+    /**
+     * 从建仓记录获取基础交易数量
+     */
+    private BigDecimal findBaseQuantity(List<OcrTradeRecord> records) {
+        for (OcrTradeRecord record : records) {
+            if (record != null && record.isOpening() && record.getQuantity() != null) {
+                return record.getQuantity();
+            }
+        }
+        // 如果没有建仓记录，尝试从第一条买入记录获取
+        for (OcrTradeRecord record : records) {
+            if (record != null && record.getType() == TradeType.BUY && record.getQuantity() != null) {
+                System.out.println("[OCR匹配] 未找到建仓记录，使用第一条买入数量作为基础: " + record.getQuantity());
+                return record.getQuantity();
+            }
+        }
+        return null;
     }
 
     private OcrTradeRecord findOpeningRecord(List<OcrTradeRecord> records) {
@@ -998,6 +1125,8 @@ public class OcrService {
             return records;
         }
 
+        System.out.println("[合并买入] 开始处理，原始记录数: " + records.size());
+
         List<OcrTradeRecord> sorted = new ArrayList<>(records);
         sorted.sort((a, b) -> {
             if (a == null && b == null) {
@@ -1048,6 +1177,7 @@ public class OcrService {
             merged.add(current);
         }
 
+        System.out.println("[合并买入] 处理完成，合并后记录数: " + merged.size());
         return merged;
     }
 
@@ -1055,19 +1185,15 @@ public class OcrService {
         if (left.getType() != TradeType.BUY || right.getType() != TradeType.BUY) {
             return false;
         }
-        if (left.getPrice() == null || right.getPrice() == null) {
-            return false;
-        }
         if (left.getTradeTime() == null || right.getTradeTime() == null) {
             return false;
         }
-        if (left.getPrice().compareTo(right.getPrice()) != 0) {
-            return false;
-        }
-        return left.getTradeTime().toLocalDate().equals(right.getTradeTime().toLocalDate());
+        Duration diff = Duration.between(left.getTradeTime(), right.getTradeTime()).abs();
+        return diff.getSeconds() <= timeWindowSeconds;
     }
 
     private void mergeInto(OcrTradeRecord base, OcrTradeRecord extra) {
+        System.out.println("[合并买入] 合并记录: " + base.getTradeTime() + " 数量=" + base.getQuantity() + " + " + extra.getQuantity());
         base.setQuantity(addNullable(base.getQuantity(), extra.getQuantity()));
         base.setAmount(addNullable(base.getAmount(), extra.getAmount()));
         base.setFee(addNullable(base.getFee(), extra.getFee()));
@@ -1080,6 +1206,7 @@ public class OcrService {
         if (base.getQuantity() == null && base.getAmount() != null && base.getPrice() != null) {
             base.setQuantity(base.getAmount().divide(base.getPrice(), 8, java.math.RoundingMode.DOWN));
         }
+        System.out.println("[合并买入] 合并后: 数量=" + base.getQuantity() + " 金额=" + base.getAmount());
     }
 
     private BigDecimal addNullable(BigDecimal left, BigDecimal right) {
