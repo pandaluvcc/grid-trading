@@ -54,25 +54,25 @@
       >
         <div class="group-date">{{ date }}</div>
         <div class="group-items">
-          <div 
-            v-for="record in group" 
+          <div
+            v-for="record in group"
             :key="record.id"
             class="record-item"
           >
-            <div class="record-icon" :class="record.type.toLowerCase()">
-              <el-icon v-if="record.type === 'BUY'"><Bottom /></el-icon>
+            <div class="record-icon" :class="getRecordIconClass(record.type)">
+              <el-icon v-if="isBuyType(record.type)"><Bottom /></el-icon>
               <el-icon v-else><Top /></el-icon>
             </div>
             <div class="record-info">
               <div class="record-main">
-                <span class="record-action">{{ record.type === 'BUY' ? '买入' : '卖出' }}</span>
-                <span class="record-grid">第{{ record.gridLineLevel }}格</span>
+                <span class="record-action">{{ formatRecordType(record.type) }}</span>
+                <span class="record-grid">第{{ record.gridLevel || record.gridLineLevel }}格</span>
               </div>
               <div class="record-time">{{ formatTime(record.tradeTime) }}</div>
             </div>
             <div class="record-amount">
               <div class="amount-value">¥{{ formatPrice(record.price) }}</div>
-              <div class="amount-qty">{{ formatAmount(record.amount) }}元</div>
+              <div class="amount-qty">{{ formatQuantity(record.quantity) }}股 · {{ formatAmount(record.amount) }}元</div>
             </div>
           </div>
         </div>
@@ -122,7 +122,7 @@ const records = ref([])
 const loading = ref(false)
 
 // 统计
-const totalBuy = computed(() => records.value.filter(r => r.type === 'BUY').length)
+const totalBuy = computed(() => records.value.filter(r => r.type === 'BUY' || r.type === 'OPENING_BUY').length)
 const totalSell = computed(() => records.value.filter(r => r.type === 'SELL').length)
 const totalProfit = computed(() => {
   // 简化计算：卖出金额 - 买入金额
@@ -130,7 +130,7 @@ const totalProfit = computed(() => {
     .filter(r => r.type === 'SELL')
     .reduce((sum, r) => sum + Number(r.amount || 0), 0)
   const buyAmount = records.value
-    .filter(r => r.type === 'BUY')
+    .filter(r => r.type === 'BUY' || r.type === 'OPENING_BUY')
     .reduce((sum, r) => sum + Number(r.amount || 0), 0)
   return sellAmount - buyAmount
 })
@@ -201,6 +201,7 @@ const goToRecord = () => {
 // 格式化
 const formatPrice = (val) => val == null ? '-' : Number(val).toFixed(3)
 const formatAmount = (val) => val == null ? '0' : Math.round(Number(val)).toString()
+const formatQuantity = (val) => val == null ? '0' : Math.round(Number(val)).toString()
 const formatProfit = (val) => {
   if (val == null) return '0.00'
   const num = Number(val)
@@ -221,6 +222,28 @@ const formatTime = (dateStr) => {
   if (!dateStr) return ''
   const d = new Date(dateStr)
   return `${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}`
+}
+
+// 格式化交易类型
+const formatRecordType = (type) => {
+  const typeMap = {
+    'OPENING_BUY': '建仓-买入',
+    'BUY': '买入',
+    'SELL': '卖出'
+  }
+  return typeMap[type] || type
+}
+
+// 判断是否为买入类型
+const isBuyType = (type) => {
+  return type === 'BUY' || type === 'OPENING_BUY'
+}
+
+// 获取记录图标样式
+const getRecordIconClass = (type) => {
+  if (type === 'OPENING_BUY') return 'opening-buy'
+  if (type === 'BUY') return 'buy'
+  return 'sell'
 }
 
 onMounted(() => {
@@ -406,6 +429,11 @@ onMounted(() => {
 .record-icon.sell {
   background: #f0f9eb;
   color: #67c23a;
+}
+
+.record-icon.opening-buy {
+  background: #fdf6ec;
+  color: #e6a23c;
 }
 
 .record-info {

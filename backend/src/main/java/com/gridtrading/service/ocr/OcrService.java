@@ -181,7 +181,7 @@ public class OcrService {
         }
 
         records = dedupeRecords(records);
-        records = mergeSplitBuys(records);
+        // records = mergeSplitBuys(records);  // 禁用合并，保留所有交易记录
         records = sortRecords(records);
         records = filterUsable(records);
 
@@ -213,6 +213,9 @@ public class OcrService {
 
         int buyIndex = 0;
         Deque<GridLine> openBuys = new ArrayDeque<>();
+        // 跟踪最后一次买入的网格和价格（用于相同价格连续买入匹配到同一网格）
+        GridLine lastBuyGrid = null;
+        BigDecimal lastBuyPrice = null;
 
         System.out.println("[OCR导入] 开始按时间顺序匹配记录，共 " + records.size() + " 条记录");
         for (OcrTradeRecord record : records) {
@@ -221,22 +224,44 @@ public class OcrService {
             }
 
             GridLine gridLine = null;
-            if (record.getType() == TradeType.BUY) {
-                if (buyIndex < orderedGridLines.size()) {
-                    gridLine = orderedGridLines.get(buyIndex);
-                    System.out.println("[OCR导入] 买入记录: 时间=" + record.getTradeTime() + 
-                        " 价格=" + record.getPrice() + " → 匹配网格 " + gridLine.getLevel());
-                    buyIndex++;
+            if (record.getType().isBuy()) {
+                // 判断是否是相同价格的连续买入
+                boolean isSamePriceAsLast = lastBuyPrice != null && lastBuyPrice.compareTo(record.getPrice()) == 0;
+
+                if (isSamePriceAsLast && lastBuyGrid != null) {
+                    // 相同价格，匹配到上一次的网格
+                    gridLine = lastBuyGrid;
+                    String typeDesc = record.getType() == TradeType.OPENING_BUY ? "建仓-买入" : "买入";
+                    System.out.println("[OCR导入] " + typeDesc + "记录: 时间=" + record.getTradeTime() +
+                        " 价格=" + record.getPrice() + " → 匹配网格 " + gridLine.getLevel() + " (相同价格连续买入)");
+                    // 同样加入openBuys，确保每条买入都有对应的卖出匹配
                     openBuys.push(gridLine);
                 } else {
-                    System.out.println("[OCR导入] 买入记录超出网格范围: " + record.getTradeTime() + " 价格=" + record.getPrice());
-                    continue;
+                    // 不同价格，按顺序取下一个网格
+                    if (buyIndex < orderedGridLines.size()) {
+                        gridLine = orderedGridLines.get(buyIndex);
+                        String typeDesc = record.getType() == TradeType.OPENING_BUY ? "建仓-买入" : "买入";
+                        System.out.println("[OCR导入] " + typeDesc + "记录: 时间=" + record.getTradeTime() +
+                            " 价格=" + record.getPrice() + " → 匹配网格 " + gridLine.getLevel());
+                        buyIndex++;
+                        openBuys.push(gridLine);
+                        lastBuyGrid = gridLine;
+                        lastBuyPrice = record.getPrice();
+                    } else {
+                        System.out.println("[OCR导入] 买入记录超出网格范围: " + record.getTradeTime() + " 价格=" + record.getPrice());
+                        lastBuyGrid = null;
+                        lastBuyPrice = null;
+                        continue;
+                    }
                 }
             } else if (record.getType() == TradeType.SELL) {
                 if (!openBuys.isEmpty()) {
                     gridLine = openBuys.pop();
-                    System.out.println("[OCR导入] 卖出记录: 时间=" + record.getTradeTime() + 
+                    System.out.println("[OCR导入] 卖出记录: 时间=" + record.getTradeTime() +
                         " 价格=" + record.getPrice() + " → 匹配网格 " + gridLine.getLevel());
+                    // 卖出后重置连续买入跟踪
+                    lastBuyGrid = null;
+                    lastBuyPrice = null;
                 } else {
                     System.out.println("[OCR导入] 没有可匹配的买入网格用于卖出: " + record.getTradeTime() + " 价格=" + record.getPrice());
                     continue;
@@ -386,8 +411,15 @@ public class OcrService {
     }
 
     private OcrTradeRecord findBaseRecord(List<OcrTradeRecord> records) {
+        // 优先查找建仓买入
         for (OcrTradeRecord record : records) {
-            if (record.getType() == TradeType.BUY && record.getPrice() != null) {
+            if (record.getType() == TradeType.OPENING_BUY && record.getPrice() != null) {
+                return record;
+            }
+        }
+        // 其次查找普通买入
+        for (OcrTradeRecord record : records) {
+            if (record.getType().isBuy() && record.getPrice() != null) {
                 return record;
             }
         }
@@ -494,7 +526,7 @@ public class OcrService {
         if (gridLine == null || record == null || record.getType() == null || record.getPrice() == null) {
             return;
         }
-        if (record.getType() == TradeType.BUY) {
+        if (record.getType().isBuy()) {
             applyBuyRecord(gridLine, record, strategy);
             gridLine.setState(GridLineState.BOUGHT);
         } else {
@@ -688,36 +720,41 @@ public class OcrService {
             // 分离买入和卖出记录
             List<TradeRecord> buyRecords = new ArrayList<>();
             List<TradeRecord> sellRecords = new ArrayList<>();
-            
+
             for (TradeRecord record : tradeRecords) {
-                if (record.getType() == TradeType.BUY) {
+                if (record.getType().isBuy()) {  // 包含 BUY 和 OPENING_BUY
                     buyRecords.add(record);
                 } else if (record.getType() == TradeType.SELL) {
                     sellRecords.add(record);
                 }
             }
 
-            // 配对计算收益：第1次买配第1次卖，第2次买配第2次卖...
+            // 配对计算收益：同一网格的多笔买入合并后再与卖出配对
             int pairCount = Math.min(buyRecords.size(), sellRecords.size());
             if (pairCount == 0) {
                 continue;
             }
 
             BigDecimal totalActualProfit = BigDecimal.ZERO;
-            
-            for (int i = 0; i < pairCount; i++) {
-                TradeRecord buyRecord = buyRecords.get(i);
-                TradeRecord sellRecord = sellRecords.get(i);
-                
-                // 计算该轮收益 = 卖出金额 - 买入金额 - 手续费
-                BigDecimal buyAmount = buyRecord.getAmount() != null ? buyRecord.getAmount() : BigDecimal.ZERO;
-                BigDecimal sellAmount = sellRecord.getAmount() != null ? sellRecord.getAmount() : BigDecimal.ZERO;
-                BigDecimal buyFee = buyRecord.getFee() != null ? buyRecord.getFee() : BigDecimal.ZERO;
-                BigDecimal sellFee = sellRecord.getFee() != null ? sellRecord.getFee() : BigDecimal.ZERO;
-                
-                BigDecimal pairProfit = sellAmount.subtract(buyAmount).subtract(buyFee).subtract(sellFee);
-                totalActualProfit = totalActualProfit.add(pairProfit);
+
+            // 先累加所有买入的总金额和总手续费
+            BigDecimal totalBuyAmount = BigDecimal.ZERO;
+            BigDecimal totalBuyFee = BigDecimal.ZERO;
+            for (TradeRecord buyRecord : buyRecords) {
+                totalBuyAmount = totalBuyAmount.add(buyRecord.getAmount() != null ? buyRecord.getAmount() : BigDecimal.ZERO);
+                totalBuyFee = totalBuyFee.add(buyRecord.getFee() != null ? buyRecord.getFee() : BigDecimal.ZERO);
             }
+
+            // 再累加所有卖出的总金额和总手续费
+            BigDecimal totalSellAmount = BigDecimal.ZERO;
+            BigDecimal totalSellFee = BigDecimal.ZERO;
+            for (TradeRecord sellRecord : sellRecords) {
+                totalSellAmount = totalSellAmount.add(sellRecord.getAmount() != null ? sellRecord.getAmount() : BigDecimal.ZERO);
+                totalSellFee = totalSellFee.add(sellRecord.getFee() != null ? sellRecord.getFee() : BigDecimal.ZERO);
+            }
+
+            // 计算完整一轮的收益：总卖出 - 总买入 - 总手续费
+            totalActualProfit = totalSellAmount.subtract(totalBuyAmount).subtract(totalBuyFee).subtract(totalSellFee);
 
             // 设置真实累计收益
             BigDecimal oldProfit = gridLine.getActualProfit();
@@ -884,7 +921,7 @@ public class OcrService {
                 continue;
             }
 
-            if (record.getType() == TradeType.BUY) {
+            if (record.getType().isBuy()) {
                 // 买入处理：基于数量分配网格
                 BigDecimal recordQty = record.getQuantity();
                 if (recordQty == null || recordQty.compareTo(BigDecimal.ZERO) <= 0) {
@@ -895,7 +932,8 @@ public class OcrService {
 
                 // 累计买入数量
                 accumulatedBuyQty = accumulatedBuyQty.add(recordQty);
-                System.out.println("[OCR匹配] 买入: 价格=" + record.getPrice() + " 数量=" + recordQty +
+                String typeDesc = record.getType() == TradeType.OPENING_BUY ? "建仓-买入" : "买入";
+                System.out.println("[OCR匹配] " + typeDesc + ": 价格=" + record.getPrice() + " 数量=" + recordQty +
                                  " 累计=" + accumulatedBuyQty + " 基础=" + baseQuantity);
 
                 // 计算应该分配多少个网格
@@ -1011,6 +1049,14 @@ public class OcrService {
      * 从建仓记录获取基础交易数量
      */
     private BigDecimal findBaseQuantity(List<OcrTradeRecord> records) {
+        // 优先从建仓买入类型获取
+        for (OcrTradeRecord record : records) {
+            if (record != null && record.getType() == TradeType.OPENING_BUY && record.getQuantity() != null) {
+                System.out.println("[OCR匹配] 从建仓买入获取基础数量: " + record.getQuantity());
+                return record.getQuantity();
+            }
+        }
+        // 其次从opening标记获取
         for (OcrTradeRecord record : records) {
             if (record != null && record.isOpening() && record.getQuantity() != null) {
                 return record.getQuantity();
@@ -1018,7 +1064,7 @@ public class OcrService {
         }
         // 如果没有建仓记录，尝试从第一条买入记录获取
         for (OcrTradeRecord record : records) {
-            if (record != null && record.getType() == TradeType.BUY && record.getQuantity() != null) {
+            if (record != null && record.getType().isBuy() && record.getQuantity() != null) {
                 System.out.println("[OCR匹配] 未找到建仓记录，使用第一条买入数量作为基础: " + record.getQuantity());
                 return record.getQuantity();
             }
@@ -1027,6 +1073,13 @@ public class OcrService {
     }
 
     private OcrTradeRecord findOpeningRecord(List<OcrTradeRecord> records) {
+        // 优先查找建仓买入类型
+        for (OcrTradeRecord record : records) {
+            if (record != null && record.getType() == TradeType.OPENING_BUY) {
+                return record;
+            }
+        }
+        // 其次查找opening标记
         for (OcrTradeRecord record : records) {
             if (record != null && record.isOpening()) {
                 return record;
@@ -1182,14 +1235,20 @@ public class OcrService {
     }
 
     private boolean canMerge(OcrTradeRecord left, OcrTradeRecord right) {
-        if (left.getType() != TradeType.BUY || right.getType() != TradeType.BUY) {
+        // 必须都是买入类型（包括建仓买入）
+        if (!left.getType().isBuy() || !right.getType().isBuy()) {
             return false;
         }
-        if (left.getTradeTime() == null || right.getTradeTime() == null) {
+        // 必须交易价格相同
+        if (left.getPrice() == null || right.getPrice() == null) {
             return false;
         }
-        Duration diff = Duration.between(left.getTradeTime(), right.getTradeTime()).abs();
-        return diff.getSeconds() <= timeWindowSeconds;
+        if (left.getPrice().compareTo(right.getPrice()) != 0) {
+            return false;
+        }
+        // 放宽限制：只要价格相同就可以合并（不再限制时间窗口）
+        // 因为用户可能在同一天不同时间补仓相同价格
+        return true;
     }
 
     private void mergeInto(OcrTradeRecord base, OcrTradeRecord extra) {
@@ -1199,6 +1258,11 @@ public class OcrService {
         base.setFee(addNullable(base.getFee(), extra.getFee()));
         base.setOpening(base.isOpening() || extra.isOpening());
         base.setClosing(base.isClosing() || extra.isClosing());
+
+        // 如果任一记录是建仓买入，合并后也标记为建仓买入
+        if (base.getType() == TradeType.OPENING_BUY || extra.getType() == TradeType.OPENING_BUY) {
+            base.setType(TradeType.OPENING_BUY);
+        }
 
         if (base.getAmount() == null && base.getQuantity() != null && base.getPrice() != null) {
             base.setAmount(base.getQuantity().multiply(base.getPrice()));
@@ -1344,28 +1408,44 @@ public class OcrService {
             }
         }
 
-        for (String line : lines) {
-            if (line == null) {
-                continue;
-            }
-            String trimmed = line.trim();
-            if (trimmed.isEmpty()) {
-                continue;
-            }
-            if (symbol == null) {
-                Matcher symbolMatcher = SYMBOL_PATTERN.matcher(trimmed);
-                if (symbolMatcher.find()) {
-                    symbol = symbolMatcher.group(2).trim();
+        // 优先处理东方财富标准格式：持仓明细下一行是名称，再下一行是代码
+        for (int i = 0; i < lines.length - 2; i++) {
+            if (lines[i] != null && lines[i].trim().contains("持仓明细")) {
+                String candidateName = lines[i+1] != null ? lines[i+1].trim() : null;
+                String candidateSymbol = lines[i+2] != null ? lines[i+2].trim() : null;
+                if (candidateName != null && isLikelyName(candidateName)
+                    && candidateSymbol != null && candidateSymbol.matches("\\d{6}")) {
+                    name = candidateName;
+                    symbol = candidateSymbol;
+                    break;
                 }
             }
-            if (name == null) {
-                Matcher nameMatcher = NAME_PATTERN.matcher(trimmed);
-                if (nameMatcher.find()) {
-                    name = nameMatcher.group(2).trim();
+        }
+
+        if (name == null || symbol == null) {
+            for (String line : lines) {
+                if (line == null) {
+                    continue;
                 }
-            }
-            if (name != null && symbol != null) {
-                break;
+                String trimmed = line.trim();
+                if (trimmed.isEmpty()) {
+                    continue;
+                }
+                if (symbol == null) {
+                    Matcher symbolMatcher = SYMBOL_PATTERN.matcher(trimmed);
+                    if (symbolMatcher.find()) {
+                        symbol = symbolMatcher.group(2).trim();
+                    }
+                }
+                if (name == null) {
+                    Matcher nameMatcher = NAME_PATTERN.matcher(trimmed);
+                    if (nameMatcher.find()) {
+                        name = nameMatcher.group(2).trim();
+                    }
+                }
+                if (name != null && symbol != null) {
+                    break;
+                }
             }
         }
         if (symbol == null || name == null) {

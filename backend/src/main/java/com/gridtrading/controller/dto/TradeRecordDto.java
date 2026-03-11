@@ -18,6 +18,7 @@ public class TradeRecordDto {
     private BigDecimal amount;
     private BigDecimal fee;
     private LocalDateTime executedAt;
+    private Integer gridLineLevel;
 
     public static TradeRecordDto fromEntity(TradeRecord record) {
         TradeRecordDto dto = new TradeRecordDto();
@@ -28,6 +29,7 @@ public class TradeRecordDto {
         dto.setAmount(record.getAmount());
         dto.setFee(record.getFee());
         dto.setExecutedAt(record.getTradeTime());
+        dto.setGridLineLevel(record.getGridLevel());
         return dto;
     }
 
@@ -85,5 +87,13 @@ public class TradeRecordDto {
 
     public void setExecutedAt(LocalDateTime executedAt) {
         this.executedAt = executedAt;
+    }
+
+    public Integer getGridLineLevel() {
+        return gridLineLevel;
+    }
+
+    public void setGridLineLevel(Integer gridLineLevel) {
+        this.gridLineLevel = gridLineLevel;
     }
 }

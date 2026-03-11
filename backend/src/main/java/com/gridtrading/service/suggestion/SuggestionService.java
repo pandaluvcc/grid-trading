@@ -128,6 +128,12 @@ public class SuggestionService {
         boolean hasFrequentBuy = risks.stream()
                 .anyMatch(r -> "FREQUENT_BUY".equals(r.get("type")));
 
+        // 找到最近买入的网格（最大的level，BOUGHT状态）
+        GridLine lastBoughtGrid = gridLines.stream()
+                .filter(g -> "BOUGHT".equals(g.getState().name()))
+                .max(Comparator.comparing(GridLine::getLevel))
+                .orElse(null);
+
         // 1. 检查待买入触发
         List<GridLine> buyTriggered = gridLines.stream()
                 .filter(g -> "WAIT_BUY".equals(g.getState().name()))
@@ -136,7 +142,21 @@ public class SuggestionService {
                 .collect(Collectors.toList());
 
         if (!buyTriggered.isEmpty()) {
-            for (GridLine grid : buyTriggered) {
+            // 优化：只建议比最近买入网格更深的网格（更大的level）
+            // 如果没有买入过，则建议所有触发的网格
+            List<GridLine> filteredBuyTriggered;
+            if (lastBoughtGrid != null) {
+                final Integer lastBoughtLevel = lastBoughtGrid.getLevel();
+                filteredBuyTriggered = buyTriggered.stream()
+                        .filter(g -> g.getLevel() > lastBoughtLevel)
+                        .collect(Collectors.toList());
+                System.out.println("[建议引擎] 最近买入网格: " + lastBoughtLevel + ", 过滤后待建议网格数: " + filteredBuyTriggered.size());
+            } else {
+                filteredBuyTriggered = buyTriggered;
+                System.out.println("[建议引擎] 无买入记录, 建议所有触发网格数: " + filteredBuyTriggered.size());
+            }
+
+            for (GridLine grid : filteredBuyTriggered) {
                 Map<String, Object> suggestion = new HashMap<>();
                 suggestion.put("gridLineId", grid.getId());
                 suggestion.put("type", "BUY");
@@ -145,11 +165,11 @@ public class SuggestionService {
                 suggestion.put("gridType", grid.getGridType().name());
                 suggestion.put("price", grid.getBuyPrice());
                 suggestion.put("triggerPrice", grid.getBuyTriggerPrice());
-                
+
                 // 根据风险等级调整建议数量
                 BigDecimal suggestedQuantity;
                 BigDecimal suggestedAmount;
-                
+
                 if (quantityPerGrid != null) {
                     suggestedQuantity = quantityPerGrid;
                     suggestedAmount = quantityPerGrid.multiply(grid.getBuyPrice()).setScale(2, RoundingMode.DOWN);
@@ -157,22 +177,22 @@ public class SuggestionService {
                     suggestedQuantity = grid.getBuyQuantity();
                     suggestedAmount = grid.getBuyAmount();
                 }
-                
+
                 // 高风险时，建议数量减半
                 if (hasHighRisk || hasHeavyPosition) {
                     suggestedQuantity = suggestedQuantity.divide(BigDecimal.valueOf(2), 0, RoundingMode.DOWN);
                     suggestedAmount = suggestedQuantity.multiply(grid.getBuyPrice()).setScale(2, RoundingMode.DOWN);
                     suggestion.put("riskWarning", "当前风险较高，建议减半买入");
                 }
-                
+
                 // 连续买入频繁时，添加提示
                 if (hasFrequentBuy) {
                     suggestion.put("riskWarning", "近期买入频繁，建议谨慎操作");
                 }
-                
+
                 suggestion.put("quantity", suggestedQuantity);
                 suggestion.put("amount", suggestedAmount);
-                
+
                 suggestion.put("quantityRatio", calculateQuantityRatio(grid, strategy));
                 suggestion.put("reason", generateBuyReason(grid, currentPrice));
                 suggestions.add(suggestion);

@@ -126,7 +126,7 @@ public class ImportService {
                 updateGridLineWithoutCascade(strategy, gridLine, record);
 
                 // ✅ 记录买入交易的最小level
-                if (record.getType() == TradeType.BUY) {
+                if (record.getType().isBuy()) {
                     if (minBuyLevel == null || gridLine.getLevel() < minBuyLevel) {
                         minBuyLevel = gridLine.getLevel();
                         System.out.println("  -> 记录最小买入level: " + minBuyLevel);
@@ -167,47 +167,48 @@ public class ImportService {
     private void updateGridLineWithoutCascade(Strategy strategy, GridLine gridLine, OcrTradeRecord record) {
         System.out.println("更新网格" + gridLine.getLevel() + ": " + record.getType() +
                          " (更新前 buyCount=" + gridLine.getBuyCount() + ", sellCount=" + gridLine.getSellCount() + ")");
-        
-        switch (record.getType()) {
-            case BUY -> {
-                // 同时更新actualBuyPrice和buyPrice
-                gridLine.setActualBuyPrice(record.getPrice());
-                gridLine.setBuyPrice(record.getPrice());
 
-                // 更新买入触发价
-                BigDecimal buyTriggerPrice = record.getPrice().add(new BigDecimal("0.002"))
-                    .setScale(3, RoundingMode.DOWN);
-                gridLine.setBuyTriggerPrice(buyTriggerPrice);
+        if (record.getType().isBuy()) {
+            // 同时更新actualBuyPrice和buyPrice
+            gridLine.setActualBuyPrice(record.getPrice());
+            gridLine.setBuyPrice(record.getPrice());
 
-                Integer oldBuyCount = gridLine.getBuyCount();
-                gridLine.setBuyCount(oldBuyCount + 1);
-                System.out.println("  -> buyCount: " + oldBuyCount + " → " + gridLine.getBuyCount());
-                System.out.println("  -> buyTriggerPrice: " + buyTriggerPrice);
+            // 更新买入触发价
+            BigDecimal buyTriggerPrice = record.getPrice().add(new BigDecimal("0.002"))
+                .setScale(3, RoundingMode.DOWN);
+            gridLine.setBuyTriggerPrice(buyTriggerPrice);
 
-                if (gridLine.getState() == GridLineState.WAIT_BUY) {
-                    gridLine.setState(GridLineState.BOUGHT);
-                }
+            Integer oldBuyCount = gridLine.getBuyCount();
+            gridLine.setBuyCount(oldBuyCount + 1);
+            System.out.println("  -> buyCount: " + oldBuyCount + " → " + gridLine.getBuyCount());
+            System.out.println("  -> buyTriggerPrice: " + buyTriggerPrice);
+
+            // 只要买入次数 > 卖出次数，就保持BOUGHT状态
+            if (gridLine.getBuyCount() > gridLine.getSellCount()) {
+                gridLine.setState(GridLineState.BOUGHT);
             }
-            case SELL -> {
-                gridLine.setActualSellPrice(record.getPrice());
-                gridLine.setSellPrice(record.getPrice());
+        } else if (record.getType() == TradeType.SELL) {
+            gridLine.setActualSellPrice(record.getPrice());
+            gridLine.setSellPrice(record.getPrice());
 
-                // 更新卖出触发价
-                BigDecimal sellTriggerPrice = record.getPrice().subtract(new BigDecimal("0.002"))
-                    .setScale(3, RoundingMode.HALF_UP);
-                gridLine.setSellTriggerPrice(sellTriggerPrice);
+            // 更新卖出触发价
+            BigDecimal sellTriggerPrice = record.getPrice().subtract(new BigDecimal("0.002"))
+                .setScale(3, RoundingMode.HALF_UP);
+            gridLine.setSellTriggerPrice(sellTriggerPrice);
 
-                Integer oldSellCount = gridLine.getSellCount();
-                gridLine.setSellCount(oldSellCount + 1);
-                System.out.println("  -> sellCount: " + oldSellCount + " → " + gridLine.getSellCount());
-                System.out.println("  -> sellTriggerPrice: " + sellTriggerPrice);
+            Integer oldSellCount = gridLine.getSellCount();
+            gridLine.setSellCount(oldSellCount + 1);
+            System.out.println("  -> sellCount: " + oldSellCount + " → " + gridLine.getSellCount());
+            System.out.println("  -> sellTriggerPrice: " + sellTriggerPrice);
 
-                if (gridLine.getState() == GridLineState.BOUGHT || gridLine.getState() == GridLineState.WAIT_SELL) {
-                    gridLine.setState(GridLineState.WAIT_BUY);
-                }
+            // 卖出后判断是否还有持仓：买入次数 > 卖出次数 → 保持BOUGHT，否则改为WAIT_BUY
+            if (gridLine.getBuyCount() > gridLine.getSellCount()) {
+                gridLine.setState(GridLineState.BOUGHT);
+            } else {
+                gridLine.setState(GridLineState.WAIT_BUY);
             }
         }
-        
+
         strategyRepository.save(strategy);
     }
 

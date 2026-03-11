@@ -152,16 +152,16 @@
             @click="openFeeDialog(record)"
           >
             <div class="record-left">
-              <el-tag 
-                size="small" 
-                :type="record.type === 'BUY' ? 'danger' : 'success'"
+              <el-tag
+                size="small"
+                :type="record.type === 'SELL' ? 'success' : 'danger'"
               >
-                {{ record.type === 'BUY' ? '买入' : '卖出' }}
+                {{ record.type === 'OPENING_BUY' ? '建仓-买入' : (record.type === 'BUY' ? '买入' : '卖出') }}
               </el-tag>
               <span class="record-price">¥{{ formatPrice(record.price) }}</span>
             </div>
             <div class="record-right">
-              <span class="record-amount">{{ formatAmount(record.amount) }}元</span>
+              <span class="record-amount">{{ formatQuantity(record.quantity) }}股 · {{ formatAmount(record.amount) }}元</span>
               <span v-if="record.fee" class="record-fee">费用: ¥{{ Number(record.fee).toFixed(2) }}</span>
               <span v-else class="record-fee-hint">点击录入费用</span>
               <span class="record-time">{{ formatTime(record.tradeTime) }}</span>

@@ -53,7 +53,7 @@ public class PositionCalculator {
 
             totalFee = totalFee.add(fee);
 
-            if (record.getType() == TradeType.BUY) {
+            if (record.getType() == TradeType.BUY || record.getType() == TradeType.OPENING_BUY) {
                 totalBuyAmount = totalBuyAmount.add(amount);
                 totalBuyQuantity = totalBuyQuantity.add(quantity);
                 if (firstBuyTime == null || record.getTradeTime().isBefore(firstBuyTime)) {
@@ -68,11 +68,11 @@ public class PositionCalculator {
         }
 
         BigDecimal currentPosition = totalBuyQuantity.subtract(totalSellQuantity);
+        BigDecimal netInvestment = totalBuyAmount.subtract(totalSellAmount).add(totalFee);
 
         // 成本价 = (买入总金额 - 卖出总金额 + 总费用) / 当前持仓数量，保留3位小数
         BigDecimal costPrice = BigDecimal.ZERO;
         if (currentPosition.compareTo(BigDecimal.ZERO) > 0) {
-            BigDecimal netInvestment = totalBuyAmount.subtract(totalSellAmount).add(totalFee);
             costPrice = netInvestment.divide(currentPosition, 3, RoundingMode.HALF_UP);
         }
 
@@ -89,7 +89,7 @@ public class PositionCalculator {
 
         BigDecimal lastPrice = strategy.getLastPrice() != null ? strategy.getLastPrice() : strategy.getBasePrice();
 
-        // 持仓盈亏 = (现价 - 成本价) × 持仓数量，保留2位小数
+        // 持仓盈亏 = (现价 × 持仓数量) - 净投资，保留2位小数（避免精度损失）
         BigDecimal positionProfit = BigDecimal.ZERO;
         // 持仓盈亏百分比，保留3位小数
         BigDecimal positionProfitPercent = BigDecimal.ZERO;
@@ -97,16 +97,18 @@ public class PositionCalculator {
         BigDecimal positionRatio = BigDecimal.ZERO;
 
         if (lastPrice != null && currentPosition.compareTo(BigDecimal.ZERO) > 0) {
-            positionProfit = lastPrice.subtract(costPrice).multiply(currentPosition).setScale(2, RoundingMode.HALF_UP);
+            BigDecimal marketValue = lastPrice.multiply(currentPosition);
+            positionProfit = marketValue.subtract(netInvestment).setScale(2, RoundingMode.HALF_UP);
 
-            BigDecimal positionCost = costPrice.multiply(currentPosition);
-            if (positionCost.compareTo(BigDecimal.ZERO) > 0) {
-                positionProfitPercent = positionProfit.divide(positionCost, 5, RoundingMode.HALF_UP)
-                        .multiply(new BigDecimal("100")).setScale(3, RoundingMode.HALF_UP);
+            // 盈亏比例 = (现价 - 成本价)/成本价 × 100%，和券商显示逻辑完全一致
+            if (costPrice.compareTo(BigDecimal.ZERO) > 0) {
+                positionProfitPercent = lastPrice.subtract(costPrice)
+                        .divide(costPrice, 8, RoundingMode.HALF_UP)
+                        .multiply(new BigDecimal("100"))
+                        .setScale(3, RoundingMode.HALF_UP);
             }
 
             if (strategy.getMaxCapital() != null && strategy.getMaxCapital().compareTo(BigDecimal.ZERO) > 0) {
-                BigDecimal marketValue = lastPrice.multiply(currentPosition);
                 positionRatio = marketValue.divide(strategy.getMaxCapital(), 6, RoundingMode.HALF_UP)
                         .multiply(new BigDecimal("100")).setScale(2, RoundingMode.HALF_UP);
             }
@@ -189,25 +191,31 @@ public class PositionCalculator {
         strategy.setLastPrice(newLastPrice);
 
         BigDecimal currentPosition = strategy.getPosition();
-        BigDecimal costPrice = strategy.getCostPrice() != null ? strategy.getCostPrice() : BigDecimal.ZERO;
+        BigDecimal totalBuyAmount = strategy.getTotalBuyAmount() != null ? strategy.getTotalBuyAmount() : BigDecimal.ZERO;
+        BigDecimal totalSellAmount = strategy.getTotalSellAmount() != null ? strategy.getTotalSellAmount() : BigDecimal.ZERO;
+        BigDecimal totalFee = strategy.getTotalFee() != null ? strategy.getTotalFee() : BigDecimal.ZERO;
+        BigDecimal netInvestment = totalBuyAmount.subtract(totalSellAmount).add(totalFee);
 
         if (currentPosition == null || currentPosition.compareTo(BigDecimal.ZERO) <= 0) {
             System.out.println("[PositionCalculator] updateByLastPrice: 无持仓，跳过计算");
             return;
         }
 
-        BigDecimal positionProfit = newLastPrice.subtract(costPrice).multiply(currentPosition).setScale(2, RoundingMode.HALF_UP);
+        BigDecimal marketValue = newLastPrice.multiply(currentPosition);
+        BigDecimal positionProfit = marketValue.subtract(netInvestment).setScale(2, RoundingMode.HALF_UP);
         strategy.setPositionProfit(positionProfit);
 
-        BigDecimal positionCost = costPrice.multiply(currentPosition);
-        if (positionCost.compareTo(BigDecimal.ZERO) > 0) {
-            BigDecimal positionProfitPercent = positionProfit.divide(positionCost, 5, RoundingMode.HALF_UP)
-                    .multiply(new BigDecimal("100")).setScale(3, RoundingMode.HALF_UP);
+        BigDecimal costPrice = strategy.getCostPrice() != null ? strategy.getCostPrice() : BigDecimal.ZERO;
+        // 盈亏比例 = (现价 - 成本价)/成本价 × 100%，和券商显示逻辑完全一致
+        if (costPrice.compareTo(BigDecimal.ZERO) > 0) {
+            BigDecimal positionProfitPercent = newLastPrice.subtract(costPrice)
+                    .divide(costPrice, 8, RoundingMode.HALF_UP)
+                    .multiply(new BigDecimal("100"))
+                    .setScale(3, RoundingMode.HALF_UP);
             strategy.setPositionProfitPercent(positionProfitPercent);
         }
 
         if (strategy.getMaxCapital() != null && strategy.getMaxCapital().compareTo(BigDecimal.ZERO) > 0) {
-            BigDecimal marketValue = newLastPrice.multiply(currentPosition);
             BigDecimal positionRatio = marketValue.divide(strategy.getMaxCapital(), 6, RoundingMode.HALF_UP)
                     .multiply(new BigDecimal("100")).setScale(2, RoundingMode.HALF_UP);
             strategy.setPositionRatio(positionRatio);

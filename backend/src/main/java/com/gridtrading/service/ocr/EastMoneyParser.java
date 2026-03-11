@@ -206,6 +206,9 @@ public class EastMoneyParser {
                 String upper = line.toUpperCase(Locale.ROOT);
                 if (line.contains("卖出") || upper.contains("SELL")) {
                     type = TradeType.SELL;
+                } else if (line.contains("建仓") && (line.contains("买入") || upper.contains("BUY"))) {
+                    // 识别"建仓-买入"类型
+                    type = TradeType.OPENING_BUY;
                 } else if (line.contains("买入") || upper.contains("BUY")) {
                     type = TradeType.BUY;
                 }
