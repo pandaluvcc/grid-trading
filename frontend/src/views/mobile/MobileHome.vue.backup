@@ -62,6 +62,38 @@
       </div>
     </div>
 
+    <!-- 快速操作区（保留作为备用） -->
+    <div class="action-area" v-if="false">
+      <!-- 待操作提示 -->
+      <div class="pending-section" v-if="pendingGrid">
+        <div class="pending-card" @click="goToRecord(pendingGrid)">
+          <div class="pending-icon">
+            <el-icon v-if="pendingGrid.action === 'buy'"><Bottom /></el-icon>
+            <el-icon v-else><Top /></el-icon>
+          </div>
+          <div class="pending-info">
+            <div class="pending-title">
+              {{ pendingGrid.action === 'buy' ? '建议买入' : '建议卖出' }}
+            </div>
+            <div class="pending-detail">
+              第{{ pendingGrid.level }}格 · {{ pendingGrid.type }}网 · 
+              ¥{{ formatPrice(pendingGrid.price) }}
+            </div>
+          </div>
+          <div class="pending-action">
+            <span>去录入</span>
+            <el-icon><ArrowRight /></el-icon>
+          </div>
+        </div>
+      </div>
+
+      <!-- 无待操作时 -->
+      <div class="no-pending" v-else>
+        <el-icon><CircleCheck /></el-icon>
+        <span>暂无待操作网格</span>
+      </div>
+    </div>
+
     <!-- 策略列表 -->
     <div class="strategy-section">
       <div class="section-header">
@@ -89,6 +121,7 @@
             </div>
             <div class="card-status">
               <div class="strategy-icons" v-if="strategySuggestions[s.id]">
+                <!-- 风险提示图标 -->
                 <el-tooltip
                   v-if="getStrategyRisks(s.id).length > 0"
                   :content="formatRisksTooltip(s.id)"
@@ -100,6 +133,8 @@
                     <span class="icon-count">{{ getStrategyRisks(s.id).length }}</span>
                   </span>
                 </el-tooltip>
+
+                <!-- 建议操作数量图标 -->
                 <el-tooltip
                   v-if="getStrategySuggestionsCount(s.id) > 0"
                   :content="`有${getStrategySuggestionsCount(s.id)}条建议操作`"
@@ -121,6 +156,7 @@
             </div>
           </div>
 
+          <!-- 价格信息 -->
           <div class="price-row">
             <span class="current-price">¥{{ formatPrice(s.lastPrice || s.basePrice) }}</span>
             <span class="price-change" :class="getPriceChangeClass(s)">
@@ -128,6 +164,7 @@
             </span>
           </div>
 
+          <!-- 统计信息 -->
           <div class="stats-row">
             <div class="stat-item">
               <span class="stat-label">成本</span>
@@ -149,12 +186,14 @@
             </div>
           </div>
 
+          <!-- 触发提醒 -->
           <div class="strategy-alerts" v-if="s.triggerCount > 0">
             <el-icon color="#ff9800"><BellFilled /></el-icon>
             <span>{{ s.triggerCount }}条触发提醒</span>
             <span class="alert-detail">{{ formatTriggers(s.triggers) }}</span>
           </div>
 
+          <!-- 建议预览 -->
           <div class="suggestion-preview" v-if="getTopSuggestion(s.id)">
             <div class="preview-header">
               <div class="preview-content">
@@ -164,7 +203,7 @@
                   第{{ getTopSuggestion(s.id).gridLevel }}网 · ¥{{ formatPrice(getTopSuggestion(s.id).price) }}
                 </span>
                 <span class="more-suggestions-inline" v-if="getMoreSuggestionsCount(s.id) > 0" @click.stop="goToDetail(s)">
-                  还有{{ getMoreSuggestionsCount(s.id) }}条建议 >
+                  还有{{ getMoreSuggestionsCount(s.id) }}条建议 &gt;
                 </span>
               </div>
             </div>
@@ -190,6 +229,7 @@
           class="strategy-card-module"
           @click="goToDetail(s)"
         >
+          <!-- 卡片头部 -->
           <div class="module-header">
             <div class="module-title">
               <div class="strategy-name">{{ s.name || s.symbol }}</div>
@@ -203,11 +243,13 @@
             </el-tag>
           </div>
 
+          <!-- 风险提示 -->
           <div class="risk-section" v-if="getStrategyRisks(s.id).length > 0">
             <el-icon color="#e6a23c"><Warning /></el-icon>
             <span>{{ getStrategyRisks(s.id).length }}条风险提示</span>
           </div>
 
+          <!-- 价格模块 -->
           <div class="price-module">
             <div class="price-label">现价</div>
             <div class="price-content">
@@ -218,6 +260,7 @@
             </div>
           </div>
 
+          <!-- 核心数据模块 -->
           <div class="core-stats">
             <div class="stat-box">
               <div class="stat-label">成本</div>
@@ -242,6 +285,7 @@
             </div>
           </div>
 
+          <!-- 智能建议模块 -->
           <div class="suggestion-module" v-if="getTopSuggestion(s.id)">
             <div class="suggestion-header">
               <span class="suggestion-title">智能建议</span>
@@ -260,6 +304,7 @@
             </div>
           </div>
 
+          <!-- 触发提醒 -->
           <div class="alert-module" v-if="s.triggerCount > 0">
             <el-icon color="#ff9800"><BellFilled /></el-icon>
             <span>{{ s.triggerCount }}条触发提醒</span>
@@ -275,6 +320,7 @@
           class="strategy-card-waterfall"
           @click="goToDetail(s)"
         >
+          <!-- 策略基本信息 -->
           <div class="waterfall-header">
             <div class="strategy-info">
               <div class="strategy-name">{{ s.name || s.symbol }}</div>
@@ -314,6 +360,7 @@
             </div>
           </div>
 
+          <!-- 价格区块 -->
           <div class="price-block">
             <div class="price-display">
               <span class="price-label">当前价格</span>
@@ -324,6 +371,7 @@
             </div>
           </div>
 
+          <!-- 详细统计 -->
           <div class="detailed-stats">
             <div class="stat-row">
               <span class="stat-label">成本价</span>
@@ -354,9 +402,10 @@
             </div>
           </div>
 
+          <!-- 建议操作 -->
           <div class="suggestion-block" v-if="getTopSuggestion(s.id)">
             <div class="suggestion-title">
-              <el-icon><InfoFilled /></el-icon>
+              <el-icon><Lightbulb /></el-icon>
               <span>智能建议</span>
             </div>
             <div class="suggestion-content">
@@ -377,6 +426,7 @@
             </div>
           </div>
 
+          <!-- 触发提醒 -->
           <div class="alert-block" v-if="s.triggerCount > 0">
             <el-icon color="#ff9800"><BellFilled /></el-icon>
             <span>{{ s.triggerCount }}条触发提醒</span>
@@ -384,258 +434,119 @@
           </div>
         </div>
       </div>
-
-      <!-- 方案4：极致纯列表 -->
-      <div v-if="currentLayout === 'extremelist'" class="layout-extremelist">
-        <div
-          v-for="s in strategies"
-          :key="s.id"
-          class="strategy-item-extremelist"
-          @click="goToDetail(s)"
-        >
-          <div class="item-row-first">
-            <div class="item-left">
-              <el-tag
-                size="small"
-                :type="s.status === 'RUNNING' ? 'success' : 'info'"
-                class="status-tag"
-              >
-                {{ s.status === 'RUNNING' ? '运行中' : '已停止' }}
-              </el-tag>
-              <span class="name-text">{{ s.name || s.symbol }}</span>
-              <span class="code-text" v-if="s.name">{{ s.symbol }}</span>
+          <div class="strategy-header">
+            <div class="strategy-title">
+              <div class="strategy-name">{{ s.name || s.symbol }}</div>
+              <div class="strategy-code" v-if="s.name">{{ s.symbol }}</div>
             </div>
-            <div class="item-right">
-              <span class="price-main">¥{{ formatPrice(s.lastPrice || s.basePrice) }}</span>
-              <span class="price-change" :class="getPriceChangeClass(s)">
-                {{ formatPriceChange(s) }}
-              </span>
-            </div>
-          </div>
-          <div class="item-row-second">
-            <div class="data-item">
-              <span class="data-label">成本</span>
-              <span class="data-value">¥{{ formatPrice(s.costPrice) }}</span>
-            </div>
-            <div class="data-item">
-              <span class="data-label">持仓</span>
-              <span class="data-value">{{ formatQuantity(s.position) }}股</span>
-            </div>
-            <div class="data-item">
-              <span class="data-label">仓位</span>
-              <span class="data-value">{{ calculatePositionRatio(s) }}%</span>
-            </div>
-            <div class="data-item">
-              <span class="data-label">市值</span>
-              <span class="data-value">¥{{ formatAmount(s.marketValue || (s.position * (s.lastPrice || s.basePrice))) }}</span>
-            </div>
-            <div class="data-item profit-item">
-              <span class="data-label">盈亏</span>
-              <span class="data-value" :class="{ negative: s.positionProfit < 0 }">
-                {{ formatProfit(s.positionProfit) }}
-              </span>
-            </div>
-            <div class="data-item profit-item">
-              <span class="data-label">比例</span>
-              <span class="data-value" :class="{ negative: s.positionProfitPercent < 0 }">
-                {{ formatProfitPercent(s.positionProfitPercent) }}
-              </span>
-            </div>
-            <div class="icons-wrapper" v-if="strategySuggestions[s.id]">
-              <el-tooltip
-                v-if="getStrategyRisks(s.id).length > 0"
-                :content="formatRisksTooltip(s.id)"
-                placement="top"
-                effect="dark"
-              >
-                <span class="tiny-icon" @click.stop>
-                  <el-icon color="#e6a23c" size="14"><Warning /></el-icon>
-                </span>
-              </el-tooltip>
-              <el-tooltip
-                v-if="getStrategySuggestionsCount(s.id) > 0"
-                :content="`有${getStrategySuggestionsCount(s.id)}条建议操作`"
-                placement="top"
-                effect="dark"
-              >
-                <span class="tiny-icon" @click.stop>
-                  <el-icon color="#409eff" size="14"><Bell /></el-icon>
-                </span>
-              </el-tooltip>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- 方案5：极简双栏列表 -->
-      <div v-if="currentLayout === 'minimalist'" class="layout-minimalist">
-        <div
-          v-for="s in strategies"
-          :key="s.id"
-          class="strategy-item-minimalist"
-          @click="goToDetail(s)"
-        >
-          <div class="column-left">
-            <div class="top-line">
-              <el-tag
-                size="small"
-                :type="s.status === 'RUNNING' ? 'success' : 'info'"
-                class="status-tag"
-              >
-                {{ s.status === 'RUNNING' ? '运行中' : '已停止' }}
-              </el-tag>
-              <span class="name-text">{{ s.name || s.symbol }}</span>
-              <span class="code-text" v-if="s.name">{{ s.symbol }}</span>
-              <div class="inline-icons" v-if="strategySuggestions[s.id]">
-                <el-tooltip
+            <div class="strategy-header-right">
+              <div class="strategy-icons" v-if="strategySuggestions[s.id]">
+                <!-- 风险提示图标 -->
+                <el-tooltip 
                   v-if="getStrategyRisks(s.id).length > 0"
                   :content="formatRisksTooltip(s.id)"
                   placement="top"
                   effect="dark"
                 >
-                  <span class="mini-icon" @click.stop>
-                    <el-icon color="#e6a23c" size="14"><Warning /></el-icon>
+                  <span class="suggestion-icon risk-icon" @click.stop>
+                    <el-icon color="#e6a23c"><Warning /></el-icon>
+                    <span class="icon-count">{{ getStrategyRisks(s.id).length }}</span>
                   </span>
                 </el-tooltip>
-                <el-tooltip
+
+                <!-- 建议操作数量图标 -->
+                <el-tooltip 
                   v-if="getStrategySuggestionsCount(s.id) > 0"
                   :content="`有${getStrategySuggestionsCount(s.id)}条建议操作`"
                   placement="top"
                   effect="dark"
                 >
-                  <span class="mini-icon" @click.stop>
-                    <el-icon color="#409eff" size="14"><Bell /></el-icon>
+                  <span class="suggestion-icon action-icon" @click.stop>
+                    <el-icon color="#409eff"><Bell /></el-icon>
+                    <span class="icon-count">{{ getStrategySuggestionsCount(s.id) }}</span>
                   </span>
                 </el-tooltip>
               </div>
-            </div>
-            <div class="bottom-line">
-              <span class="price-text">¥{{ formatPrice(s.lastPrice || s.basePrice) }}</span>
-              <span class="change-text" :class="getPriceChangeClass(s)">
-                {{ formatPriceChange(s) }}
-              </span>
-              <span class="divider">|</span>
-              <span class="cost-label">成本</span>
-              <span class="cost-value">¥{{ formatPrice(s.costPrice) }}</span>
-              <span class="divider">|</span>
-              <span class="pos-label">持仓</span>
-              <span class="pos-value">{{ formatQuantity(s.position) }}股</span>
-              <span class="divider">|</span>
-              <span class="ratio-label">仓位</span>
-              <span class="ratio-value">{{ calculatePositionRatio(s) }}%</span>
+              <el-tag 
+                size="small" 
+                :type="s.status === 'RUNNING' ? 'success' : 'info'"
+              >
+                {{ s.status === 'RUNNING' ? '运行中' : '已停止' }}
+              </el-tag>
             </div>
           </div>
-          <div class="column-right">
-            <div class="market-value">
-              <span class="mv-label">市值</span>
-              <span class="mv-value">¥{{ formatAmount(s.marketValue || (s.position * (s.lastPrice || s.basePrice))) }}</span>
-            </div>
-            <div class="profit-row">
-              <span class="profit-value" :class="{ negative: s.positionProfit < 0 }">
-                {{ formatProfit(s.positionProfit) }}
-              </span>
-              <span class="profit-percent" :class="{ negative: s.positionProfitPercent < 0 }">
-                {{ formatProfitPercent(s.positionProfitPercent) }}
-              </span>
-            </div>
-          </div>
-        </div>
-      </div>
 
-      <!-- 方案6：东方财富表格 -->
-      <div v-if="currentLayout === 'eastmoney'" class="layout-eastmoney">
-        <!-- 固定表头 -->
-        <div class="eastmoney-header">
-          <div class="header-col col-1">策略名称/市值</div>
-          <div class="header-col col-2">持仓/仓位</div>
-          <div class="header-col col-3">现价/成本</div>
-          <div class="header-col col-4">持仓盈亏</div>
-        </div>
-        <!-- 策略列表 -->
-        <div class="eastmoney-body">
-          <div
-            v-for="s in strategies"
-            :key="s.id"
-            class="eastmoney-item"
-            @click="goToDetail(s)"
-          >
-            <!-- 第一行：核心字段 -->
-            <div class="item-row-first">
-              <div class="item-col col-1">
-                <div class="name-wrapper">
-                  <el-tag
-                    size="small"
-                    :type="s.status === 'RUNNING' ? 'success' : 'info'"
-                    class="status-tag"
-                  >
-                    {{ s.status === 'RUNNING' ? '运行中' : '已停止' }}
-                  </el-tag>
-                  <span class="strategy-name">{{ s.name || s.symbol }}</span>
-                  <span class="strategy-code" v-if="s.name">{{ s.symbol }}</span>
-                </div>
-                <div class="market-value-cell">
-                  ¥{{ formatAmount(s.marketValue || (s.position * (s.lastPrice || s.basePrice))) }}
-                </div>
-              </div>
-              <div class="item-col col-2">
-                <div class="position-cell">{{ formatQuantity(s.position) }}股</div>
-                <div class="ratio-cell">{{ calculatePositionRatio(s) }}%</div>
-              </div>
-              <div class="item-col col-3">
-                <div class="price-cell">¥{{ formatPrice(s.lastPrice || s.basePrice) }}</div>
-                <div class="cost-cell">¥{{ formatPrice(s.costPrice) }}</div>
-              </div>
-              <div class="item-col col-4">
-                <div class="profit-cell" :class="{ negative: s.positionProfit < 0 }">
+          <!-- 现价和涨跌 -->
+          <div class="strategy-price">
+            <span class="price">现价 ¥{{ formatPrice(s.lastPrice || s.basePrice) }}</span>
+            <span class="price-change" :class="getPriceChangeClass(s)">
+              {{ formatPriceChange(s) }}
+            </span>
+          </div>
+
+          <!-- 统计信息 -->
+          <div class="strategy-stats">
+            <div class="stat-item">
+              <span class="stat-label">成本</span>
+              <span class="stat-value">¥{{ formatPrice(s.costPrice) }}</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-label">持仓</span>
+              <span class="stat-value">{{ formatQuantity(s.position) }}股</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-label">仓位</span>
+              <span class="stat-value">{{ formatPositionRatio(s.positionRatio) }}%</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-label">市值</span>
+              <span class="stat-value">¥{{ formatAmount(s.marketValue || (s.position * (s.lastPrice || s.basePrice))) }}</span>
+            </div>
+            <div class="stat-item profit-item">
+              <span class="stat-label">盈亏</span>
+              <div class="profit-group">
+                <span class="stat-value profit" :class="{ negative: s.positionProfit < 0 }">
                   {{ formatProfit(s.positionProfit) }}
-                </div>
-                <div class="profit-percent-cell" :class="{ negative: s.positionProfitPercent < 0 }">
+                </span>
+                <span class="profit-percent" :class="{ negative: s.positionProfitPercent < 0 }">
                   {{ formatProfitPercent(s.positionProfitPercent) }}
-                </div>
+                </span>
               </div>
             </div>
-            <!-- 第二行：辅助字段 -->
-            <div class="item-row-second">
-              <div class="second-line-left">
-                <div class="price-change-cell" :class="getPriceChangeClass(s)">
-                  {{ formatPriceChange(s) }}
-                </div>
-                <div class="icons-wrapper" v-if="strategySuggestions[s.id]">
-                  <el-tooltip
-                    v-if="getStrategyRisks(s.id).length > 0"
-                    :content="formatRisksTooltip(s.id)"
-                    placement="top"
-                    effect="dark"
-                  >
-                    <span class="tiny-icon" @click.stop>
-                      <el-icon color="#e6a23c" size="14"><Warning /></el-icon>
-                    </span>
-                  </el-tooltip>
-                  <el-tooltip
-                    v-if="getStrategySuggestionsCount(s.id) > 0"
-                    :content="`有${getStrategySuggestionsCount(s.id)}条建议操作`"
-                    placement="top"
-                    effect="dark"
-                  >
-                    <span class="tiny-icon" @click.stop>
-                      <el-icon color="#409eff" size="14"><Bell /></el-icon>
-                    </span>
-                  </el-tooltip>
-                </div>
-                <div class="trigger-cell" v-if="s.triggerCount > 0">
-                  <el-icon color="#ff9800" size="14"><BellFilled /></el-icon>
-                  {{ s.triggerCount }}条提醒
-                </div>
-              </div>
-              <div class="second-line-right" v-if="getTopSuggestion(s.id)">
-                <span class="suggestion-text">
-                  💡 {{ getTopSuggestion(s.id).type === 'BUY' ? '建议买入' : '建议卖出' }}
-                  第{{ getTopSuggestion(s.id).gridLevel }}网
+          </div>
+
+
+
+          <!-- 触发提醒 -->
+          <div class="strategy-alerts" v-if="s.triggerCount > 0">
+            <el-icon color="#ff9800"><BellFilled /></el-icon>
+            <span>{{ s.triggerCount }}条触发提醒</span>
+            <span class="alert-detail">{{ formatTriggers(s.triggers) }}</span>
+          </div>
+
+          <!-- 建议预览卡片（方案A：底部建议条） -->
+          <div class="suggestion-preview" v-if="getTopSuggestion(s.id)">
+            <div class="preview-header">
+              <div class="preview-content">
+                <span class="preview-icon">💡</span>
+                <span class="preview-text">
+                  {{ getTopSuggestion(s.id).type === 'BUY' ? '建议买入' : '建议卖出' }}
+                  第{{ getTopSuggestion(s.id).gridLevel }}网 · ¥{{ formatPrice(getTopSuggestion(s.id).price) }}
                 </span>
-                <el-button size="small" type="primary" class="quick-exec-btn" @click.stop="quickExecute(s, getTopSuggestion(s.id))">
-                  执行
-                </el-button>
+                <span class="more-suggestions-inline" v-if="getMoreSuggestionsCount(s.id) > 0" @click.stop="goToDetail(s)">
+                  还有{{ getMoreSuggestionsCount(s.id) }}条建议 &gt;
+                </span>
               </div>
+            </div>
+            <div class="preview-actions">
+              <el-button size="small" text @click.stop="goToDetail(s)">详情</el-button>
+              <el-button 
+                size="small" 
+                type="primary" 
+                @click.stop="quickExecute(s, getTopSuggestion(s.id))"
+              >
+                执行
+              </el-button>
             </div>
           </div>
         </div>
@@ -672,7 +583,7 @@
             <span class="value">¥{{ formatAmount(currentSuggestion.amount) }}</span>
           </div>
         </div>
-
+        
         <div class="input-section">
           <div class="input-group">
             <label>交易时间</label>
@@ -699,7 +610,7 @@
           </div>
         </div>
       </div>
-
+      
       <template #footer>
         <el-button @click="cancelExecute">取消</el-button>
         <el-button type="primary" :loading="executing" @click="confirmExecute">
@@ -716,9 +627,9 @@
       :close-on-click-modal="false"
     >
       <div class="batch-update-content">
-        <div
-          v-for="s in strategies"
-          :key="s.id"
+        <div 
+          v-for="s in strategies" 
+          :key="s.id" 
           class="price-update-item"
         >
           <div class="update-item-header">
@@ -752,32 +663,22 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import {
-  RefreshRight, BellFilled, Warning, Bell, Plus, InfoFilled
+import { 
+  RefreshRight, BellFilled, Warning, Bell
 } from '@element-plus/icons-vue'
 import { getAllStrategies, updateStrategyLastPrice, getSmartSuggestions, executeTick } from '../../api'
 import MobileLayout from './MobileLayout.vue'
 
 const router = useRouter()
 
-// 布局配置
-const currentLayout = ref('compact')
-const layouts = [
-  { id: 'compact', name: '方案1：紧凑布局' },
-  { id: 'module', name: '方案2：模块化布局' },
-  { id: 'waterfall', name: '方案3：瀑布流布局' },
-  { id: 'extremelist', name: '方案4：极致纯列表' },
-  { id: 'minimalist', name: '方案5：极简双栏列表' },
-  { id: 'eastmoney', name: '方案6：东方财富表格' }
-]
-
 const strategies = ref([])
 const loading = ref(false)
 const batchUpdateDialogVisible = ref(false)
 const priceInputs = ref({})
 const updating = ref(false)
-const strategySuggestions = ref({})
+const strategySuggestions = ref({}) // 存储每个策略的智能建议
 
+// 执行确认弹窗相关状态
 const executeDialogVisible = ref(false)
 const currentSuggestion = ref(null)
 const currentStrategy = ref(null)
@@ -785,10 +686,12 @@ const tradeTime = ref('')
 const feeInput = ref('')
 const executing = ref(false)
 
+// 总收益
 const totalProfit = computed(() => {
   return strategies.value.reduce((sum, s) => sum + Number(s.realizedProfit || 0), 0)
 })
 
+// 总市值
 const totalMarketValue = computed(() => {
   return strategies.value.reduce((sum, s) => {
     const lastPrice = Number(s.lastPrice || s.basePrice || 0)
@@ -797,12 +700,15 @@ const totalMarketValue = computed(() => {
   }, 0)
 })
 
+// 总持仓盈亏
 const totalPositionProfit = computed(() => {
   return strategies.value.reduce((sum, s) => sum + Number(s.positionProfit || 0), 0)
 })
 
+// 今日收益（模拟，实际需要后端支持）
 const todayProfit = computed(() => 0)
 
+// 总建议数量
 const totalSuggestionsCount = computed(() => {
   let count = 0
   for (const strategyId in strategySuggestions.value) {
@@ -811,7 +717,9 @@ const totalSuggestionsCount = computed(() => {
   return count
 })
 
+// 显示批量更新弹窗
 const showBatchUpdateDialog = () => {
+  // 初始化价格输入框，默认为上次价格或基准价
   priceInputs.value = {}
   strategies.value.forEach(s => {
     priceInputs.value[s.id] = s.lastPrice || s.basePrice
@@ -819,6 +727,7 @@ const showBatchUpdateDialog = () => {
   batchUpdateDialogVisible.value = true
 }
 
+// 批量更新价格
 const handleBatchUpdate = async () => {
   updating.value = true
   try {
@@ -834,11 +743,13 @@ const handleBatchUpdate = async () => {
         )
       }
     }
-
+    
     await Promise.all(updates)
-
+    
     ElMessage.success(`已更新 ${updates.length} 个策略的价格`)
     batchUpdateDialogVisible.value = false
+    
+    // 重新加载数据以获取触发提醒
     await loadData()
   } catch (error) {
     console.error('批量更新失败:', error)
@@ -848,12 +759,14 @@ const handleBatchUpdate = async () => {
   }
 }
 
+// 计算持仓比例
 const calculatePositionRatio = (s) => {
   if (!s.maxCapital || s.maxCapital == 0) return 0
   const invested = s.investedAmount || 0
   return ((invested / s.maxCapital) * 100).toFixed(1)
 }
 
+// 获取涨跌样式
 const getPriceChangeClass = (s) => {
   if (!s.lastPrice) return ''
   const change = s.lastPrice - s.basePrice
@@ -862,6 +775,7 @@ const getPriceChangeClass = (s) => {
   return ''
 }
 
+// 格式化涨跌
 const formatPriceChange = (s) => {
   if (!s.lastPrice) return ''
   const change = s.lastPrice - s.basePrice
@@ -870,22 +784,25 @@ const formatPriceChange = (s) => {
   return `${changeStr} (${changePercent}%)`
 }
 
+// 格式化触发提醒
 const formatTriggers = (triggers) => {
   if (!triggers || triggers.length === 0) return ''
   const types = triggers.map(t => t.action === 'BUY' ? '买入' : '卖出')
   return types.join('、')
 }
 
+// 加载数据
 const loadData = async () => {
   loading.value = true
   try {
     const res = await getAllStrategies()
     strategies.value = res.data.map(s => ({
       ...s,
-      triggerCount: 0,
-      triggers: []
+      triggerCount: 0, // TODO: 从后端获取触发提醒数量
+      triggers: [] // TODO: 从后端获取触发提醒列表
     }))
-
+    
+    // 为每个策略获取智能建议
     await loadSuggestionsForStrategies()
   } catch (error) {
     console.error('加载失败:', error)
@@ -895,6 +812,7 @@ const loadData = async () => {
   }
 }
 
+// 为所有策略加载智能建议
 const loadSuggestionsForStrategies = async () => {
   for (const s of strategies.value) {
     if (s.lastPrice) {
@@ -909,26 +827,31 @@ const loadSuggestionsForStrategies = async () => {
   }
 }
 
+// 获取策略的风险提示
 const getStrategyRisks = (strategyId) => {
   const suggestion = strategySuggestions.value[strategyId]
   return suggestion?.risks || []
 }
 
+// 获取策略的建议操作数量
 const getStrategySuggestionsCount = (strategyId) => {
   const suggestion = strategySuggestions.value[strategyId]
   return suggestion?.suggestions?.length || 0
 }
 
+// 格式化风险提示文字
 const formatRisksTooltip = (strategyId) => {
   const risks = getStrategyRisks(strategyId)
   if (risks.length === 0) return ''
   return risks.map(r => r.message).join('\n')
 }
 
+// 去详情
 const goToDetail = (s) => {
   router.push(`/m/strategy/${s.id}`)
 }
 
+// 快速录入
 const goToQuickRecord = () => {
   if (strategies.value.length > 0) {
     router.push(`/m/record?strategyId=${strategies.value[0].id}`)
@@ -938,14 +861,17 @@ const goToQuickRecord = () => {
   }
 }
 
+// 查看历史
 const goToHistory = () => {
   router.push('/m/history')
 }
 
+// 创建策略
 const goToCreate = () => {
   router.push('/m/create')
 }
 
+// 格式化
 const formatProfit = (val) => {
   if (val == null) return '0.00'
   const num = Number(val)
@@ -978,6 +904,7 @@ const formatProfitPercent = (val) => {
   return (num >= 0 ? '+' : '') + num.toFixed(3) + '%'
 }
 
+// 获取策略的顶级建议
 const getTopSuggestion = (strategyId) => {
   const suggestion = strategySuggestions.value[strategyId]
   if (!suggestion || !suggestion.suggestions || suggestion.suggestions.length === 0) {
@@ -986,6 +913,7 @@ const getTopSuggestion = (strategyId) => {
   return suggestion.suggestions[0]
 }
 
+// 获取剩余建议数量
 const getMoreSuggestionsCount = (strategyId) => {
   const suggestion = strategySuggestions.value[strategyId]
   if (!suggestion || !suggestion.suggestions) {
@@ -1003,10 +931,12 @@ const getGridTypeName = (type) => {
   return map[type] || type
 }
 
+// 前往消息中心
 const goToMessageCenter = () => {
   router.push('/m/messages')
 }
 
+// 快速执行
 const quickExecute = (strategy, suggestion) => {
   currentStrategy.value = strategy
   currentSuggestion.value = suggestion
@@ -1022,12 +952,14 @@ const quickExecute = (strategy, suggestion) => {
   executeDialogVisible.value = true
 }
 
+// 取消执行
 const cancelExecute = () => {
   executeDialogVisible.value = false
   currentSuggestion.value = null
   currentStrategy.value = null
 }
 
+// 确认执行
 const confirmExecute = async () => {
   if (!tradeTime.value) {
     ElMessage.warning('请选择交易时间')
@@ -1067,6 +999,7 @@ onMounted(() => {
 </script>
 
 <style scoped>
+/* 顶部区域 */
 .header-area {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   padding: 16px;
@@ -1151,40 +1084,82 @@ onMounted(() => {
   margin-top: 8px;
 }
 
-.layout-switcher {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 16px;
+/* 快速操作区 */
+.action-area {
+  margin-top: -20px;
+}
+
+.pending-card {
   background: #fff;
-  padding: 8px;
-  border-radius: 12px;
-  box-shadow: 0 2px 12px rgba(0,0,0,0.08);
-  overflow-x: auto;
-}
-
-.layout-btn {
-  flex: 1;
-  padding: 8px 12px;
-  background: #f5f7fa;
-  border-radius: 8px;
-  font-size: 13px;
-  text-align: center;
+  border-radius: 16px;
+  padding: 16px;
+  display: flex;
+  align-items: center;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.08);
   cursor: pointer;
-  transition: all 0.3s;
-  white-space: nowrap;
 }
 
-.layout-btn:hover {
-  background: #e6e8eb;
+.pending-card:active {
+  transform: scale(0.98);
 }
 
-.layout-btn.active {
-  background: #667eea;
+.pending-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
   color: #fff;
+  font-size: 22px;
+  margin-right: 12px;
 }
 
+.pending-info {
+  flex: 1;
+}
+
+.pending-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #303133;
+  margin-bottom: 4px;
+}
+
+.pending-detail {
+  font-size: 13px;
+  color: #909399;
+}
+
+.pending-action {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: #667eea;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.no-pending {
+  background: #fff;
+  border-radius: 16px;
+  padding: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: #67c23a;
+  font-size: 15px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+}
+
+.no-pending .el-icon {
+  font-size: 20px;
+}
+
+/* 策略列表 */
 .strategy-section {
-  margin-bottom: 20px;
 }
 
 .section-header {
@@ -1228,14 +1203,13 @@ onMounted(() => {
   opacity: 0.8;
 }
 
-/* 方案1：紧凑布局 */
-.layout-compact {
+.strategy-list {
   display: flex;
   flex-direction: column;
   gap: 12px;
 }
 
-.strategy-card-compact {
+.strategy-item {
   background: #fff;
   border-radius: 12px;
   padding: 14px;
@@ -1244,18 +1218,31 @@ onMounted(() => {
   transition: all 0.3s;
 }
 
-.strategy-card-compact:active {
+.strategy-item:active {
   transform: scale(0.98);
 }
 
-.card-top {
+.strategy-header {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
   margin-bottom: 10px;
 }
 
-.card-title {
+.strategy-header-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+}
+
+.strategy-icons {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.strategy-title {
   flex: 1;
 }
 
@@ -1271,17 +1258,86 @@ onMounted(() => {
   margin-top: 2px;
 }
 
-.card-status {
+.strategy-price {
   display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 6px;
+  justify-content: space-between;
+  align-items: center;
+  margin: 10px 0;
+  padding: 8px 0;
+  border-bottom: 1px solid #f0f0f0;
 }
 
-.strategy-icons {
-  display: flex;
-  align-items: center;
+.strategy-price .price {
+  font-size: 18px;
+  font-weight: 700;
+  color: #303133;
+}
+
+.strategy-price .price-change {
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.strategy-price .price-change.up {
+  color: #f56c6c;
+}
+
+.strategy-price .price-change.down {
+  color: #67c23a;
+}
+
+.strategy-stats {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
   gap: 6px;
+  margin: 10px 0;
+}
+
+.stat-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.stat-item.profit-item {
+  align-items: center;
+}
+
+.profit-group {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.stat-label {
+  font-size: 12px;
+  color: #909399;
+  margin-bottom: 4px;
+}
+
+.stat-value {
+  font-size: 14px;
+  font-weight: 600;
+  color: #303133;
+}
+
+.stat-value.profit {
+  color: #f56c6c;
+}
+
+.stat-value.negative {
+  color: #67c23a;
+}
+
+.profit-percent {
+  font-size: 12px;
+  font-weight: 500;
+  color: #f56c6c;
+}
+
+.profit-percent.negative {
+  color: #67c23a;
 }
 
 .suggestion-icon {
@@ -1312,68 +1368,6 @@ onMounted(() => {
   color: #409eff;
 }
 
-.price-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin: 10px 0;
-  padding: 8px 0;
-  border-bottom: 1px solid #f0f0f0;
-}
-
-.current-price {
-  font-size: 18px;
-  font-weight: 700;
-  color: #303133;
-}
-
-.price-change {
-  font-size: 13px;
-  font-weight: 500;
-}
-
-.price-change.up {
-  color: #f56c6c;
-}
-
-.price-change.down {
-  color: #67c23a;
-}
-
-.stats-row {
-  display: flex;
-  gap: 16px;
-  margin: 10px 0;
-  flex-wrap: wrap;
-}
-
-.stat-item {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  min-width: 70px;
-}
-
-.stat-label {
-  font-size: 12px;
-  color: #909399;
-  margin-bottom: 4px;
-}
-
-.stat-value {
-  font-size: 14px;
-  font-weight: 600;
-  color: #303133;
-}
-
-.stat-item.profit .stat-value {
-  color: #f56c6c;
-}
-
-.stat-item.profit .stat-value.negative {
-  color: #67c23a;
-}
-
 .strategy-alerts {
   display: flex;
   align-items: center;
@@ -1393,6 +1387,126 @@ onMounted(() => {
   color: #666;
 }
 
+/* 批量更新弹窗 */
+.batch-update-content {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
+.price-update-item {
+  border: 1px solid #e4e7ed;
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.update-item-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.item-name {
+  font-size: 15px;
+  font-weight: 600;
+  color: #303133;
+}
+
+.item-code {
+  font-size: 13px;
+  color: #909399;
+}
+
+.update-item-input {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.update-item-input .el-input {
+  flex: 1;
+}
+
+.last-price {
+  font-size: 12px;
+  color: #909399;
+  white-space: nowrap;
+}
+
+.strategy-item:active {
+  background: #fafafa;
+}
+
+.strategy-main {
+  flex: 1;
+}
+
+.strategy-name {
+  font-size: 16px;
+  font-weight: 600;
+  color: #222;
+  margin-bottom: 4px;
+}
+
+.strategy-code {
+  font-size: 12px;
+  color: #8a8f99;
+  margin-bottom: 8px;
+}
+
+.strategy-symbol {
+  font-size: 17px;
+  font-weight: 600;
+  color: #303133;
+  margin-bottom: 8px;
+}
+
+.strategy-stats {
+  display: flex;
+  gap: 20px;
+}
+
+.stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.stat-label {
+  font-size: 11px;
+  color: #909399;
+}
+
+.stat-value {
+  font-size: 14px;
+  font-weight: 500;
+  color: #303133;
+}
+
+.stat-value.profit {
+  color: #f56c6c;
+}
+
+.stat-value.profit.negative {
+  color: #67c23a;
+}
+
+.strategy-arrow {
+  color: #c0c4cc;
+  font-size: 18px;
+}
+
+/* 智能建议区域 */
+.suggestion-area {
+  margin: -30px 0 16px;
+  position: relative;
+  z-index: 2;
+}
+
+/* 建议预览卡片样式 */
 .suggestion-preview {
   margin-top: 12px;
   padding-top: 12px;
@@ -1410,16 +1524,7 @@ onMounted(() => {
   flex-wrap: wrap;
 }
 
-.preview-icon {
-  font-size: 18px;
-}
 
-.preview-text {
-  flex: 1;
-  font-size: 14px;
-  color: #303133;
-  font-weight: 500;
-}
 
 .more-suggestions-inline {
   font-size: 12px;
@@ -1433,365 +1538,24 @@ onMounted(() => {
   text-decoration: underline;
 }
 
+.preview-icon {
+  font-size: 18px;
+}
+
+.preview-text {
+  flex: 1;
+  font-size: 14px;
+  color: #303133;
+  font-weight: 500;
+}
+
 .preview-actions {
   display: flex;
   justify-content: flex-end;
   gap: 8px;
 }
 
-/* 方案2：模块化布局 */
-.layout-module {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
 
-.strategy-card-module {
-  background: #fff;
-  border-radius: 16px;
-  padding: 16px;
-  box-shadow: 0 4px 20px rgba(0,0,0,0.08);
-  cursor: pointer;
-  transition: all 0.3s;
-}
-
-.strategy-card-module:active {
-  transform: scale(0.98);
-}
-
-.module-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 12px;
-}
-
-.module-title {
-  flex: 1;
-}
-
-.risk-section {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 10px;
-  background: #fff7e6;
-  border-radius: 8px;
-  font-size: 13px;
-  color: #e6a23c;
-  margin-bottom: 12px;
-}
-
-.price-module {
-  margin-bottom: 16px;
-}
-
-.price-label {
-  font-size: 12px;
-  color: #909399;
-  margin-bottom: 4px;
-}
-
-.price-content {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.main-price {
-  font-size: 24px;
-  font-weight: 700;
-  color: #303133;
-  font-family: 'SF Mono', 'Monaco', monospace;
-}
-
-.core-stats {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 12px;
-  margin-bottom: 16px;
-}
-
-.stat-box {
-  background: #f8f9fa;
-  border-radius: 8px;
-  padding: 12px;
-  text-align: center;
-}
-
-.stat-box .stat-label {
-  font-size: 12px;
-  color: #909399;
-  margin-bottom: 4px;
-}
-
-.stat-box .stat-value {
-  font-size: 16px;
-  font-weight: 600;
-  color: #303133;
-}
-
-.stat-box.profit-box .stat-value {
-  color: #f56c6c;
-}
-
-.stat-box.profit-box .stat-value.negative {
-  color: #67c23a;
-}
-
-.profit-percent {
-  font-size: 12px;
-  font-weight: 500;
-  color: #f56c6c;
-}
-
-.profit-percent.negative {
-  color: #67c23a;
-}
-
-.suggestion-module {
-  margin-bottom: 12px;
-  padding: 12px;
-  background: #f0f9ff;
-  border-radius: 8px;
-}
-
-.suggestion-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 8px;
-}
-
-.suggestion-title {
-  font-size: 14px;
-  font-weight: 600;
-  color: #409eff;
-}
-
-.suggestion-count {
-  font-size: 12px;
-  color: #666;
-}
-
-.suggestion-content {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 12px;
-}
-
-.suggestion-text {
-  flex: 1;
-  font-size: 14px;
-  color: #303133;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.alert-module {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 10px;
-  background: #fff7e6;
-  border-radius: 8px;
-  font-size: 13px;
-  color: #ff9800;
-}
-
-/* 方案3：瀑布流布局 */
-.layout-waterfall {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.strategy-card-waterfall {
-  background: #fff;
-  border-radius: 16px;
-  padding: 16px;
-  box-shadow: 0 4px 20px rgba(0,0,0,0.08);
-  cursor: pointer;
-  transition: all 0.3s;
-}
-
-.strategy-card-waterfall:active {
-  transform: scale(0.98);
-}
-
-.waterfall-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 16px;
-}
-
-.strategy-info {
-  flex: 1;
-}
-
-.strategy-meta {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-top: 6px;
-}
-
-.price-block {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border-radius: 12px;
-  padding: 16px;
-  margin-bottom: 16px;
-  color: #fff;
-}
-
-.price-display {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 8px;
-}
-
-.price-label {
-  font-size: 13px;
-  opacity: 0.9;
-}
-
-.price-value {
-  font-size: 28px;
-  font-weight: 700;
-  font-family: 'SF Mono', 'Monaco', monospace;
-}
-
-.price-change-block {
-  font-size: 14px;
-  font-weight: 600;
-  opacity: 0.95;
-}
-
-.price-change-block.up {
-  color: #ffd700;
-}
-
-.price-change-block.down {
-  color: #90ee90;
-}
-
-.detailed-stats {
-  margin-bottom: 16px;
-}
-
-.stat-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 10px 0;
-  border-bottom: 1px solid #f0f0f0;
-}
-
-.stat-row:last-child {
-  border-bottom: none;
-}
-
-.stat-label {
-  font-size: 14px;
-  color: #606266;
-}
-
-.stat-value {
-  font-size: 14px;
-  font-weight: 600;
-  color: #303133;
-}
-
-.stat-row.profit-row {
-  background: #f8f9fa;
-  padding: 12px;
-  border-radius: 8px;
-  margin-top: 8px;
-}
-
-.profit-info {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 2px;
-}
-
-.profit-value {
-  font-size: 16px;
-  font-weight: 700;
-  color: #f56c6c;
-}
-
-.profit-value.negative {
-  color: #67c23a;
-}
-
-.profit-percent {
-  font-size: 12px;
-  font-weight: 500;
-  color: #f56c6c;
-}
-
-.profit-percent.negative {
-  color: #67c23a;
-}
-
-.suggestion-block {
-  background: #fff7e6;
-  border-radius: 12px;
-  padding: 16px;
-  margin-bottom: 12px;
-}
-
-.suggestion-title {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 14px;
-  font-weight: 600;
-  color: #ff9800;
-  margin-bottom: 10px;
-}
-
-.suggestion-content {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.suggestion-text {
-  font-size: 14px;
-  color: #303133;
-  line-height: 1.5;
-}
-
-.suggestion-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-}
-
-.alert-block {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 10px 12px;
-  background: #fff7e6;
-  border-radius: 8px;
-  font-size: 13px;
-  color: #ff9800;
-}
-
-.alert-detail {
-  flex: 1;
-  text-align: right;
-  font-size: 12px;
-  color: #666;
-}
 
 /* 执行弹窗样式 */
 .execute-dialog-content {
@@ -1854,337 +1618,6 @@ onMounted(() => {
   font-weight: 500;
 }
 
-/* 批量更新弹窗样式 */
-.batch-update-content {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  max-height: 60vh;
-  overflow-y: auto;
-}
-
-.price-update-item {
-  border: 1px solid #e4e7ed;
-  border-radius: 8px;
-  padding: 12px;
-}
-
-.update-item-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 10px;
-}
-
-.item-name {
-  font-size: 15px;
-  font-weight: 600;
-  color: #303133;
-}
-
-.item-code {
-  font-size: 13px;
-  color: #909399;
-}
-
-.update-item-input {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.update-item-input .el-input {
-  flex: 1;
-}
-
-.last-price {
-  font-size: 12px;
-  color: #909399;
-  white-space: nowrap;
-}
-
-/* 方案4：极致纯列表样式 */
-.layout-extremelist {
-  display: flex;
-  flex-direction: column;
-}
-
-.strategy-item-extremelist {
-  display: flex;
-  flex-direction: column;
-  padding: 8px 0;
-  border-bottom: 1px solid #e4e7ed;
-  cursor: pointer;
-  transition: background-color 0.2s;
-}
-
-.strategy-item-extremelist:hover {
-  background-color: #fafbfc;
-}
-
-.item-row-first {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 4px;
-  gap: 8px;
-}
-
-.item-left {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex: 1;
-  min-width: 0;
-}
-
-.status-tag {
-  flex-shrink: 0;
-}
-
-.name-text {
-  font-size: 14px;
-  font-weight: 600;
-  color: #303133;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.code-text {
-  font-size: 12px;
-  color: #909399;
-  white-space: nowrap;
-  flex-shrink: 0;
-}
-
-.item-right {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-shrink: 0;
-}
-
-.price-main {
-  font-size: 14px;
-  font-weight: 700;
-  color: #303133;
-}
-
-.price-change {
-  font-size: 12px;
-  font-weight: 500;
-}
-
-.price-change.up {
-  color: #f56c6c;
-}
-
-.price-change.down {
-  color: #67c23a;
-}
-
-.item-row-second {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  overflow-x: auto;
-  scrollbar-width: none;
-  -ms-overflow-style: none;
-}
-
-.item-row-second::-webkit-scrollbar {
-  display: none;
-}
-
-.data-item {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  flex-shrink: 0;
-}
-
-.data-label {
-  font-size: 11px;
-  color: #909399;
-}
-
-.data-value {
-  font-size: 12px;
-  font-weight: 500;
-  color: #303133;
-  white-space: nowrap;
-}
-
-.profit-item .data-value {
-  color: #f56c6c;
-}
-
-.profit-item .data-value.negative {
-  color: #67c23a;
-}
-
-.icons-wrapper {
-  display: flex;
-  gap: 4px;
-  margin-left: auto;
-}
-
-.tiny-icon {
-  cursor: pointer;
-}
-
-/* 方案5：极简双栏列表样式 */
-.layout-minimalist {
-  display: flex;
-  flex-direction: column;
-  gap: 0;
-}
-
-.strategy-item-minimalist {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 10px 12px;
-  border-bottom: 1px solid #f0f0f0;
-  cursor: pointer;
-  transition: background-color 0.2s;
-  min-height: 70px;
-}
-
-.strategy-item-minimalist:hover {
-  background-color: #fafbfc;
-}
-
-.column-left {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  flex: 1;
-  min-width: 0;
-}
-
-.top-line {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-bottom: 4px;
-}
-
-.inline-icons {
-  display: flex;
-  gap: 2px;
-  margin-left: auto;
-}
-
-.mini-icon {
-  cursor: pointer;
-}
-
-.bottom-line {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 12px;
-  color: #606266;
-  overflow-x: auto;
-  scrollbar-width: none;
-  -ms-overflow-style: none;
-}
-
-.bottom-line::-webkit-scrollbar {
-  display: none;
-}
-
-.price-text {
-  font-size: 14px;
-  font-weight: 700;
-  color: #303133;
-}
-
-.change-text {
-  font-size: 12px;
-  font-weight: 500;
-}
-
-.change-text.up {
-  color: #f56c6c;
-}
-
-.change-text.down {
-  color: #67c23a;
-}
-
-.divider {
-  color: #dcdfe6;
-  font-size: 12px;
-}
-
-.cost-label, .pos-label, .ratio-label {
-  color: #909399;
-  font-size: 12px;
-}
-
-.cost-value, .pos-value, .ratio-value {
-  color: #303133;
-  font-weight: 500;
-}
-
-.column-right {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: flex-end;
-  gap: 2px;
-  min-width: 120px;
-  flex-shrink: 0;
-}
-
-.market-value {
-  display: flex;
-  align-items: baseline;
-  gap: 4px;
-  margin-bottom: 2px;
-}
-
-.mv-label {
-  font-size: 12px;
-  color: #909399;
-}
-
-.mv-value {
-  font-size: 13px;
-  font-weight: 600;
-  color: #303133;
-  white-space: nowrap;
-}
-
-.profit-row {
-  display: flex;
-  align-items: baseline;
-  gap: 6px;
-}
-
-.profit-value {
-  font-size: 13px;
-  font-weight: 600;
-  color: #f56c6c;
-}
-
-.profit-value.negative {
-  color: #67c23a;
-}
-
-.profit-percent {
-  font-size: 11px;
-  font-weight: 500;
-  color: #f56c6c;
-}
-
-.profit-percent.negative {
-  color: #67c23a;
-}
-
 /* 消息中心按钮样式 */
 .message-center-btn {
   padding: 6px 8px;
@@ -2200,234 +1633,5 @@ onMounted(() => {
 .bell-icon {
   font-size: 20px;
   color: rgba(255,255,255,0.9);
-}
-
-/* 方案6：东方财富表格样式 */
-.layout-eastmoney {
-  background: #fff;
-  border-radius: 4px;
-  overflow: hidden;
-  border: none;
-  box-shadow: none;
-}
-
-.eastmoney-header {
-  display: flex;
-  background: #f5f7fa;
-  border-bottom: 1px solid #e4e7ed;
-  position: sticky;
-  top: 0;
-  z-index: 10;
-}
-
-.header-col {
-  padding: 12px 8px;
-  font-size: 12px;
-  font-weight: 600;
-  color: #606266;
-  text-align: center;
-  border-right: 1px solid #e4e7ed;
-}
-
-.header-col:last-child {
-  border-right: none;
-}
-
-.header-col.col-1 {
-  width: 30%;
-  text-align: left;
-}
-
-.header-col.col-2 {
-  width: 25%;
-}
-
-.header-col.col-3 {
-  width: 25%;
-}
-
-.header-col.col-4 {
-  width: 20%;
-}
-
-.eastmoney-body {
-  display: flex;
-  flex-direction: column;
-}
-
-.eastmoney-item {
-  display: flex;
-  flex-direction: column;
-  border-bottom: 1px solid #f0f0f0;
-  cursor: pointer;
-  transition: background-color 0.2s;
-}
-
-.eastmoney-item:hover {
-  background-color: #fafbfc;
-}
-
-.item-row-first {
-  display: flex;
-  padding: 12px 8px;
-}
-
-.item-row-second {
-  display: flex;
-  padding: 0 8px 12px 8px;
-  font-size: 12px;
-  color: #909399;
-}
-
-.item-col {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  gap: 2px;
-  border-right: 1px solid #f0f0f0;
-}
-
-.item-col:last-child {
-  border-right: none;
-}
-
-.item-col.col-1 {
-  width: 30%;
-  text-align: left;
-}
-
-.item-col.col-2 {
-  width: 25%;
-  text-align: center;
-}
-
-.item-col.col-3 {
-  width: 25%;
-  text-align: center;
-}
-
-.item-col.col-4 {
-  width: 20%;
-  text-align: right;
-}
-
-.name-wrapper {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-bottom: 4px;
-  flex-wrap: wrap;
-}
-
-.status-tag {
-  font-size: 10px;
-  padding: 2px 4px;
-}
-
-.strategy-name {
-  font-size: 14px;
-  font-weight: 500;
-  color: #303133;
-  min-width: 0;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.strategy-code {
-  font-size: 12px;
-  color: #909399;
-}
-
-.market-value-cell {
-  font-size: 12px;
-  color: #606266;
-}
-
-.position-cell {
-  font-size: 14px;
-  color: #303133;
-  font-weight: 500;
-}
-
-.ratio-cell {
-  font-size: 12px;
-  color: #606266;
-}
-
-.price-cell {
-  font-size: 14px;
-  color: #303133;
-  font-weight: 500;
-}
-
-.cost-cell {
-  font-size: 12px;
-  color: #606266;
-}
-
-.profit-cell {
-  font-size: 14px;
-  color: #f56c6c;
-  font-weight: 500;
-}
-
-.profit-cell.negative {
-  color: #67c23a;
-}
-
-.profit-percent-cell {
-  font-size: 12px;
-  color: #f56c6c;
-}
-
-.profit-percent-cell.negative {
-  color: #67c23a;
-}
-
-.second-line-left {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.price-change-cell {
-  font-size: 12px;
-}
-
-.price-change-cell.up {
-  color: #f56c6c;
-}
-
-.price-change-cell.down {
-  color: #67c23a;
-}
-
-.tiny-icon {
-  cursor: pointer;
-}
-
-.trigger-cell {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-  color: #e6a23c;
-}
-
-.second-line-right {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.suggestion-text {
-  color: #e6a23c;
-  font-size: 12px;
-}
-
-.quick-exec-btn {
-  font-size: 12px;
-  padding: 4px 8px;
 }
 </style>

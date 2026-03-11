@@ -6,7 +6,7 @@ export default defineConfig({
   plugins: [vue()],
   base: '/',  // 生产环境根路径
   server: {
-    port: 3000,
+    port: 3004,
     host: '0.0.0.0', // 允许手机通过IP访问
     proxy: {
       '/api': {
@@ -18,13 +18,6 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     assetsDir: 'assets',
-    sourcemap: false,
-    minify: 'terser',
-    terserOptions: {
-      compress: {
-        drop_console: true,
-        drop_debugger: true
-      }
-    }
+    sourcemap: false
   }
 })
