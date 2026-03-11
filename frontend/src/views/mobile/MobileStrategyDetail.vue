@@ -23,14 +23,18 @@
             <div class="profit-value" :class="{ negative: positionProfit < 0 }">
               {{ formatProfit(positionProfit) }}
             </div>
-            <div class="profit-percent" :class="{ negative: positionProfitPercent < 0 }">
+            <div class="profit-percent" :class="{ negative: positionProfitPercentValue < 0 }">
               {{ positionProfitPercent }}
             </div>
           </div>
           <div class="profit-col">
             <div class="profit-label">当日参考盈亏</div>
-            <div class="profit-value">--</div>
-            <div class="profit-percent">--</div>
+            <div class="profit-value" :class="{ negative: todayProfit < 0 }">
+              {{ formatProfit(todayProfit) }}
+            </div>
+            <div class="profit-percent" :class="{ negative: todayProfitPercentValue < 0 }">
+              {{ todayProfitPercent }}
+            </div>
           </div>
         </div>
 
@@ -531,6 +535,11 @@ const totalFee = computed(() => strategy.value?.totalFee ?? 0)
 
 const positionProfit = computed(() => strategy.value?.positionProfit ?? 0)
 
+const positionProfitPercentValue = computed(() => {
+  if (!strategy.value?.positionProfitPercent) return 0
+  return Number(strategy.value.positionProfitPercent)
+})
+
 const positionProfitPercent = computed(() => {
   if (!strategy.value?.positionProfitPercent) return '--'
   const val = Number(strategy.value.positionProfitPercent)
@@ -547,6 +556,23 @@ const positionRatio = computed(() => {
 const costPrice = computed(() => strategy.value?.costPrice ?? 0)
 
 const averageBuyPrice = computed(() => strategy.value?.avgBuyPrice ?? 0)
+
+// 当日参考盈亏
+const todayProfit = computed(() => {
+  if (!strategy.value) return 0
+  return strategy.value.todayProfit ?? 0
+})
+
+const todayProfitPercentValue = computed(() => {
+  if (!strategy.value?.todayProfitPercent) return 0
+  return Number(strategy.value.todayProfitPercent)
+})
+
+const todayProfitPercent = computed(() => {
+  if (!strategy.value?.todayProfitPercent) return '--'
+  const val = Number(strategy.value.todayProfitPercent)
+  return (val >= 0 ? '+' : '') + val.toFixed(3) + '%'
+})
 
 const strategyTitle = computed(() => {
   if (!strategy.value) return '策略详情'
@@ -1061,22 +1087,22 @@ const getStateTag = (state) => {
 .profit-value {
   font-size: 28px;
   font-weight: 600;
-  color: #51cf66;
+  color: #f56c6c;
   margin-bottom: 4px;
 }
 
 .profit-value.negative {
-  color: #ff6b6b;
+  color: #67c23a;
 }
 
 .profit-percent {
   font-size: 18px;
   font-weight: 600;
-  color: #51cf66;
+  color: #f56c6c;
 }
 
 .profit-percent.negative {
-  color: #ff6b6b;
+  color: #67c23a;
 }
 
 .stats-grid {
@@ -1109,11 +1135,11 @@ const getStateTag = (state) => {
 }
 
 .stat-value.profit {
-  color: #ff6b6b;
+  color: #f56c6c;
 }
 
 .stat-value.negative {
-  color: #51cf66;
+  color: #67c23a;
 }
 
 .stat-value.fee {

@@ -276,20 +276,20 @@ public class SuggestionService {
             positionRatio = BigDecimal.ZERO;
         }
 
-        if (positionRatio.compareTo(BigDecimal.valueOf(0.7)) > 0) {
+        if (positionRatio.compareTo(BigDecimal.valueOf(70)) > 0) {
             Map<String, Object> risk = new HashMap<>();
             risk.put("type", "HEAVY_POSITION");
             risk.put("level", "HIGH");
-            risk.put("message", "当前仓位已达" + positionRatio.multiply(BigDecimal.valueOf(100)).setScale(0, RoundingMode.HALF_UP) + "%，建议暂停买入");
-            risk.put("positionRatio", positionRatio.multiply(BigDecimal.valueOf(100)));
+            risk.put("message", "当前仓位已达" + positionRatio.setScale(1, RoundingMode.HALF_UP) + "%，建议暂停买入");
+            risk.put("positionRatio", positionRatio);
             risk.put("boughtGridCount", boughtCount);
             risks.add(risk);
-        } else if (positionRatio.compareTo(BigDecimal.valueOf(0.5)) > 0) {
+        } else if (positionRatio.compareTo(BigDecimal.valueOf(50)) > 0) {
             Map<String, Object> risk = new HashMap<>();
             risk.put("type", "HEAVY_POSITION");
             risk.put("level", "MEDIUM");
             risk.put("message", "持仓较重，建议关注卖出机会");
-            risk.put("positionRatio", positionRatio.multiply(BigDecimal.valueOf(100)));
+            risk.put("positionRatio", positionRatio);
             risk.put("boughtGridCount", boughtCount);
             risks.add(risk);
         }

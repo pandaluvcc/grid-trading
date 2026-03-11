@@ -233,11 +233,11 @@ onMounted(() => {
 }
 
 .info-item .value.profit {
-  color: #67c23a;
+  color: #f56c6c;
 }
 
 .info-item .value.profit.negative {
-  color: #f56c6c;
+  color: #67c23a;
 }
 
 .card-footer {

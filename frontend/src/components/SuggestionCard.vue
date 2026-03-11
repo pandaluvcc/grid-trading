@@ -172,7 +172,7 @@ const getGridTypeName = (type) => {
 }
 
 .suggestion-amount .profit {
-  color: #67c23a;
+  color: #f56c6c;
   font-weight: bold;
 }
 

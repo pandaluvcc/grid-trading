@@ -42,6 +42,8 @@ public class StrategyDetailDTO {
     private BigDecimal positionProfit;
     private BigDecimal positionProfitPercent;
     private BigDecimal positionRatio;
+    private BigDecimal todayProfit;
+    private BigDecimal todayProfitPercent;
 
     public StrategyDetailDTO() {
     }
@@ -82,6 +84,10 @@ public class StrategyDetailDTO {
         dto.setPositionProfit(strategy.getPositionProfit() != null ? strategy.getPositionProfit() : BigDecimal.ZERO);
         dto.setPositionProfitPercent(strategy.getPositionProfitPercent() != null ? strategy.getPositionProfitPercent() : BigDecimal.ZERO);
         dto.setPositionRatio(strategy.getPositionRatio() != null ? strategy.getPositionRatio() : BigDecimal.ZERO);
+
+        // 当日盈亏将在控制器中计算
+        dto.setTodayProfit(BigDecimal.ZERO);
+        dto.setTodayProfitPercent(BigDecimal.ZERO);
 
         return dto;
     }
@@ -286,5 +292,21 @@ public class StrategyDetailDTO {
 
     public void setPositionRatio(BigDecimal positionRatio) {
         this.positionRatio = positionRatio;
+    }
+
+    public BigDecimal getTodayProfit() {
+        return todayProfit;
+    }
+
+    public void setTodayProfit(BigDecimal todayProfit) {
+        this.todayProfit = todayProfit;
+    }
+
+    public BigDecimal getTodayProfitPercent() {
+        return todayProfitPercent;
+    }
+
+    public void setTodayProfitPercent(BigDecimal todayProfitPercent) {
+        this.todayProfitPercent = todayProfitPercent;
     }
 }

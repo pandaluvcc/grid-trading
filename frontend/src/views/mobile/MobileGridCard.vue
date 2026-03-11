@@ -56,8 +56,8 @@
       <div class="cycle-tag" :class="cycleClass">
         {{ cycleText }}
       </div>
-      <div class="profit" :class="profitClass">
-        +{{ formatAmount(displayProfit) }}
+      <div class="profit" :class="[profitClass, { negative: displayProfit < 0 }]">
+        {{ displayProfit >= 0 ? '+' : '' }}{{ formatAmount(displayProfit) }}
       </div>
     </div>
   </div>
@@ -390,6 +390,10 @@ const formatAmount = (val) => {
 .profit {
   font-size: 14px;
   font-weight: 600;
+  color: #f56c6c;
+}
+
+.profit.negative {
   color: #67c23a;
 }
 </style>

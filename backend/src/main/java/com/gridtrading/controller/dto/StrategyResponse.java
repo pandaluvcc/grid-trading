@@ -4,6 +4,7 @@ import com.gridtrading.domain.Strategy;
 import com.gridtrading.domain.StrategyStatus;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDateTime;
 
 /**
@@ -26,6 +27,7 @@ public class StrategyResponse {
     private BigDecimal positionProfit;
     private BigDecimal positionProfitPercent;
     private BigDecimal positionRatio;
+    private BigDecimal marketValue; // 市值 = 持仓数量 × 当前现价
 
     public StrategyResponse() {
     }
@@ -51,6 +53,12 @@ public class StrategyResponse {
         response.setPositionProfit(strategy.getPositionProfit());
         response.setPositionProfitPercent(strategy.getPositionProfitPercent());
         response.setPositionRatio(strategy.getPositionRatio());
+        // 计算市值 = 持仓数量 × 当前现价
+        if (strategy.getPosition() != null && strategy.getLastPrice() != null) {
+            response.setMarketValue(strategy.getPosition().multiply(strategy.getLastPrice()).setScale(2, RoundingMode.HALF_UP));
+        } else {
+            response.setMarketValue(BigDecimal.ZERO);
+        }
         return response;
     }
 
@@ -172,5 +180,13 @@ public class StrategyResponse {
 
     public void setPositionRatio(BigDecimal positionRatio) {
         this.positionRatio = positionRatio;
+    }
+
+    public BigDecimal getMarketValue() {
+        return marketValue;
+    }
+
+    public void setMarketValue(BigDecimal marketValue) {
+        this.marketValue = marketValue;
     }
 }

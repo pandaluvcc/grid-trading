@@ -45,6 +45,11 @@ public class PositionCalculator {
         BigDecimal totalFee = BigDecimal.ZERO;
         LocalDateTime firstBuyTime = null;
 
+        // 移动加权平均法计算持仓成本（买入均价）
+        BigDecimal currentHoldingQuantity = BigDecimal.ZERO;
+        BigDecimal currentHoldingCost = BigDecimal.ZERO; // 持仓总成本（不含卖出部分）
+        BigDecimal avgBuyPrice = BigDecimal.ZERO;
+
         for (TradeRecord record : records) {
             BigDecimal amount = record.getAmount() != null ? record.getAmount() : BigDecimal.ZERO;
             BigDecimal fee = record.getFee() != null ? record.getFee() : BigDecimal.ZERO;
@@ -59,10 +64,31 @@ public class PositionCalculator {
                 if (firstBuyTime == null || record.getTradeTime().isBefore(firstBuyTime)) {
                     firstBuyTime = record.getTradeTime();
                 }
+
+                // 移动加权平均：买入时更新持仓成本
+                // 新持仓成本 = 原持仓成本 + 本次买入金额 + 本次买入费用
+                BigDecimal buyCost = amount.add(fee);
+                currentHoldingCost = currentHoldingCost.add(buyCost);
+                currentHoldingQuantity = currentHoldingQuantity.add(quantity);
+
+                // 更新买入均价（仅在有持仓时计算）
+                if (currentHoldingQuantity.compareTo(BigDecimal.ZERO) > 0) {
+                    avgBuyPrice = currentHoldingCost.divide(currentHoldingQuantity, 8, RoundingMode.HALF_UP);
+                }
+
                 System.out.println("[PositionCalculator] 买入记录: price=" + formatPrice(price) + ", quantity=" + formatQuantity(quantity) + ", amount=" + formatAmount(amount) + ", fee=" + formatAmount(fee));
             } else if (record.getType() == TradeType.SELL) {
                 totalSellAmount = totalSellAmount.add(amount);
                 totalSellQuantity = totalSellQuantity.add(quantity);
+
+                // 移动加权平均：卖出时按当前均价减少持仓成本
+                // 减少的成本 = 卖出数量 × 当前买入均价
+                if (currentHoldingQuantity.compareTo(BigDecimal.ZERO) > 0) {
+                    BigDecimal sellCost = avgBuyPrice.multiply(quantity);
+                    currentHoldingCost = currentHoldingCost.subtract(sellCost);
+                    currentHoldingQuantity = currentHoldingQuantity.subtract(quantity);
+                }
+
                 System.out.println("[PositionCalculator] 卖出记录: price=" + formatPrice(price) + ", quantity=" + formatQuantity(quantity) + ", amount=" + formatAmount(amount) + ", fee=" + formatAmount(fee));
             }
         }
@@ -76,10 +102,9 @@ public class PositionCalculator {
             costPrice = netInvestment.divide(currentPosition, 3, RoundingMode.HALF_UP);
         }
 
-        // 买入均价 = 买入总金额 / 买入总数量，保留3位小数
-        BigDecimal avgBuyPrice = BigDecimal.ZERO;
-        if (totalBuyQuantity.compareTo(BigDecimal.ZERO) > 0) {
-            avgBuyPrice = totalBuyAmount.divide(totalBuyQuantity, 3, RoundingMode.HALF_UP);
+        // 买入均价（持仓成本价）使用移动加权平均法计算结果，保留3位小数
+        if (avgBuyPrice.compareTo(BigDecimal.ZERO) > 0) {
+            avgBuyPrice = avgBuyPrice.setScale(3, RoundingMode.HALF_UP);
         }
 
         int holdingDays = 0;

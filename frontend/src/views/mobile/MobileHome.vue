@@ -164,6 +164,10 @@
               <span class="stat-label">仓位</span>
               <span class="stat-value">{{ formatPositionRatio(s.positionRatio) }}%</span>
             </div>
+            <div class="stat-item">
+              <span class="stat-label">市值</span>
+              <span class="stat-value">¥{{ formatAmount(s.marketValue || (s.position * (s.lastPrice || s.basePrice))) }}</span>
+            </div>
             <div class="stat-item profit-item">
               <span class="stat-label">盈亏</span>
               <div class="profit-group">
@@ -551,8 +555,8 @@ const formatQuantity = (value) => {
 }
 
 const formatAmount = (value) => {
-  if (value === null || value === undefined) return '0'
-  return Math.round(Number(value)).toString()
+  if (value === null || value === undefined) return '0.00'
+  return Number(value).toFixed(2)
 }
 
 const formatPositionRatio = (val) => {
@@ -561,9 +565,9 @@ const formatPositionRatio = (val) => {
 }
 
 const formatProfitPercent = (val) => {
-  if (val == null) return '0.00%'
+  if (val == null) return '0.000%'
   const num = Number(val)
-  return (num >= 0 ? '+' : '') + num.toFixed(2) + '%'
+  return (num >= 0 ? '+' : '') + num.toFixed(3) + '%'
 }
 
 // 获取策略的顶级建议
@@ -720,7 +724,7 @@ onMounted(() => {
 }
 
 .profit-value {
-  color: #7dffb3;
+  color: #f56c6c;
   font-size: 22px;
   font-weight: 600;
   font-family: 'DIN', 'Helvetica Neue', sans-serif;
@@ -733,7 +737,7 @@ onMounted(() => {
 }
 
 .profit-value.negative {
-  color: #ffb3b3;
+  color: #67c23a;
 }
 
 .profit-value.market-value {
@@ -950,8 +954,8 @@ onMounted(() => {
 
 .strategy-stats {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 8px;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 6px;
   margin: 10px 0;
 }
 
@@ -962,13 +966,13 @@ onMounted(() => {
 }
 
 .stat-item.profit-item {
-  align-items: flex-start;
+  align-items: center;
 }
 
 .profit-group {
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
+  align-items: center;
   gap: 2px;
 }
 
@@ -1149,11 +1153,11 @@ onMounted(() => {
 }
 
 .stat-value.profit {
-  color: #67c23a;
+  color: #f56c6c;
 }
 
 .stat-value.profit.negative {
-  color: #f56c6c;
+  color: #67c23a;
 }
 
 .strategy-arrow {
