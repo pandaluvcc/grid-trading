@@ -1,5 +1,6 @@
 package com.gridtrading.controller.dto;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import com.gridtrading.domain.GridLineState;
 import com.gridtrading.domain.GridType;
 
@@ -57,12 +58,19 @@ public class GridPlanResponse {
         private BigDecimal quantity;
         private BigDecimal buyAmount;
         private BigDecimal sellAmount;
+
+        @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "0.00")
         private BigDecimal profit;
+
         private BigDecimal profitRate;
         private GridLineState state;
         private Integer buyCount;
         private Integer sellCount;
+
+        @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "0.00")
         private BigDecimal actualProfit;     // 实际收益（已实现）
+
+        @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "0.00")
         private BigDecimal expectedProfit;   // 预计收益（浮动）
 
         public Long getId() {

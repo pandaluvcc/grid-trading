@@ -297,7 +297,12 @@ const goBack = () => {
 
 // 格式化
 const formatPrice = (val) => val == null ? '-' : Number(val).toFixed(3)
-const formatAmount = (val) => val == null ? '0' : Math.round(Number(val)).toString()
+const formatAmount = (val) => {
+  if (val == null) return '0'
+  const num = Number(val)
+  // 保留2位小数，去掉末尾的0
+  return num.toFixed(2).replace(/\.?0+$/, '')
+}
 const formatGridType = (type) => {
   const map = { SMALL: '小', MEDIUM: '中', LARGE: '大' }
   return map[type] || '小'

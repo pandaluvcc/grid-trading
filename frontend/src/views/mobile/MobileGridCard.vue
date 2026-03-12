@@ -210,7 +210,9 @@ const formatPrice = (val) => {
 
 const formatAmount = (val) => {
   if (val == null) return '0'
-  return Math.round(Number(val)).toString()
+  const num = Number(val)
+  // 保留2位小数，去掉末尾的0
+  return num.toFixed(2).replace(/\.?0+$/, '')
 }
 </script>
 

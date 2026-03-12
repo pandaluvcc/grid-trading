@@ -11,7 +11,7 @@ public class SuggestionResponse {
 
     private SuggestionType suggestionType;
     private String reason;
-    private List<GridSuggestion> suggestions = new ArrayList<>();
+    private List<GridSuggestionItem> suggestions = new ArrayList<>();
     private List<Warning> warnings = new ArrayList<>();
     private List<DeferredGrid> deferredGrids = new ArrayList<>();
     private MarketStatus marketStatus;
@@ -41,11 +41,11 @@ public class SuggestionResponse {
         this.reason = reason;
     }
 
-    public List<GridSuggestion> getSuggestions() {
+    public List<GridSuggestionItem> getSuggestions() {
         return suggestions;
     }
 
-    public void setSuggestions(List<GridSuggestion> suggestions) {
+    public void setSuggestions(List<GridSuggestionItem> suggestions) {
         this.suggestions = suggestions;
     }
 
@@ -76,7 +76,7 @@ public class SuggestionResponse {
     /**
      * 网格操作建议
      */
-    public static class GridSuggestion {
+    public static class GridSuggestionItem {
         private Long gridLineId;
         private Integer gridLevel;
         private String gridType;
@@ -87,7 +87,7 @@ public class SuggestionResponse {
         private BigDecimal quantityRatio;
         private String reason;
 
-        public GridSuggestion() {
+        public GridSuggestionItem() {
         }
 
         // Getters and Setters
