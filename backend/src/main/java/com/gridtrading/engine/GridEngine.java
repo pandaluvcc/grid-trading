@@ -388,20 +388,25 @@ public class GridEngine {
             GridLineState currentState = gridLine.getState();
             boolean hasActualBuyPrice = gridLine.getActualBuyPrice() != null;
 
-            // 如果网格已交易（actualBuyPrice不为null），更新追踪变量但跳过价格修改
-            if (hasActualBuyPrice) {
-                // 已成交的网格，更新追踪变量供后续计算使用
-                if (gridLine.getGridType() == GridType.SMALL) {
-                    lastSmallBuyPrice = gridLine.getActualBuyPrice();
-                    // ✅ 更新小网的有效买入价（用于sellPrice）
-                    lastSmallEffectiveBuyPrice = gridLine.getActualBuyPrice();
-                } else if (gridLine.getGridType() == GridType.MEDIUM) {
-                    mediumCount++;
-                    lastMediumBuyPrice = gridLine.getActualBuyPrice();
-                    if (mediumCount == 2) {
-                        secondMediumBuyPrice = gridLine.getActualBuyPrice();
-                    }
+            // 先更新追踪变量（不管网格是否已交易，都要更新最新的小网价格供后续使用）
+            if (gridLine.getGridType() == GridType.SMALL) {
+                // ✅ 优先使用actualBuyPrice（真实价格），没有则用计划价格
+                BigDecimal currentSmallPrice = hasActualBuyPrice ?
+                    gridLine.getActualBuyPrice() : gridLine.getBuyPrice();
+                lastSmallBuyPrice = currentSmallPrice;
+                lastSmallEffectiveBuyPrice = currentSmallPrice;
+            } else if (gridLine.getGridType() == GridType.MEDIUM) {
+                mediumCount++;
+                BigDecimal currentMediumPrice = hasActualBuyPrice ?
+                    gridLine.getActualBuyPrice() : gridLine.getBuyPrice();
+                lastMediumBuyPrice = currentMediumPrice;
+                if (mediumCount == 2) {
+                    secondMediumBuyPrice = currentMediumPrice;
                 }
+            }
+
+            // 如果网格已交易（actualBuyPrice不为null），跳过价格修改
+            if (hasActualBuyPrice) {
                 log.info("[RECALC-SKIP] 网格 level={} 已交易(actualBuyPrice={}), 跳过价格更新",
                     gridLine.getLevel(), gridLine.getActualBuyPrice());
                 continue;

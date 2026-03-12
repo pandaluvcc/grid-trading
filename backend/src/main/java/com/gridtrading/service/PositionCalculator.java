@@ -246,8 +246,8 @@ public class PositionCalculator {
             strategy.setPositionRatio(positionRatio);
         }
 
-        System.out.println("[PositionCalculator] updateByLastPrice: newLastPrice=" + newLastPrice + 
-            ", positionProfit=" + strategy.getPositionProfit() + 
+        System.out.println("[PositionCalculator] updateByLastPrice: newLastPrice=" + newLastPrice +
+            ", positionProfit=" + strategy.getPositionProfit() +
             ", positionProfitPercent=" + strategy.getPositionProfitPercent() +
             ", positionRatio=" + strategy.getPositionRatio());
     }

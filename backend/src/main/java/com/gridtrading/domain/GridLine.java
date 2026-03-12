@@ -130,9 +130,17 @@ public class GridLine {
 
     /**
      * 真实累计收益（从实际交易记录计算，扣除手续费）
+     * 永久累计该网格所有完成买卖轮次的收益总和，只增不减
      */
     @Column(name = "actual_profit", precision = 20, scale = 3)
     private BigDecimal actualProfit = BigDecimal.ZERO;
+
+    /**
+     * 预计浮动收益（当前持仓的预期收益）
+     * 仅计算当前未卖出持仓的浮动盈亏，和历史已实现收益完全独立
+     */
+    @Column(name = "expected_profit", precision = 20, scale = 3)
+    private BigDecimal expectedProfit = BigDecimal.ZERO;
 
     /**
      * 是否暂缓买入（预留功能）

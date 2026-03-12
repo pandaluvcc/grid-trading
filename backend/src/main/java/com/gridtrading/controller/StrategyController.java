@@ -861,6 +861,17 @@ public class StrategyController {
         // ✅ 同步更新buyPrice（用于后续网格计算）
         targetGridLine.setBuyPrice(request.getActualBuyPrice());
 
+        // ✅ 重新计算预计收益：(建议卖出价 - 实际买入价) × 持仓数量 - 预估手续费
+        BigDecimal sellPrice = targetGridLine.getSellPrice();
+        BigDecimal quantity = targetGridLine.getBuyQuantity();
+        // 预估卖出手续费万分之0.5 + 买入手续费万分之0.5 = 合计万分之1
+        BigDecimal estimatedFee = sellPrice.multiply(quantity).multiply(new BigDecimal("0.0001"));
+        BigDecimal expectedProfit = sellPrice.multiply(quantity)
+                .subtract(request.getActualBuyPrice().multiply(quantity))
+                .subtract(estimatedFee)
+                .setScale(2, RoundingMode.HALF_UP);
+        targetGridLine.setExpectedProfit(expectedProfit);
+
         // ✅ 调用GridEngine的统一重算方法
         gridEngine.recalculateSubsequentGridsAfterManualBuy(strategy, targetGridLine, request.getActualBuyPrice());
 
@@ -1046,6 +1057,14 @@ public class StrategyController {
                     
                     BigDecimal actualProfit = gridLine.getActualProfit() != null ? gridLine.getActualProfit() : BigDecimal.ZERO;
                     item.setActualProfit(actualProfit);
+
+                    // 计算网格预计收益：(卖出价 - 买入价) * 买入数量
+                    // 价格优先使用实际成交价格，没有则使用计划价格
+                    BigDecimal sellPrice = gridLine.getActualSellPrice() != null ? gridLine.getActualSellPrice() : gridLine.getSellPrice();
+                    BigDecimal buyPrice = gridLine.getActualBuyPrice() != null ? gridLine.getActualBuyPrice() : gridLine.getBuyPrice();
+                    BigDecimal quantity = gridLine.getBuyQuantity() != null ? gridLine.getBuyQuantity() : BigDecimal.ZERO;
+                    BigDecimal expectedProfit = sellPrice.subtract(buyPrice).multiply(quantity).setScale(2, RoundingMode.HALF_UP);
+                    item.setExpectedProfit(expectedProfit);
 
                     return item;
                 })

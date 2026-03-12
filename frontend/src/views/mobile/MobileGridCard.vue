@@ -56,8 +56,13 @@
       <div class="cycle-tag" :class="cycleClass">
         {{ cycleText }}
       </div>
-      <div class="profit" :class="[profitClass, { negative: displayProfit < 0 }]">
-        {{ displayProfit >= 0 ? '+' : '' }}{{ formatAmount(displayProfit) }}
+      <!-- 实际收益（已实现） -->
+      <div class="profit actual-profit" :class="{ negative: actualProfit < 0 }">
+        实:{{ actualProfit >= 0 ? '+' : '' }}{{ formatAmount(actualProfit) }}
+      </div>
+      <!-- 预计收益（浮动） -->
+      <div class="profit expected-profit" :class="{ negative: expectedProfit < 0 }">
+        预:{{ expectedProfit >= 0 ? '+' : '' }}{{ formatAmount(expectedProfit) }}
       </div>
     </div>
   </div>
@@ -187,18 +192,14 @@ const cycleClass = computed(() => {
   return 'no-cycles'
 })
 
-// 显示收益：有完成轮次时显示真实收益，否则显示预计收益
-const displayProfit = computed(() => {
-  const cycles = completedCycles.value
-  if (cycles > 0 && props.grid.actualProfit !== undefined) {
-    return props.grid.actualProfit
-  }
-  return props.grid.profit || 0
+// 实际收益（已实现落袋收益）
+const actualProfit = computed(() => {
+  return props.grid.actualProfit ?? 0
 })
 
-// 收益样式：区分真实收益和预计收益
-const profitClass = computed(() => {
-  return completedCycles.value > 0 ? 'actual-profit' : 'estimated-profit'
+// 预计收益（按买卖价计算的理论收益）
+const expectedProfit = computed(() => {
+  return props.grid.expectedProfit ?? props.grid.profit ?? 0
 })
 
 // 格式化
@@ -367,7 +368,7 @@ const formatAmount = (val) => {
   display: flex;
   flex-direction: column;
   align-items: flex-end;
-  gap: 6px;
+  gap: 4px;
 }
 
 .cycle-tag {
@@ -388,12 +389,19 @@ const formatAmount = (val) => {
 }
 
 .profit {
-  font-size: 14px;
+  font-size: 12px;
   font-weight: 600;
-  color: #f56c6c;
+}
+
+.profit.actual-profit {
+  color: #67c23a; /* 实际收益用绿色 */
+}
+
+.profit.expected-profit {
+  color: #909399; /* 预计收益用灰色 */
 }
 
 .profit.negative {
-  color: #67c23a;
+  color: #f56c6c; /* 负数用红色 */
 }
 </style>

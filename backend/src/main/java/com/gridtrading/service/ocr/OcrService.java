@@ -237,21 +237,42 @@ public class OcrService {
                     // 同样加入openBuys，确保每条买入都有对应的卖出匹配
                     openBuys.push(gridLine);
                 } else {
-                    // 不同价格，按顺序取下一个网格
-                    if (buyIndex < orderedGridLines.size()) {
-                        gridLine = orderedGridLines.get(buyIndex);
+                    // 优先查找已经完成至少一轮买卖（已全部卖出）且买入价匹配的网格
+                    GridLine matchedSoldGrid = orderedGridLines.stream()
+                            .filter(gl -> gl.getState() == GridLineState.WAIT_BUY
+                                    && gl.getBuyCount() > 0 // 必须曾经买入过（不是未使用的初始网格）
+                                    && gl.getSellCount() >= gl.getBuyCount() // 已经全部卖出，可重新买入
+                                    && gl.getBuyPrice() != null
+                                    && gl.getBuyPrice().compareTo(record.getPrice()) == 0)
+                            .findFirst()
+                            .orElse(null);
+
+                    if (matchedSoldGrid != null) {
+                        // 找到已卖出的匹配网格，重新买入该网格
+                        gridLine = matchedSoldGrid;
                         String typeDesc = record.getType() == TradeType.OPENING_BUY ? "建仓-买入" : "买入";
                         System.out.println("[OCR导入] " + typeDesc + "记录: 时间=" + record.getTradeTime() +
-                            " 价格=" + record.getPrice() + " → 匹配网格 " + gridLine.getLevel());
-                        buyIndex++;
+                            " 价格=" + record.getPrice() + " → 匹配网格 " + gridLine.getLevel() + " (重新买入已卖出网格)");
                         openBuys.push(gridLine);
                         lastBuyGrid = gridLine;
                         lastBuyPrice = record.getPrice();
                     } else {
-                        System.out.println("[OCR导入] 买入记录超出网格范围: " + record.getTradeTime() + " 价格=" + record.getPrice());
-                        lastBuyGrid = null;
-                        lastBuyPrice = null;
-                        continue;
+                        // 没有匹配的已卖出网格，按顺序取下一个新网格
+                        if (buyIndex < orderedGridLines.size()) {
+                            gridLine = orderedGridLines.get(buyIndex);
+                            String typeDesc = record.getType() == TradeType.OPENING_BUY ? "建仓-买入" : "买入";
+                            System.out.println("[OCR导入] " + typeDesc + "记录: 时间=" + record.getTradeTime() +
+                                " 价格=" + record.getPrice() + " → 匹配网格 " + gridLine.getLevel());
+                            buyIndex++;
+                            openBuys.push(gridLine);
+                            lastBuyGrid = gridLine;
+                            lastBuyPrice = record.getPrice();
+                        } else {
+                            System.out.println("[OCR导入] 买入记录超出网格范围: " + record.getTradeTime() + " 价格=" + record.getPrice());
+                            lastBuyGrid = null;
+                            lastBuyPrice = null;
+                            continue;
+                        }
                     }
                 }
             } else if (record.getType() == TradeType.SELL) {
@@ -598,6 +619,45 @@ public class OcrService {
         System.out.println("[独立计算] 网格" + gridLine.getLevel() + " " + gridLine.getGridType() +
             ": 买" + price + " → 卖" + newSellPrice + " (" + profitRate.multiply(new BigDecimal("100")).setScale(1, RoundingMode.HALF_UP) + "%)");
 
+        // ✅ 修复：如果是小网，同步更新后续的中网和大网价格，保持同组网格价格一致
+        if (gridLine.getGridType() == GridType.SMALL) {
+            List<GridLine> allGridLines = new ArrayList<>(strategy.getGridLines());
+            allGridLines.sort(Comparator.comparingInt(GridLine::getLevel));
+
+            int currentLevel = gridLine.getLevel();
+            // 遍历后续网格，直到遇到下一个小网
+            for (GridLine gl : allGridLines) {
+                if (gl.getLevel() <= currentLevel) {
+                    continue;
+                }
+                if (gl.getGridType() == GridType.SMALL) {
+                    break; // 遇到下一个小网，停止更新
+                }
+                // 更新中网/大网的买入价和卖出价
+                gl.setBuyPrice(price);
+                gl.setBuyTriggerPrice(price.add(new BigDecimal("0.002")));
+
+                // 重新计算卖出价
+                BigDecimal glProfitRate = gl.getProfitRate();
+                if (glProfitRate == null || glProfitRate.compareTo(BigDecimal.ZERO) <= 0) {
+                    if (gl.getGridType() == GridType.MEDIUM) {
+                        glProfitRate = new BigDecimal("0.15");
+                    } else {
+                        glProfitRate = new BigDecimal("0.30");
+                    }
+                }
+                BigDecimal glNewSellPrice = price.multiply(BigDecimal.ONE.add(glProfitRate))
+                    .setScale(3, RoundingMode.HALF_UP);
+                gl.setSellPrice(glNewSellPrice);
+                gl.setSellTriggerPrice(glNewSellPrice.subtract(new BigDecimal("0.002")));
+
+                System.out.println("[同步更新] 网格" + gl.getLevel() + " " + gl.getGridType() +
+                    ": 买" + price + " → 卖" + glNewSellPrice + " (" + glProfitRate.multiply(new BigDecimal("100")).setScale(1, RoundingMode.HALF_UP) + "%)");
+
+                recalcLineTotals(gl, strategy);
+            }
+        }
+
         recalcLineTotals(gridLine, strategy);
     }
 
@@ -729,7 +789,8 @@ public class OcrService {
                 }
             }
 
-            // 配对计算收益：同一网格的多笔买入合并后再与卖出配对
+            // 配对计算收益：按FIFO轮次配对（先买先卖），只计算已完成的买卖对的收益
+            // 未卖出的持仓不计算到实际收益中（属于浮动盈亏）
             int pairCount = Math.min(buyRecords.size(), sellRecords.size());
             if (pairCount == 0) {
                 continue;
@@ -737,39 +798,73 @@ public class OcrService {
 
             BigDecimal totalActualProfit = BigDecimal.ZERO;
 
-            // 先累加所有买入的总金额和总手续费
-            BigDecimal totalBuyAmount = BigDecimal.ZERO;
-            BigDecimal totalBuyFee = BigDecimal.ZERO;
-            for (TradeRecord buyRecord : buyRecords) {
-                totalBuyAmount = totalBuyAmount.add(buyRecord.getAmount() != null ? buyRecord.getAmount() : BigDecimal.ZERO);
-                totalBuyFee = totalBuyFee.add(buyRecord.getFee() != null ? buyRecord.getFee() : BigDecimal.ZERO);
-            }
+            // 按轮次配对计算：每一轮卖出对应最早的一笔买入
+            for (int i = 0; i < pairCount; i++) {
+                TradeRecord buyRecord = buyRecords.get(i);
+                TradeRecord sellRecord = sellRecords.get(i);
 
-            // 再累加所有卖出的总金额和总手续费
-            BigDecimal totalSellAmount = BigDecimal.ZERO;
-            BigDecimal totalSellFee = BigDecimal.ZERO;
-            for (TradeRecord sellRecord : sellRecords) {
-                totalSellAmount = totalSellAmount.add(sellRecord.getAmount() != null ? sellRecord.getAmount() : BigDecimal.ZERO);
-                totalSellFee = totalSellFee.add(sellRecord.getFee() != null ? sellRecord.getFee() : BigDecimal.ZERO);
-            }
+                BigDecimal buyAmount = buyRecord.getAmount() != null ? buyRecord.getAmount() : BigDecimal.ZERO;
+                BigDecimal buyFee = buyRecord.getFee() != null ? buyRecord.getFee() : BigDecimal.ZERO;
+                BigDecimal sellAmount = sellRecord.getAmount() != null ? sellRecord.getAmount() : BigDecimal.ZERO;
+                BigDecimal sellFee = sellRecord.getFee() != null ? sellRecord.getFee() : BigDecimal.ZERO;
 
-            // 计算完整一轮的收益：总卖出 - 总买入 - 总手续费
-            totalActualProfit = totalSellAmount.subtract(totalBuyAmount).subtract(totalBuyFee).subtract(totalSellFee);
+                // 单轮收益 = 卖出金额 - 买入金额 - 买入手续费 - 卖出手续费
+                BigDecimal roundProfit = sellAmount.subtract(buyAmount).subtract(buyFee).subtract(sellFee);
+                totalActualProfit = totalActualProfit.add(roundProfit);
+            }
 
             // 设置真实累计收益
             BigDecimal oldProfit = gridLine.getActualProfit();
             BigDecimal newProfit = totalActualProfit.setScale(2, RoundingMode.HALF_UP);
 
+            // 计算预计收益：网格理论预期收益（成功卖出时能获得的收益）
+            BigDecimal expectedProfit = BigDecimal.ZERO;
+            if (gridLine.getState() == GridLineState.BOUGHT) {
+                // 已买入：(建议卖出价 - 实际买入价) × 持仓数量 - 预估手续费
+                BigDecimal sellPrice = gridLine.getSellPrice();
+                BigDecimal actualBuyPrice = gridLine.getActualBuyPrice() != null ? gridLine.getActualBuyPrice() : gridLine.getBuyPrice();
+                BigDecimal quantity = gridLine.getBuyQuantity();
+                // 预估卖出手续费按万分之0.5计算，可根据实际费率调整
+                BigDecimal estimatedSellFee = sellPrice.multiply(quantity).multiply(new BigDecimal("0.00005"));
+                BigDecimal totalSellFee = estimatedSellFee.add(
+                        buyRecords.stream()
+                                .map(TradeRecord::getFee)
+                                .filter(Objects::nonNull)
+                                .reduce(BigDecimal.ZERO, BigDecimal::add)
+                );
+
+                expectedProfit = sellPrice.multiply(quantity)
+                        .subtract(actualBuyPrice.multiply(quantity))
+                        .subtract(totalSellFee)
+                        .setScale(2, RoundingMode.HALF_UP);
+            } else if (gridLine.getState() == GridLineState.WAIT_BUY) {
+                // 未买入：(建议卖出价 - 建议买入价) × 每网数量 - 预估手续费
+                BigDecimal sellPrice = gridLine.getSellPrice();
+                BigDecimal buyPrice = gridLine.getBuyPrice();
+                BigDecimal quantity = gridLine.getBuyQuantity();
+                // 预估买卖手续费合计万分之1
+                BigDecimal estimatedFee = sellPrice.multiply(quantity).multiply(new BigDecimal("0.0001"));
+
+                expectedProfit = sellPrice.multiply(quantity)
+                        .subtract(buyPrice.multiply(quantity))
+                        .subtract(estimatedFee)
+                        .setScale(2, RoundingMode.HALF_UP);
+            }
+
             // ✅ 优化：只在收益变化时才记录日志和标记更新
-            if (oldProfit == null || oldProfit.compareTo(newProfit) != 0) {
+            boolean profitChanged = oldProfit == null || oldProfit.compareTo(newProfit) != 0;
+            boolean expectedChanged = gridLine.getExpectedProfit() == null || gridLine.getExpectedProfit().compareTo(expectedProfit) != 0;
+
+            if (profitChanged || expectedChanged) {
                 gridLine.setActualProfit(newProfit);
+                gridLine.setExpectedProfit(expectedProfit);
                 gridLinesToUpdate.add(gridLine);
 
                 // 只输出变化的网格收益信息
-                if (pairCount > 0) {
+                if (pairCount > 0 || expectedProfit.compareTo(BigDecimal.ZERO) != 0) {
                     System.out.println(String.format(
-                        "[真实收益] 网格%d 完成%d轮交易，累计收益=%.2f元",
-                        gridLine.getLevel(), pairCount, newProfit
+                        "[收益更新] 网格%d 完成%d轮交易，已实现收益=%.2f元，预计收益=%.2f元",
+                        gridLine.getLevel(), pairCount, newProfit, expectedProfit
                     ));
                 }
             }

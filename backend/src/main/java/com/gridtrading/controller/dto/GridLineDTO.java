@@ -35,9 +35,15 @@ public class GridLineDTO {
     private BigDecimal buyQuantityFull;  // 完整8位精度（供编辑使用）
     private BigDecimal sellAmount;
 
-    // 收益
+    // 计划收益
     private BigDecimal profit;
     private BigDecimal profitRate;
+
+    // 实际收益（已实现落袋收益，永久累计）
+    private BigDecimal actualProfit;
+
+    // 预计收益（当前持仓浮动收益）
+    private BigDecimal expectedProfit;
 
     // 是否可编辑实际买入价
     private Boolean canEditActualBuyPrice;
@@ -85,6 +91,8 @@ public class GridLineDTO {
         // 收益
         dto.setProfit(gridLine.getProfit());
         dto.setProfitRate(gridLine.getProfitRate());
+        dto.setActualProfit(gridLine.getActualProfit() != null ? gridLine.getActualProfit() : BigDecimal.ZERO);
+        dto.setExpectedProfit(gridLine.getExpectedProfit() != null ? gridLine.getExpectedProfit() : BigDecimal.ZERO);
 
         // 已买入状态才可编辑实际买入价
         dto.setCanEditActualBuyPrice(gridLine.getState() == GridLineState.BOUGHT);
@@ -248,5 +256,21 @@ public class GridLineDTO {
 
     public void setSellCount(Integer sellCount) {
         this.sellCount = sellCount;
+    }
+
+    public BigDecimal getActualProfit() {
+        return actualProfit;
+    }
+
+    public void setActualProfit(BigDecimal actualProfit) {
+        this.actualProfit = actualProfit;
+    }
+
+    public BigDecimal getExpectedProfit() {
+        return expectedProfit;
+    }
+
+    public void setExpectedProfit(BigDecimal expectedProfit) {
+        this.expectedProfit = expectedProfit;
     }
 }

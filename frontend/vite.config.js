@@ -6,7 +6,7 @@ export default defineConfig({
   plugins: [vue()],
   base: '/',  // 生产环境根路径
   server: {
-    port: 3004,
+    port: 3000,
     host: '0.0.0.0', // 允许手机通过IP访问
     proxy: {
       '/api': {

@@ -62,7 +62,8 @@ public class GridPlanResponse {
         private GridLineState state;
         private Integer buyCount;
         private Integer sellCount;
-        private BigDecimal actualProfit;
+        private BigDecimal actualProfit;     // 实际收益（已实现）
+        private BigDecimal expectedProfit;   // 预计收益（浮动）
 
         public Long getId() {
             return id;
@@ -206,6 +207,14 @@ public class GridPlanResponse {
 
         public void setActualProfit(BigDecimal actualProfit) {
             this.actualProfit = actualProfit;
+        }
+
+        public BigDecimal getExpectedProfit() {
+            return expectedProfit;
+        }
+
+        public void setExpectedProfit(BigDecimal expectedProfit) {
+            this.expectedProfit = expectedProfit;
         }
     }
 
