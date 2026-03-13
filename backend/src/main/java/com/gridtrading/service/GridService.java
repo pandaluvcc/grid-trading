@@ -61,6 +61,27 @@ public class GridService {
     }
 
     /**
+     * 计算建议卖出价（供OCR导入后重置卖出价使用）
+     * <p>
+     * 当网格卖出后进入WAIT_BUY状态，需要按买入价重新计算建议卖出价
+     *
+     * @param strategy  策略
+     * @param gridLine  网格线
+     * @return 建议卖出价
+     */
+    public BigDecimal calculateSuggestedSellPrice(Strategy strategy, GridLine gridLine) {
+        BigDecimal buyPrice = gridLine.getBuyPrice();
+        if (buyPrice == null) {
+            return null;
+        }
+
+        List<GridLine> allGridLines = strategy.getGridLines();
+        allGridLines.sort((a, b) -> a.getLevel().compareTo(b.getLevel()));
+
+        return calculateSellPrice(strategy, allGridLines, gridLine.getGridType(), gridLine.getLevel(), buyPrice);
+    }
+
+    /**
      * 根据网格类型计算卖出价
      */
     private BigDecimal calculateSellPrice(

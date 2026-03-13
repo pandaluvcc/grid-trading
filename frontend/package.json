@@ -5,17 +5,27 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "lint": "eslint . --ext .vue,.js,.jsx,.cjs,.mjs --fix",
+    "format": "prettier --write \"./**/*.{vue,js,json,css,md}\" --ignore-path .prettierignore"
   },
   "dependencies": {
     "@element-plus/icons-vue": "^2.3.2",
     "axios": "^1.6.5",
     "element-plus": "^2.5.4",
+    "pinia": "^3.0.4",
     "vue": "^3.4.15",
     "vue-router": "^4.6.4"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@vitejs/plugin-vue": "^5.0.3",
+    "@vue/eslint-config-prettier": "^10.2.0",
+    "eslint": "^10.0.3",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-prettier": "^5.5.5",
+    "eslint-plugin-vue": "^10.8.0",
+    "prettier": "^3.8.1",
     "terser": "^5.46.0",
     "vite": "^5.0.11"
   }

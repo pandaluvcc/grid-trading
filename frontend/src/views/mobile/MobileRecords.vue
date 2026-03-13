@@ -2,18 +2,8 @@
   <MobileLayout title="成交记录" :show-tab-bar="true">
     <!-- 策略选择 -->
     <div class="strategy-selector">
-      <el-select 
-        v-model="selectedStrategyId" 
-        placeholder="选择策略"
-        size="large"
-        @change="loadRecords"
-      >
-        <el-option
-          v-for="s in strategies"
-          :key="s.id"
-          :label="s.symbol"
-          :value="s.id"
-        />
+      <el-select v-model="selectedStrategyId" placeholder="选择策略" size="large" @change="loadRecords">
+        <el-option v-for="s in strategies" :key="s.id" :label="s.symbol" :value="s.id" />
       </el-select>
     </div>
 
@@ -31,16 +21,9 @@
 
     <!-- 记录列表 -->
     <div v-else class="record-list">
-      <div 
-        v-for="record in records" 
-        :key="record.id" 
-        class="record-item"
-      >
+      <div v-for="record in records" :key="record.id" class="record-item">
         <div class="record-main">
-          <el-tag 
-            size="small" 
-            :type="record.type === 'BUY' ? 'danger' : 'success'"
-          >
+          <el-tag size="small" :type="record.type === 'BUY' ? 'danger' : 'success'">
             {{ record.type === 'BUY' ? '买入' : '卖出' }}
           </el-tag>
           <span class="record-price">¥{{ formatPrice(record.price) }}</span>
@@ -85,7 +68,7 @@ const loadStrategies = async () => {
 // 加载成交记录
 const loadRecords = async () => {
   if (!selectedStrategyId.value) return
-  
+
   loading.value = true
   try {
     const res = await getTradeRecords(selectedStrategyId.value)
@@ -99,13 +82,13 @@ const loadRecords = async () => {
 }
 
 // 格式化
-const formatPrice = (val) => val == null ? '-' : Number(val).toFixed(3)
-const formatAmount = (val) => val == null ? '0' : Math.round(Number(val)).toString()
-const formatQty = (val) => val == null ? '0' : Math.round(Number(val)).toString()
+const formatPrice = (val) => (val == null ? '-' : Number(val).toFixed(3))
+const formatAmount = (val) => (val == null ? '0' : Math.round(Number(val)).toString())
+const formatQty = (val) => (val == null ? '0' : Math.round(Number(val)).toString())
 const formatTime = (dateStr) => {
   if (!dateStr) return ''
   const d = new Date(dateStr)
-  return `${d.getMonth()+1}/${d.getDate()} ${d.getHours()}:${String(d.getMinutes()).padStart(2,'0')}`
+  return `${d.getMonth() + 1}/${d.getDate()} ${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}`
 }
 
 onMounted(() => {
@@ -156,7 +139,7 @@ onMounted(() => {
   background: #fff;
   border-radius: 10px;
   padding: 14px 16px;
-  box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
 }
 
 .record-main {

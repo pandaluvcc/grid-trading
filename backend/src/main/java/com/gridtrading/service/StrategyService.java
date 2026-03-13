@@ -101,16 +101,10 @@ public class StrategyService {
         strategyInfo.setBasePrice(strategy.getBasePrice());
         response.setStrategy(strategyInfo);
 
-        // 网格计划列表
+        // 网格计划列表 - 按层级升序排列（第1网在最上面）
         List<GridPlanResponse.GridPlanItem> gridPlans = strategy.getGridLines().stream()
                 .map(this::convertToGridPlanItem)
-                .sorted((a, b) -> {
-                    int priceCompare = b.getBuyPrice().compareTo(a.getBuyPrice());
-                    if (priceCompare != 0) {
-                        return priceCompare;
-                    }
-                    return a.getGridType().compareTo(b.getGridType());
-                })
+                .sorted((a, b) -> a.getLevel().compareTo(b.getLevel()))
                 .collect(Collectors.toList());
 
         response.setGridPlans(gridPlans);

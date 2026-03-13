@@ -15,20 +15,12 @@
 
     <!-- 策略卡片列表 -->
     <div class="strategy-cards">
-      <div 
-        v-for="item in strategies" 
-        :key="item.id" 
-        class="strategy-card"
-        @click="goToDetail(item.id)"
-      >
+      <div v-for="item in strategies" :key="item.id" class="strategy-card" @click="goToDetail(item.id)">
         <!-- 卡片头部 -->
         <div class="card-header">
           <div class="card-title">
             <span class="symbol">{{ item.symbol }}</span>
-            <el-tag 
-              size="small" 
-              :type="item.status === 'RUNNING' ? 'success' : 'info'"
-            >
+            <el-tag size="small" :type="item.status === 'RUNNING' ? 'success' : 'info'">
               {{ item.status === 'RUNNING' ? '运行中' : '已停止' }}
             </el-tag>
           </div>
@@ -50,7 +42,7 @@
           <div class="info-row">
             <div class="info-item">
               <span class="label">已实现收益</span>
-              <span class="value profit" :class="{ negative: item.realizedProfit < 0 }">
+              <span class="value" :class="getProfitClass(item.realizedProfit)">
                 {{ formatProfit(item.realizedProfit) }}
               </span>
             </div>
@@ -119,6 +111,14 @@ const formatProfit = (val) => {
   return prefix + num.toFixed(2)
 }
 
+// 获取盈亏颜色类：正数红色，负数绿色，零值灰色
+const getProfitClass = (val) => {
+  if (val === null || val === undefined || val === '') return 'profit-zero'
+  const num = Number(val)
+  if (isNaN(num) || num === 0) return 'profit-zero'
+  return num > 0 ? 'profit-positive' : 'profit-negative'
+}
+
 const formatDate = (dateStr) => {
   if (!dateStr) return ''
   const date = new Date(dateStr)
@@ -170,14 +170,16 @@ onMounted(() => {
   background: #fff;
   border-radius: 12px;
   padding: 16px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
   cursor: pointer;
-  transition: transform 0.15s, box-shadow 0.15s;
+  transition:
+    transform 0.15s,
+    box-shadow 0.15s;
 }
 
 .strategy-card:active {
   transform: scale(0.98);
-  box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
 }
 
 .card-header {
@@ -230,14 +232,6 @@ onMounted(() => {
   font-size: 15px;
   font-weight: 500;
   color: #303133;
-}
-
-.info-item .value.profit {
-  color: #f56c6c;
-}
-
-.info-item .value.profit.negative {
-  color: #67c23a;
 }
 
 .card-footer {

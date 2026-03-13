@@ -9,31 +9,19 @@
 
     <!-- 操作类型切换 -->
     <div class="action-switcher">
-      <div 
-        class="switch-item" 
-        :class="{ active: actionType === 'buy' }"
-        @click="actionType = 'buy'"
-      >
-        买入
-      </div>
-      <div 
-        class="switch-item" 
-        :class="{ active: actionType === 'sell' }"
-        @click="actionType = 'sell'"
-      >
-        卖出
-      </div>
+      <div class="switch-item" :class="{ active: actionType === 'buy' }" @click="actionType = 'buy'">买入</div>
+      <div class="switch-item" :class="{ active: actionType === 'sell' }" @click="actionType = 'sell'">卖出</div>
     </div>
 
     <!-- 选择网格 -->
     <div class="grid-selector">
       <div class="selector-label">选择网格</div>
       <div class="grid-chips">
-        <div 
-          v-for="grid in availableGrids" 
+        <div
+          v-for="grid in availableGrids"
           :key="grid.id"
           class="grid-chip"
-          :class="{ 
+          :class="{
             selected: selectedGrid?.id === grid.id,
             small: grid.gridType === 'SMALL',
             medium: grid.gridType === 'MEDIUM',
@@ -42,7 +30,9 @@
           @click="selectGrid(grid)"
         >
           <span class="chip-level">{{ grid.level }}</span>
-          <span class="chip-price">{{ formatPrice(actionType === 'buy' ? (grid.actualBuyPrice || grid.buyPrice) : grid.sellPrice) }}</span>
+          <span class="chip-price">{{
+            formatPrice(actionType === 'buy' ? grid.actualBuyPrice || grid.buyPrice : grid.sellPrice)
+          }}</span>
         </div>
       </div>
       <div class="selector-hint" v-if="availableGrids.length === 0">
@@ -55,8 +45,8 @@
       <div class="input-label">实际成交价</div>
       <div class="price-input-wrapper">
         <span class="currency">¥</span>
-        <input 
-          type="number" 
+        <input
+          type="number"
           v-model="inputPrice"
           class="price-input"
           :placeholder="'计划价 ' + formatPrice(planPrice)"
@@ -90,13 +80,7 @@
         <div class="input-label">手续费</div>
         <div class="input-wrapper">
           <span class="currency-small">¥</span>
-          <input
-            type="number"
-            v-model="inputFee"
-            class="detail-input"
-            placeholder="0.00"
-            inputmode="decimal"
-          />
+          <input type="number" v-model="inputFee" class="detail-input" placeholder="0.00" inputmode="decimal" />
         </div>
       </div>
     </div>
@@ -123,13 +107,13 @@
 
     <!-- 底部确认按钮 -->
     <div class="bottom-action">
-      <button 
+      <button
         class="confirm-btn"
         :class="{ disabled: !canSubmit, [actionType]: true }"
         :disabled="!canSubmit || submitting"
         @click="handleSubmit"
       >
-        {{ submitting ? '提交中...' : (actionType === 'buy' ? '确认买入' : '确认卖出') }}
+        {{ submitting ? '提交中...' : actionType === 'buy' ? '确认买入' : '确认卖出' }}
       </button>
     </div>
   </div>
@@ -153,20 +137,18 @@ const actionType = ref('buy')
 const gridLines = ref([])
 const selectedGrid = ref(null)
 const inputPrice = ref('')
-const inputQuantity = ref('')  // 新增：成交数量
-const inputFee = ref('0')      // 新增：手续费
+const inputQuantity = ref('') // 新增：成交数量
+const inputFee = ref('0') // 新增：手续费
 const submitting = ref(false)
 const amountPerGrid = ref(1000) // 将从策略中获取
 
 // 可选网格列表
 const availableGrids = computed(() => {
   if (actionType.value === 'buy') {
-    return gridLines.value
-      .filter(g => g.state === 'WAIT_BUY')
-      .sort((a, b) => a.level - b.level)
+    return gridLines.value.filter((g) => g.state === 'WAIT_BUY').sort((a, b) => a.level - b.level)
   } else {
     return gridLines.value
-      .filter(g => g.state === 'BOUGHT' || g.state === 'WAIT_SELL')
+      .filter((g) => g.state === 'BOUGHT' || g.state === 'WAIT_SELL')
       .sort((a, b) => a.level - b.level)
   }
 })
@@ -174,8 +156,8 @@ const availableGrids = computed(() => {
 // 计划价
 const planPrice = computed(() => {
   if (!selectedGrid.value) return 0
-  return actionType.value === 'buy' 
-    ? (selectedGrid.value.actualBuyPrice || selectedGrid.value.buyPrice)
+  return actionType.value === 'buy'
+    ? selectedGrid.value.actualBuyPrice || selectedGrid.value.buyPrice
     : selectedGrid.value.sellPrice
 })
 
@@ -212,20 +194,20 @@ const loadGrids = async () => {
   try {
     const res = await getGridLines(strategyId.value)
     gridLines.value = res.data.gridPlans || []
-    
+
     // 获取单格金额
     if (res.data.strategy?.amountPerGrid) {
       amountPerGrid.value = Number(res.data.strategy.amountPerGrid)
     }
-    
+
     // 预选网格
     if (preselectedGridId.value) {
-      const grid = gridLines.value.find(g => g.id == preselectedGridId.value)
+      const grid = gridLines.value.find((g) => g.id == preselectedGridId.value)
       if (grid) {
         selectedGrid.value = grid
       }
     }
-    
+
     // 预选操作类型
     if (preselectedAction.value) {
       actionType.value = preselectedAction.value
@@ -240,9 +222,8 @@ const loadGrids = async () => {
 const selectGrid = (grid) => {
   selectedGrid.value = grid
   // 默认填入计划价
-  inputPrice.value = actionType.value === 'buy' 
-    ? (grid.actualBuyPrice || grid.buyPrice).toString() 
-    : grid.sellPrice.toString()
+  inputPrice.value =
+    actionType.value === 'buy' ? (grid.actualBuyPrice || grid.buyPrice).toString() : grid.sellPrice.toString()
 }
 
 // 切换操作类型时重置
@@ -265,17 +246,17 @@ watch(inputPrice, (newPrice) => {
 // 提交
 const handleSubmit = async () => {
   if (!canSubmit.value || submitting.value) return
-  
+
   submitting.value = true
   try {
     // 构建完整的交易数据（新版接口要求）
     const tradeData = {
-      gridLineId: selectedGrid.value.id,  // 前端指定网格ID
-      type: actionType.value === 'buy' ? 'BUY' : 'SELL',  // 前端指定交易类型
+      gridLineId: selectedGrid.value.id, // 前端指定网格ID
+      type: actionType.value === 'buy' ? 'BUY' : 'SELL', // 前端指定交易类型
       price: Number(inputPrice.value),
-      quantity: Number(inputQuantity.value) || (amountPerGrid.value / Number(inputPrice.value)),  // 优先使用用户输入的数量
-      fee: Number(inputFee.value) || 0,  // 手续费
-      tradeTime: new Date().toISOString().slice(0, 19).replace('T', ' ')  // 当前时间
+      quantity: Number(inputQuantity.value) || amountPerGrid.value / Number(inputPrice.value), // 优先使用用户输入的数量
+      fee: Number(inputFee.value) || 0, // 手续费
+      tradeTime: new Date().toISOString().slice(0, 19).replace('T', ' ') // 当前时间
     }
 
     await executeTick(strategyId.value, tradeData)
@@ -296,7 +277,7 @@ const goBack = () => {
 }
 
 // 格式化
-const formatPrice = (val) => val == null ? '-' : Number(val).toFixed(3)
+const formatPrice = (val) => (val == null ? '-' : Number(val).toFixed(3))
 const formatAmount = (val) => {
   if (val == null) return '0'
   const num = Number(val)
@@ -355,7 +336,7 @@ onMounted(() => {
   background: #fff;
   border-radius: 12px;
   padding: 4px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
 }
 
 .switch-item {
@@ -385,7 +366,7 @@ onMounted(() => {
   background: #fff;
   border-radius: 12px;
   padding: 16px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
 }
 
 .selector-label {
@@ -417,9 +398,15 @@ onMounted(() => {
   background: #f0f3ff;
 }
 
-.grid-chip.small { border-left: 3px solid #409eff; }
-.grid-chip.medium { border-left: 3px solid #e6a23c; }
-.grid-chip.large { border-left: 3px solid #f56c6c; }
+.grid-chip.small {
+  border-left: 3px solid #409eff;
+}
+.grid-chip.medium {
+  border-left: 3px solid #e6a23c;
+}
+.grid-chip.large {
+  border-left: 3px solid #f56c6c;
+}
 
 .chip-level {
   font-size: 16px;
@@ -446,7 +433,7 @@ onMounted(() => {
   background: #fff;
   border-radius: 12px;
   padding: 16px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
 }
 
 .input-label {
@@ -504,7 +491,7 @@ onMounted(() => {
   background: #fff;
   border-radius: 12px;
   padding: 16px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
 }
 
 .detail-row {
@@ -565,7 +552,7 @@ onMounted(() => {
   background: #fff;
   border-radius: 12px;
   padding: 16px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
 }
 
 .summary-row {
@@ -611,7 +598,7 @@ onMounted(() => {
   right: 0;
   padding: 16px;
   background: #fff;
-  box-shadow: 0 -2px 10px rgba(0,0,0,0.06);
+  box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.06);
   padding-bottom: calc(16px + env(safe-area-inset-bottom));
 }
 

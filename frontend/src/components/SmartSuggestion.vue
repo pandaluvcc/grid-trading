@@ -7,24 +7,16 @@
         <el-tag size="small" type="danger">{{ suggestions.length }}</el-tag>
         <span class="page-indicator">[{{ currentIndex + 1 }}/{{ suggestions.length }}]</span>
         <div class="nav-buttons">
-          <el-button 
-            size="small" 
-            :disabled="currentIndex === 0"
-            @click="goPrev"
-          >
+          <el-button size="small" :disabled="currentIndex === 0" @click="goPrev">
             <el-icon><ArrowLeft /></el-icon>
           </el-button>
-          <el-button 
-            size="small" 
-            :disabled="currentIndex === suggestions.length - 1"
-            @click="goNext"
-          >
+          <el-button size="small" :disabled="currentIndex === suggestions.length - 1" @click="goNext">
             <el-icon><ArrowRight /></el-icon>
           </el-button>
         </div>
       </div>
 
-      <div 
+      <div
         class="suggestion-list"
         @touchstart="handleTouchStart"
         @touchmove="handleTouchMove"
@@ -53,9 +45,7 @@
             <span class="deferred-grid">第{{ grid.gridLevel }}网（{{ getGridTypeName(grid.gridType) }}）</span>
             <span class="deferred-reason">- {{ getDeferredReasonText(grid.deferredReason) }}</span>
           </div>
-          <el-button size="small" type="primary" @click="handleResumeBuy(grid)">
-            手动补买
-          </el-button>
+          <el-button size="small" type="primary" @click="handleResumeBuy(grid)"> 手动补买 </el-button>
         </div>
       </div>
     </div>
@@ -75,7 +65,9 @@
         <div class="suggestion-summary">
           <div class="summary-item">
             <span class="label">网格：</span>
-            <span class="value">第{{ currentSuggestion.gridLevel }}网（{{ getGridTypeName(currentSuggestion.gridType) }}）</span>
+            <span class="value"
+              >第{{ currentSuggestion.gridLevel }}网（{{ getGridTypeName(currentSuggestion.gridType) }}）</span
+            >
           </div>
           <div class="summary-item">
             <span class="label">价格：</span>
@@ -90,7 +82,7 @@
             <span class="value">¥{{ formatAmount(currentSuggestion.price * 1000) }}</span>
           </div>
         </div>
-        
+
         <div class="input-section">
           <div class="input-group">
             <label>交易时间</label>
@@ -106,23 +98,16 @@
           </div>
           <div class="input-group">
             <label>手续费（可选）</label>
-            <el-input
-              v-model="feeInput"
-              type="number"
-              placeholder="输入手续费"
-              size="large"
-            >
+            <el-input v-model="feeInput" type="number" placeholder="输入手续费" size="large">
               <template #prefix>¥</template>
             </el-input>
           </div>
         </div>
       </div>
-      
+
       <template #footer>
         <el-button @click="cancelExecute">取消</el-button>
-        <el-button type="primary" :loading="executing" @click="confirmExecute">
-          确认执行
-        </el-button>
+        <el-button type="primary" :loading="executing" @click="confirmExecute"> 确认执行 </el-button>
       </template>
     </el-dialog>
   </div>
@@ -130,13 +115,7 @@
 
 <script setup>
 import { ref, watch, onMounted } from 'vue'
-import {
-  Bell,
-  CircleCheck,
-  VideoPause,
-  ArrowLeft,
-  ArrowRight
-} from '@element-plus/icons-vue'
+import { Bell, CircleCheck, VideoPause, ArrowLeft, ArrowRight } from '@element-plus/icons-vue'
 import { getSmartSuggestions } from '../api.js'
 import { ElMessage } from 'element-plus'
 import SuggestionCard from './SuggestionCard.vue'
@@ -195,7 +174,7 @@ const handleTouchMove = (e) => {
 const handleTouchEnd = () => {
   const touchDiff = touchStartX.value - touchEndX.value
   const timeDiff = Date.now() - touchStartTime.value
-  
+
   if (timeDiff < 300 && Math.abs(touchDiff) > 50) {
     if (touchDiff > 0) {
       goNext()
@@ -222,17 +201,17 @@ const formatAmount = (value) => {
 
 const getGridTypeName = (type) => {
   const map = {
-    'SMALL': '小网',
-    'MEDIUM': '中网',
-    'LARGE': '大网'
+    SMALL: '小网',
+    MEDIUM: '中网',
+    LARGE: '大网'
   }
   return map[type] || type
 }
 
 const getDeferredReasonText = (reason) => {
   const map = {
-    'DENSE_BUY': '短期密集买入',
-    'POSITION_LIMIT': '持仓比例达到上限'
+    DENSE_BUY: '短期密集买入',
+    POSITION_LIMIT: '持仓比例达到上限'
   }
   return map[reason] || reason
 }
@@ -243,8 +222,10 @@ onMounted(() => {
   }
 })
 
-watch(() => props.strategyId, () => {
-})
+watch(
+  () => props.strategyId,
+  () => {}
+)
 
 const fetchSuggestions = async (price) => {
   if (!price || loading.value) return
@@ -257,7 +238,7 @@ const fetchSuggestions = async (price) => {
     suggestions.value = data.suggestions || []
     risks.value = data.risks || []
     deferredGrids.value = data.deferredGrids || []
-    
+
     currentIndex.value = 0
 
     emit('suggestionUpdated', data)
@@ -382,7 +363,8 @@ defineExpose({
   transform: translateX(20px);
 }
 
-.suggestions-section, .deferred-section {
+.suggestions-section,
+.deferred-section {
   margin-top: 16px;
   background: white;
   border-radius: 16px;

@@ -4,14 +4,12 @@
       <span class="action-icon">
         {{ suggestion.type === 'BUY' ? '📥' : '📤' }}
       </span>
-      <span class="action-text">
-        {{ suggestion.type === 'BUY' ? '买入' : '卖出' }}第{{ suggestion.gridLevel }}网
-      </span>
+      <span class="action-text"> {{ suggestion.type === 'BUY' ? '买入' : '卖出' }}第{{ suggestion.gridLevel }}网 </span>
       <el-tag size="small" :type="getGridTypeTag(suggestion.gridType)">
         {{ getGridTypeName(suggestion.gridType) }}
       </el-tag>
     </div>
-    
+
     <div class="card-body">
       <div class="info-row">
         <span>价格：¥{{ formatPrice(suggestion.price) }}</span>
@@ -20,20 +18,18 @@
       <div class="info-row">
         <span>金额：¥{{ formatAmount(suggestion.amount) }}</span>
       </div>
-      <div class="risk-warning" v-if="suggestion.riskWarning">
-        ⚠️ {{ suggestion.riskWarning }}
-      </div>
+      <div class="risk-warning" v-if="suggestion.riskWarning">⚠️ {{ suggestion.riskWarning }}</div>
       <div class="reason" v-if="suggestion.reason">
         {{ suggestion.reason }}
       </div>
       <div class="suggestion-amount" v-if="suggestion.type === 'SELL' && suggestion.expectedProfit">
-        预期收益: <span class="profit">+¥{{ formatPrice(suggestion.expectedProfit) }}</span>
+        预期收益: <span :class="getProfitClass(suggestion.expectedProfit)">+¥{{ formatPrice(suggestion.expectedProfit) }}</span>
       </div>
     </div>
-    
+
     <div class="card-footer">
-      <el-button 
-        size="small" 
+      <el-button
+        size="small"
         :type="suggestion.type === 'BUY' ? 'danger' : 'success'"
         @click="$emit('execute', suggestion)"
       >
@@ -70,20 +66,28 @@ const formatAmount = (value) => {
 
 const getGridTypeTag = (type) => {
   const map = {
-    'SMALL': '',
-    'MEDIUM': 'warning',
-    'LARGE': 'danger'
+    SMALL: '',
+    MEDIUM: 'warning',
+    LARGE: 'danger'
   }
   return map[type] || ''
 }
 
 const getGridTypeName = (type) => {
   const map = {
-    'SMALL': '小网',
-    'MEDIUM': '中网',
-    'LARGE': '大网'
+    SMALL: '小网',
+    MEDIUM: '中网',
+    LARGE: '大网'
   }
   return map[type] || type
+}
+
+// 获取盈亏颜色类：正数红色，负数绿色，零值灰色
+const getProfitClass = (val) => {
+  if (val === null || val === undefined || val === '') return 'profit-zero'
+  const num = Number(val)
+  if (isNaN(num) || num === 0) return 'profit-zero'
+  return num > 0 ? 'profit-positive' : 'profit-negative'
 }
 </script>
 
@@ -169,11 +173,6 @@ const getGridTypeName = (type) => {
 .suggestion-amount {
   font-size: 13px;
   color: #909399;
-}
-
-.suggestion-amount .profit {
-  color: #f56c6c;
-  font-weight: bold;
 }
 
 .card-footer {

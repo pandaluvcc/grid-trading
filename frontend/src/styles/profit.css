@@ -1,0 +1,42 @@
+/* 盈亏颜色工具类（中国股市风格：红涨绿跌） */
+
+/* 正收益（红色） */
+.profit-positive {
+  color: var(--profit-positive) !important;
+}
+
+/* 负收益（绿色） */
+.profit-negative {
+  color: var(--profit-negative) !important;
+}
+
+/* 零值（灰色） */
+.profit-zero {
+  color: var(--profit-zero) !important;
+}
+
+/* 动态盈亏颜色类 - 根据值自动应用颜色 */
+.profit-value {
+  color: var(--profit-positive);
+}
+
+.profit-value.negative {
+  color: var(--profit-negative);
+}
+
+.profit-value.zero {
+  color: var(--profit-zero);
+}
+
+/* 百分比颜色 */
+.percent-positive {
+  color: var(--profit-positive) !important;
+}
+
+.percent-negative {
+  color: var(--profit-negative) !important;
+}
+
+.percent-zero {
+  color: var(--profit-zero) !important;
+}

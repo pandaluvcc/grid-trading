@@ -5,14 +5,12 @@
         <el-icon><ArrowLeft /></el-icon>
       </el-button>
       <span class="title">消息中心</span>
-      <el-button text v-if="allSuggestions.length > 0" @click="handleMarkAllRead">
-        全部已读
-      </el-button>
+      <el-button text v-if="allSuggestions.length > 0" @click="handleMarkAllRead"> 全部已读 </el-button>
     </div>
 
     <div class="tabs">
-      <div 
-        v-for="tab in tabs" 
+      <div
+        v-for="tab in tabs"
         :key="tab.value"
         class="tab-item"
         :class="{ active: currentTab === tab.value }"
@@ -32,12 +30,7 @@
       </div>
 
       <div v-else class="suggestion-list">
-        <div 
-          v-for="item in filteredSuggestions" 
-          :key="item.id"
-          class="suggestion-item"
-          :class="{ unread: !item.read }"
-        >
+        <div v-for="item in filteredSuggestions" :key="item.id" class="suggestion-item" :class="{ unread: !item.read }">
           <div class="item-header">
             <div class="item-left">
               <span class="type-icon">{{ getTypeIcon(item.type) }}</span>
@@ -63,20 +56,16 @@
           </div>
 
           <div class="item-footer">
-            <el-button size="small" text @click="goToStrategyDetail(item.strategyId)">
-              查看详情
-            </el-button>
-            <el-button 
+            <el-button size="small" text @click="goToStrategyDetail(item.strategyId)"> 查看详情 </el-button>
+            <el-button
               v-if="item.type !== 'RISK'"
-              size="small" 
+              size="small"
               :type="item.type === 'BUY' ? 'danger' : 'success'"
               @click="quickExecute(item)"
             >
               一键执行
             </el-button>
-            <el-button size="small" text @click="handleIgnore(item)">
-              忽略
-            </el-button>
+            <el-button size="small" text @click="handleIgnore(item)"> 忽略 </el-button>
           </div>
         </div>
       </div>
@@ -96,7 +85,9 @@
           </div>
           <div class="summary-item">
             <span class="label">网格：</span>
-            <span class="value">第{{ currentSuggestion.gridLevel }}网（{{ getGridTypeName(currentSuggestion.gridType) }}）</span>
+            <span class="value"
+              >第{{ currentSuggestion.gridLevel }}网（{{ getGridTypeName(currentSuggestion.gridType) }}）</span
+            >
           </div>
           <div class="summary-item">
             <span class="label">价格：</span>
@@ -111,7 +102,7 @@
             <span class="value">¥{{ formatAmount(currentSuggestion.amount) }}</span>
           </div>
         </div>
-        
+
         <div class="input-section">
           <div class="input-group">
             <label>交易时间</label>
@@ -127,23 +118,16 @@
           </div>
           <div class="input-group">
             <label>手续费（可选）</label>
-            <el-input
-              v-model="feeInput"
-              type="number"
-              placeholder="输入手续费"
-              size="large"
-            >
+            <el-input v-model="feeInput" type="number" placeholder="输入手续费" size="large">
               <template #prefix>¥</template>
             </el-input>
           </div>
         </div>
       </div>
-      
+
       <template #footer>
         <el-button @click="cancelExecute">取消</el-button>
-        <el-button type="primary" :loading="executing" @click="confirmExecute">
-          确认执行
-        </el-button>
+        <el-button type="primary" :loading="executing" @click="confirmExecute"> 确认执行 </el-button>
       </template>
     </el-dialog>
   </div>
@@ -180,18 +164,18 @@ const filteredSuggestions = computed(() => {
   if (currentTab.value === 'all') {
     return allSuggestions.value
   }
-  return allSuggestions.value.filter(item => item.type === currentTab.value)
+  return allSuggestions.value.filter((item) => item.type === currentTab.value)
 })
 
 const getTabCount = (tabValue) => {
   if (tabValue === 'all') {
-    return allSuggestions.value.filter(item => !item.read).length
+    return allSuggestions.value.filter((item) => !item.read).length
   }
-  return allSuggestions.value.filter(item => item.type === tabValue && !item.read).length
+  return allSuggestions.value.filter((item) => item.type === tabValue && !item.read).length
 }
 
 const getTabLabel = (tabValue) => {
-  const tab = tabs.find(t => t.value === tabValue)
+  const tab = tabs.find((t) => t.value === tabValue)
   return tab ? tab.label : ''
 }
 
@@ -212,27 +196,27 @@ const formatAmount = (value) => {
 
 const getGridTypeName = (type) => {
   const map = {
-    'SMALL': '小网',
-    'MEDIUM': '中网',
-    'LARGE': '大网'
+    SMALL: '小网',
+    MEDIUM: '中网',
+    LARGE: '大网'
   }
   return map[type] || type
 }
 
 const getTypeIcon = (type) => {
   const map = {
-    'BUY': '📥',
-    'SELL': '📤',
-    'RISK': '⚠️'
+    BUY: '📥',
+    SELL: '📤',
+    RISK: '⚠️'
   }
   return map[type] || '💡'
 }
 
 const getTypeText = (type) => {
   const map = {
-    'BUY': '建议买入',
-    'SELL': '建议卖出',
-    'RISK': '风险提示'
+    BUY: '建议买入',
+    SELL: '建议卖出',
+    RISK: '风险提示'
   }
   return map[type] || '建议'
 }
@@ -242,12 +226,12 @@ const formatTime = (time) => {
   const date = new Date(time)
   const now = new Date()
   const diff = now - date
-  
+
   if (diff < 60000) return '刚刚'
   if (diff < 3600000) return `${Math.floor(diff / 60000)}分钟前`
   if (diff < 86400000) return `${Math.floor(diff / 3600000)}小时前`
   if (diff < 172800000) return '昨天'
-  
+
   const month = String(date.getMonth() + 1).padStart(2, '0')
   const day = String(date.getDate()).padStart(2, '0')
   return `${month}-${day}`
@@ -258,7 +242,7 @@ const loadData = async () => {
   try {
     const res = await getAllStrategies()
     strategies.value = res.data
-    
+
     const suggestions = []
     for (const s of strategies.value) {
       if (s.lastPrice) {
@@ -296,7 +280,7 @@ const loadData = async () => {
         }
       }
     }
-    
+
     allSuggestions.value = suggestions.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
   } catch (error) {
     console.error('加载失败:', error)
@@ -372,14 +356,13 @@ const handleIgnore = async (item) => {
       cancelButtonText: '取消',
       type: 'warning'
     })
-    allSuggestions.value = allSuggestions.value.filter(s => s.id !== item.id)
+    allSuggestions.value = allSuggestions.value.filter((s) => s.id !== item.id)
     ElMessage.success('已忽略')
-  } catch {
-  }
+  } catch {}
 }
 
 const handleMarkAllRead = () => {
-  allSuggestions.value.forEach(item => {
+  allSuggestions.value.forEach((item) => {
     item.read = true
   })
   ElMessage.success('已全部标记为已读')

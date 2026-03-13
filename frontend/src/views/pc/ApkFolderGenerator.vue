@@ -42,12 +42,7 @@
           <span>选择目标路径</span>
         </div>
         <div class="path-input-wrapper">
-          <el-input
-            v-model="form.targetPath"
-            placeholder="例如: D:\apk_folders"
-            size="large"
-            class="path-input"
-          />
+          <el-input v-model="form.targetPath" placeholder="例如: D:\apk_folders" size="large" class="path-input" />
           <el-button type="primary" size="large" class="path-button" @click="selectTargetPath">
             <el-icon><Folder /></el-icon>
             选择文件夹
@@ -72,11 +67,7 @@
           <el-icon><VideoPlay /></el-icon>
           开始生成
         </el-button>
-        <el-button
-          size="large"
-          class="action-button secondary"
-          @click="showExportDialog"
-        >
+        <el-button size="large" class="action-button secondary" @click="showExportDialog">
           <el-icon><Download /></el-icon>
           导出知识库文件
         </el-button>
@@ -116,9 +107,7 @@
         </div>
 
         <div v-if="result.keywords && result.keywords.length > 0" class="keyword-list">
-          <div class="keyword-list-header">
-            关键词列表（按搜索量排序，显示前20个）
-          </div>
+          <div class="keyword-list-header">关键词列表（按搜索量排序，显示前20个）</div>
           <el-table :data="result.keywords" stripe max-height="400">
             <el-table-column prop="keyword" label="关键词" min-width="150" />
             <el-table-column prop="monthlySearchVolume" label="月均搜索量" width="120" />
@@ -163,7 +152,14 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import {
-  Document, UploadFilled, CircleCheck, FolderOpened, Folder, InfoFilled, VideoPlay, Download
+  Document,
+  UploadFilled,
+  CircleCheck,
+  FolderOpened,
+  Folder,
+  InfoFilled,
+  VideoPlay,
+  Download
 } from '@element-plus/icons-vue'
 import axios from 'axios'
 
@@ -284,7 +280,9 @@ const handleExport = async () => {
       }
     })
 
-    const blob = new Blob([response.data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
+    const blob = new Blob([response.data], {
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    })
     const url = window.URL.createObjectURL(blob)
     const link = document.createElement('a')
     link.href = url

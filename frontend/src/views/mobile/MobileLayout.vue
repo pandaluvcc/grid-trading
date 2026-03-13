@@ -18,19 +18,11 @@
 
     <!-- 底部Tab栏（仅首页显示） -->
     <nav v-if="showTabBar" class="mobile-tabbar">
-      <div 
-        class="tab-item" 
-        :class="{ active: activeTab === 'strategies' }"
-        @click="switchTab('strategies')"
-      >
+      <div class="tab-item" :class="{ active: activeTab === 'strategies' }" @click="switchTab('strategies')">
         <el-icon><Grid /></el-icon>
         <span>我的网格</span>
       </div>
-      <div 
-        class="tab-item" 
-        :class="{ active: activeTab === 'records' }"
-        @click="switchTab('records')"
-      >
+      <div class="tab-item" :class="{ active: activeTab === 'records' }" @click="switchTab('records')">
         <el-icon><Document /></el-icon>
         <span>成交记录</span>
       </div>
@@ -100,10 +92,11 @@ const switchTab = (tab) => {
   justify-content: space-between;
   padding: 0 12px;
   z-index: 100;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
-.header-left, .header-right {
+.header-left,
+.header-right {
   width: 40px;
   display: flex;
   align-items: center;
@@ -144,7 +137,7 @@ const switchTab = (tab) => {
   height: 60px;
   background: #fff;
   display: flex;
-  box-shadow: 0 -2px 10px rgba(0,0,0,0.08);
+  box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.08);
   z-index: 100;
   padding-bottom: env(safe-area-inset-bottom);
 }

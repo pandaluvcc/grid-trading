@@ -1,244 +1,36 @@
-import axios from 'axios'
-
-// 动态获取后端地址
-const getBaseURL = () => {
-  // 生产环境：使用相对路径，由 Nginx 反向代理到后端
-  if (import.meta.env.PROD) {
-    return '/api'
-  }
-  // 开发环境：与前端同主机，端口8080
-  const host = window.location.hostname || 'localhost'
-  return `http://${host}:8080/api`
-}
-
-// 创建 axios 实例
-const api = axios.create({
-  baseURL: getBaseURL(),
-  timeout: 10000,
-  headers: {
-    'Content-Type': 'application/json'
-  }
-})
-
-// ==================== 策略相关 ====================
-
 /**
- * 获取所有策略列表
+ * @deprecated 请使用 @/services/ 目录下的模块化服务
+ * 此文件作为兼容层保留，所有函数已迁移到各服务模块
  */
-export function getAllStrategies() {
-  return api.get('/strategies')
-}
 
-/**
- * 根据 ID 获取策略详情
- */
-export function getStrategy(id) {
-  return api.get(`/strategies/${id}`)
-}
+// 导出axios实例
+export { default } from '@/services/index'
 
-/**
- * 获取策略详细信息（完整）
- */
-export function getStrategyDetail(id) {
-  return api.get(`/strategies/${id}/detail`)
-}
+// 策略相关
+export {
+  getAllStrategies,
+  getStrategy,
+  getStrategyDetail,
+  createStrategy,
+  updateStrategyLastPrice
+} from '@/services/strategy'
 
-/**
- * 创建策略
- */
-export function createStrategy(data) {
-  return api.post('/strategies', data)
-}
+// 网格相关
+export {
+  getGridLines,
+  suggestGridByPrice,
+  executeTick,
+  updatePlanBuyPrice,
+  updateActualBuyPrice,
+  resumeBuy,
+  getDeferredGrids
+} from '@/services/grid'
 
-/**
- * 更新策略最新价格
- */
-export function updateStrategyLastPrice(strategyId, lastPrice) {
-  return api.put(`/strategies/${strategyId}/last-price`, { lastPrice })
-}
+// 交易相关
+export { getTradeRecords, updateTradeFee } from '@/services/trade'
 
-/**
- * 获取网格计划列表
- */
-export function getGridLines(strategyId) {
-  return api.get(`/strategies/${strategyId}/grid-plans`)
-}
+// OCR相关
+export { ocrRecognize, ocrImport, ocrCreateStrategy, ocrRematch } from '@/services/ocr'
 
-/**
- * 根据价格推荐网格和交易类型
- * @param {number} strategyId - 策略ID
- * @param {number} price - 输入的价格
- * @returns {Promise} 推荐结果
- */
-export function suggestGridByPrice(strategyId, price) {
-  return api.get(`/strategies/${strategyId}/suggest`, {
-    params: { price }
-  })
-}
-
-/**
- * 执行一次价格触发
- * 支持两种模式：
- * 1. 自动模式：executeTick(strategyId, price)
- * 2. 手动模式（新）：executeTick(strategyId, { gridLineId, type, price, quantity, fee, tradeTime })
- */
-export function executeTick(strategyId, priceOrData) {
-  // 兼容两种调用方式
-  const data = typeof priceOrData === 'number' || typeof priceOrData === 'string'
-    ? { price: priceOrData }
-    : priceOrData
-
-  return api.post(`/strategies/${strategyId}/tick`, data)
-}
-
-/**
- * 更新网格计划买入价（计划阶段调整）
- */
-export function updatePlanBuyPrice(gridLineId, newBuyPrice) {
-  return api.put(`/strategies/grid-lines/${gridLineId}/update-plan-buy-price`, null, {
-    params: { newBuyPrice }
-  })
-}
-
-/**
- * 更新网格实际买入价
- */
-export function updateActualBuyPrice(gridLineId, actualBuyPrice) {
-  return api.put('/strategies/grid-lines/actual-buy-price', {
-    gridLineId,
-    actualBuyPrice
-  })
-}
-
-/**
- * 获取成交记录
- */
-export function getTradeRecords(strategyId) {
-  return api.get(`/strategies/${strategyId}/trades`)
-}
-
-/**
- * 更新成交记录的手续费
- */
-export function updateTradeFee(tradeId, fee) {
-  return api.put(`/trades/${tradeId}/fee`, { fee })
-}
-
-
-/**
- * OCR识别（上传截图）
- */
-export function ocrRecognize({ files, strategyId, brokerType = 'EASTMONEY' }) {
-  const formData = new FormData()
-  const fileList = Array.isArray(files) ? files : (files ? [files] : [])
-  fileList.forEach((file) => {
-    formData.append('files', file)
-  })
-  formData.append('strategyId', strategyId)
-  formData.append('brokerType', brokerType)
-
-  return api.post('/ocr/recognize', formData, {
-    headers: { 'Content-Type': 'multipart/form-data' }
-  })
-}
-
-/**
- * OCR批量导入
- */
-export function ocrImport(data) {
-  return api.post('/ocr/import', data)
-}
-
-/**
- * OCR导入并创建策略
- */
-export function ocrCreateStrategy({ files, brokerType = 'EASTMONEY', name, symbol, gridCalculationMode = 'INDEPENDENT' }) {
-  const formData = new FormData()
-  const fileList = Array.isArray(files) ? files : (files ? [files] : [])
-  fileList.forEach((file) => {
-    formData.append('files', file)
-  })
-  formData.append('brokerType', brokerType)
-  if (name) {
-    formData.append('name', name)
-  }
-  if (symbol) {
-    formData.append('symbol', symbol)
-  }
-  if (gridCalculationMode) {
-    formData.append('gridCalculationMode', gridCalculationMode)
-  }
-
-  return api.post('/ocr/import-create', formData, {
-    headers: { 'Content-Type': 'multipart/form-data' },
-    timeout: 60000
-  })
-}
-
-/**
- * OCR重新匹配
- */
-export function ocrRematch({ strategyId, records }) {
-  return api.post('/ocr/rematch', { strategyId, records })
-}
-
-// ==================== 智能建议相关 ====================
-
-/**
- * 获取智能建议操作
- * @param {number} strategyId - 策略ID
- * @returns {Promise} 智能建议结果
- */
-export function getSuggestion(strategyId) {
-  return api.get(`/strategies/${strategyId}/suggestion`)
-    .then(response => response.data)
-}
-
-/**
- * 更新最新价格
- * @param {number} strategyId - 策略ID
- * @param {number} lastPrice - 最新价格
- * @returns {Promise}
- */
-export function updateLastPrice(strategyId, lastPrice) {
-  return api.put(`/strategies/${strategyId}/last-price`, { lastPrice })
-    .then(response => response.data)
-}
-
-/**
- * 手动补买暂缓网格
- * @param {number} strategyId - 策略ID
- * @param {number} gridId - 网格ID
- * @param {object} data - 交易数据 { price, quantity, fee, tradeTime }
- * @returns {Promise}
- */
-export function resumeBuy(strategyId, gridId, data) {
-  return api.post(`/strategies/${strategyId}/grids/${gridId}/resume-buy`, data)
-    .then(response => response.data)
-}
-
-/**
- * 获取所有暂缓网格
- * @param {number} strategyId - 策略ID
- * @returns {Promise}
- */
-export function getDeferredGrids(strategyId) {
-  return api.get(`/strategies/${strategyId}/deferred-grids`)
-    .then(response => response.data)
-}
-
-// ==================== 智能建议相关 ====================
-
-/**
- * 获取智能建议
- * @param {number} strategyId - 策略ID
- * @param {number} currentPrice - 当前价格
- * @returns {Promise}
- */
-export function getSmartSuggestions(strategyId, currentPrice) {
-  return api.get(`/suggestions/${strategyId}`, {
-    params: { currentPrice }
-  }).then(response => response.data)
-}
-
-export default api
+// 建议相关
+export { getSuggestion, updateLastPrice, getSmartSuggestions } from '@/services/suggestion'

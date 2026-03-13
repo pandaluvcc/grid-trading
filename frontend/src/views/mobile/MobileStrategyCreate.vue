@@ -17,18 +17,12 @@
           drag
         >
           <el-icon class="el-icon--upload"><upload-filled /></el-icon>
-          <div class="el-upload__text">
-            将截图拖到此处，或<em>点击上传</em>
-          </div>
+          <div class="el-upload__text">将截图拖到此处，或<em>点击上传</em></div>
           <template #tip>
-            <div class="el-upload__tip">
-              支持 jpg/png/jpeg 格式，最多上传 20 张截图
-            </div>
+            <div class="el-upload__tip">支持 jpg/png/jpeg 格式，最多上传 20 张截图</div>
           </template>
         </el-upload>
-        <div class="file-count" v-if="importFiles.length">
-          已选择 {{ importFiles.length }} 张截图
-        </div>
+        <div class="file-count" v-if="importFiles.length">已选择 {{ importFiles.length }} 张截图</div>
         <button
           class="import-btn"
           :class="{ disabled: importing || !importFiles.length }"
@@ -41,36 +35,26 @@
       </div>
       <div class="form-group">
         <label class="form-label">策略名称</label>
-        <input 
-          type="text" 
-          class="form-input" 
-          v-model="form.name" 
-          placeholder="给策略起个名字"
-        />
+        <input type="text" class="form-input" v-model="form.name" placeholder="给策略起个名字" />
       </div>
 
       <div class="form-group">
         <label class="form-label">证券代码</label>
-        <input 
-          type="text" 
-          class="form-input" 
-          v-model="form.symbol" 
-          placeholder="如 BTC/USDT"
-        />
+        <input type="text" class="form-input" v-model="form.symbol" placeholder="如 BTC/USDT" />
       </div>
 
       <div class="form-group">
         <label class="form-label">网格计算模式</label>
         <div class="mode-switch">
-          <div 
-            class="mode-item" 
+          <div
+            class="mode-item"
             :class="{ active: form.gridCalculationMode === 'INDEPENDENT' }"
             @click="form.gridCalculationMode = 'INDEPENDENT'"
           >
             独立计算
           </div>
-          <div 
-            class="mode-item" 
+          <div
+            class="mode-item"
             :class="{ active: form.gridCalculationMode === 'PRICE_LOCK' }"
             @click="form.gridCalculationMode = 'PRICE_LOCK'"
           >
@@ -87,10 +71,10 @@
 
       <div class="form-group">
         <label class="form-label">基准价</label>
-        <input 
-          type="number" 
-          class="form-input" 
-          v-model.number="form.basePrice" 
+        <input
+          type="number"
+          class="form-input"
+          v-model.number="form.basePrice"
           placeholder="第1格买入价格"
           step="0.01"
         />
@@ -101,30 +85,18 @@
       <div class="form-group">
         <label class="form-label">单格设置方式</label>
         <div class="mode-switch">
-          <div 
-            class="mode-item" 
-            :class="{ active: mode === 'amount' }"
-            @click="mode = 'amount'"
-          >
-            按金额
-          </div>
-          <div 
-            class="mode-item" 
-            :class="{ active: mode === 'quantity' }"
-            @click="mode = 'quantity'"
-          >
-            按数量
-          </div>
+          <div class="mode-item" :class="{ active: mode === 'amount' }" @click="mode = 'amount'">按金额</div>
+          <div class="mode-item" :class="{ active: mode === 'quantity' }" @click="mode = 'quantity'">按数量</div>
         </div>
       </div>
 
       <!-- 按金额模式 -->
       <div class="form-group" v-if="mode === 'amount'">
         <label class="form-label">单格金额</label>
-        <input 
-          type="number" 
-          class="form-input" 
-          v-model.number="form.amountPerGrid" 
+        <input
+          type="number"
+          class="form-input"
+          v-model.number="form.amountPerGrid"
           placeholder="每格投入金额"
           step="1"
         />
@@ -134,10 +106,10 @@
       <!-- 按数量模式 -->
       <div class="form-group" v-if="mode === 'quantity'">
         <label class="form-label">单格数量</label>
-        <input 
-          type="number" 
-          class="form-input" 
-          v-model.number="form.quantityPerGrid" 
+        <input
+          type="number"
+          class="form-input"
+          v-model.number="form.quantityPerGrid"
           placeholder="每格买入数量"
           step="0.0001"
         />
@@ -162,8 +134,8 @@
 
       <!-- 按钮组 -->
       <div class="btn-group">
-        <button 
-          class="submit-btn" 
+        <button
+          class="submit-btn"
           :class="{ disabled: !isFormValid }"
           :disabled="submitting || !isFormValid"
           @click="handleSubmit"
@@ -181,7 +153,8 @@ import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { UploadFilled } from '@element-plus/icons-vue'
-import { createStrategy, ocrCreateStrategy } from '../../api'
+import { createStrategy } from '@/services/strategy'
+import { ocrCreateStrategy } from '@/services/ocr'
 
 const router = useRouter()
 const submitting = ref(false)
@@ -197,7 +170,7 @@ const form = ref({
   basePrice: null,
   amountPerGrid: null,
   quantityPerGrid: null,
-  gridCalculationMode: 'INDEPENDENT'  // 默认独立计算模式
+  gridCalculationMode: 'INDEPENDENT' // 默认独立计算模式
 })
 
 // 计算单格金额
@@ -217,10 +190,8 @@ const showCalcResult = computed(() => {
 
 // 表单验证
 const isFormValid = computed(() => {
-  const baseValid = form.value.name && 
-                    form.value.symbol && 
-                    form.value.basePrice > 0
-                    
+  const baseValid = form.value.name && form.value.symbol && form.value.basePrice > 0
+
   if (mode.value === 'amount') {
     return baseValid && form.value.amountPerGrid > 0
   } else {
@@ -235,14 +206,14 @@ const goBack = () => {
 
 const handleFileChange = (file, fileList) => {
   uploadFileList.value = fileList
-  importFiles.value = uploadFileList.value.map(f => f.raw)
+  importFiles.value = uploadFileList.value.map((f) => f.raw)
 }
 
 const handleFileRemove = (file) => {
-  const index = uploadFileList.value.findIndex(f => f.uid === file.uid)
+  const index = uploadFileList.value.findIndex((f) => f.uid === file.uid)
   if (index > -1) {
     uploadFileList.value.splice(index, 1)
-    importFiles.value = uploadFileList.value.map(f => f.raw)
+    importFiles.value = uploadFileList.value.map((f) => f.raw)
   }
 }
 
@@ -276,20 +247,20 @@ const submitImport = async () => {
 // 提交
 const handleSubmit = async () => {
   if (!isFormValid.value) return
-  
+
   // 根据模式构建请求数据
   const requestData = {
     name: form.value.name,
     symbol: form.value.symbol,
     basePrice: form.value.basePrice
   }
-  
+
   if (mode.value === 'amount') {
     requestData.amountPerGrid = form.value.amountPerGrid
   } else {
     requestData.quantityPerGrid = form.value.quantityPerGrid
   }
-  
+
   submitting.value = true
   try {
     const response = await createStrategy(requestData)
@@ -512,7 +483,9 @@ const handleSubmit = async () => {
   border: none;
   border-radius: 24px;
   cursor: pointer;
-  transition: opacity 0.2s, transform 0.1s;
+  transition:
+    opacity 0.2s,
+    transform 0.1s;
 }
 
 .import-btn:active {
@@ -552,7 +525,9 @@ const handleSubmit = async () => {
   border: none;
   border-radius: 26px;
   cursor: pointer;
-  transition: opacity 0.2s, transform 0.1s;
+  transition:
+    opacity 0.2s,
+    transform 0.1s;
 }
 
 .submit-btn:active {

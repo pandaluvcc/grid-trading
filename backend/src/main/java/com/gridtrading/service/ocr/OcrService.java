@@ -9,6 +9,7 @@ import com.gridtrading.repository.GridLineRepository;
 import com.gridtrading.repository.StrategyRepository;
 import com.gridtrading.repository.TradeRecordRepository;
 import com.gridtrading.constants.GridConstants;
+import com.gridtrading.service.GridService;
 import com.gridtrading.service.PositionCalculator;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -44,6 +45,7 @@ public class OcrService {
     private final TradeRecordRepository tradeRecordRepository;
     private final GridEngine gridEngine;
     private final PositionCalculator positionCalculator;
+    private final GridService gridService;
 
     private final BigDecimal tolerancePercent;
     private final long timeWindowSeconds;
@@ -56,6 +58,7 @@ public class OcrService {
             TradeRecordRepository tradeRecordRepository,
             GridEngine gridEngine,
             PositionCalculator positionCalculator,
+            GridService gridService,
             @Value("${ocr.match.tolerance-percent:0.005}") BigDecimal tolerancePercent,
                 @Value("${ocr.match.time-window-seconds:30}") long timeWindowSeconds
     ) {
@@ -66,6 +69,7 @@ public class OcrService {
         this.tradeRecordRepository = tradeRecordRepository;
         this.gridEngine = gridEngine;
         this.positionCalculator = positionCalculator;
+        this.gridService = gridService;
         this.tolerancePercent = tolerancePercent;
         this.timeWindowSeconds = timeWindowSeconds;
     }
@@ -224,6 +228,7 @@ public class OcrService {
             }
 
             GridLine gridLine = null;
+            boolean isConsecutiveBuy = false; // 标记是否是相同价格连续买入（不增加买入次数）
             if (record.getType().isBuy()) {
                 // 判断是否是相同价格的连续买入
                 boolean isSamePriceAsLast = lastBuyPrice != null && lastBuyPrice.compareTo(record.getPrice()) == 0;
@@ -231,9 +236,10 @@ public class OcrService {
                 if (isSamePriceAsLast && lastBuyGrid != null) {
                     // 相同价格，匹配到上一次的网格
                     gridLine = lastBuyGrid;
+                    isConsecutiveBuy = true; // 标记为连续买入，不增加buyCount
                     String typeDesc = record.getType() == TradeType.OPENING_BUY ? "建仓-买入" : "买入";
                     System.out.println("[OCR导入] " + typeDesc + "记录: 时间=" + record.getTradeTime() +
-                        " 价格=" + record.getPrice() + " → 匹配网格 " + gridLine.getLevel() + " (相同价格连续买入)");
+                        " 价格=" + record.getPrice() + " → 匹配网格 " + gridLine.getLevel() + " (相同价格连续买入，合并计数)");
                     // 同样加入openBuys，确保每条买入都有对应的卖出匹配
                     openBuys.push(gridLine);
                 } else {
@@ -293,7 +299,7 @@ public class OcrService {
                 continue;
             }
             normalizeRecordAmounts(record);
-            applyRecordToGridLine(gridLine, record, strategy);
+            applyRecordToGridLine(gridLine, record, strategy, isConsecutiveBuy);
 
             TradeRecord tradeRecord = buildTradeRecord(strategy, gridLine, record);
             tradeRecordRepository.save(tradeRecord);
@@ -597,12 +603,12 @@ public class OcrService {
         }
     }
 
-    private void applyRecordToGridLine(GridLine gridLine, OcrTradeRecord record, Strategy strategy) {
+    private void applyRecordToGridLine(GridLine gridLine, OcrTradeRecord record, Strategy strategy, boolean isConsecutiveBuy) {
         if (gridLine == null || record == null || record.getType() == null || record.getPrice() == null) {
             return;
         }
         if (record.getType().isBuy()) {
-            applyBuyRecord(gridLine, record, strategy);
+            applyBuyRecord(gridLine, record, strategy, isConsecutiveBuy);
             gridLine.setState(GridLineState.BOUGHT);
         } else {
             applySellRecord(gridLine, record, strategy);
@@ -634,7 +640,7 @@ public class OcrService {
         return entity;
     }
 
-    private void applyBuyRecord(GridLine gridLine, OcrTradeRecord record, Strategy strategy) {
+    private void applyBuyRecord(GridLine gridLine, OcrTradeRecord record, Strategy strategy, boolean isConsecutiveBuy) {
         BigDecimal price = record.getPrice();
         gridLine.setActualBuyPrice(price);
         gridLine.setBuyPrice(price);
@@ -650,9 +656,13 @@ public class OcrService {
             gridLine.setBuyQuantity(currentQuantity.add(record.getQuantity()));
         }
 
-        // 增加买入次数统计
-        gridLine.setBuyCount(gridLine.getBuyCount() + 1);
-        System.out.println("[OCR-BUY] 网格" + gridLine.getLevel() + " buyCount -> " + gridLine.getBuyCount());
+        // 增加买入次数统计（连续同价买入不增加计数，只累加金额数量）
+        if (!isConsecutiveBuy) {
+            gridLine.setBuyCount(gridLine.getBuyCount() + 1);
+            System.out.println("[OCR-BUY] 网格" + gridLine.getLevel() + " buyCount -> " + gridLine.getBuyCount());
+        } else {
+            System.out.println("[OCR-BUY] 网格" + gridLine.getLevel() + " 连续同价买入，buyCount保持不变: " + gridLine.getBuyCount());
+        }
 
         // ✅ 重新计算当前网格的卖出价（基于最新买入价和现有规则）
         gridEngine.updateCurrentGridSellPriceAfterBuy(strategy, gridLine);
@@ -725,13 +735,20 @@ public class OcrService {
     private void applySellRecord(GridLine gridLine, OcrTradeRecord record, Strategy strategy) {
         BigDecimal price = record.getPrice();
         gridLine.setActualSellPrice(price);
-        gridLine.setSellPrice(price); // ✅ 直接使用真实成交价
-        gridLine.setSellTriggerPrice(price.subtract(new BigDecimal("0.002")));
 
         // 增加卖出次数统计
         gridLine.setSellCount(gridLine.getSellCount() + 1);
         System.out.println("[OCR-SELL] 网格" + gridLine.getLevel() + " sellCount -> " + gridLine.getSellCount());
-        
+
+        // 卖出完成后，重置卖出价为建议卖出价（按买入价重新计算）
+        // 因为新一轮还没买入，需要按原计算逻辑以买入价去计算卖出价
+        BigDecimal newSellPrice = gridService.calculateSuggestedSellPrice(strategy, gridLine);
+        if (newSellPrice != null) {
+            gridLine.setSellPrice(newSellPrice);
+            gridLine.setSellTriggerPrice(newSellPrice.subtract(new BigDecimal("0.002")));
+            System.out.println("[OCR-SELL] 网格" + gridLine.getLevel() + " 重置卖出价为: " + newSellPrice);
+        }
+
         recalcLineTotals(gridLine, strategy);
     }
 
@@ -860,55 +877,40 @@ public class OcrService {
             BigDecimal totalActualProfit = BigDecimal.ZERO;
 
             // 按轮次配对计算：每一轮卖出对应最早的一笔买入
+            // 实际收益 = (实际卖出价 - 实际买入价) × 实际交易数量
             for (int i = 0; i < pairCount; i++) {
                 TradeRecord buyRecord = buyRecords.get(i);
                 TradeRecord sellRecord = sellRecords.get(i);
 
-                BigDecimal buyAmount = buyRecord.getAmount() != null ? buyRecord.getAmount() : BigDecimal.ZERO;
-                BigDecimal buyFee = buyRecord.getFee() != null ? buyRecord.getFee() : BigDecimal.ZERO;
-                BigDecimal sellAmount = sellRecord.getAmount() != null ? sellRecord.getAmount() : BigDecimal.ZERO;
-                BigDecimal sellFee = sellRecord.getFee() != null ? sellRecord.getFee() : BigDecimal.ZERO;
+                BigDecimal buyPrice = buyRecord.getPrice();
+                BigDecimal sellPrice = sellRecord.getPrice();
+                // 使用卖出记录的数量（实际卖出数量）
+                BigDecimal quantity = sellRecord.getQuantity() != null ? sellRecord.getQuantity() : BigDecimal.ZERO;
 
-                // 单轮收益 = 卖出金额 - 买入金额 - 买入手续费 - 卖出手续费
-                BigDecimal roundProfit = sellAmount.subtract(buyAmount).subtract(buyFee).subtract(sellFee);
+                // 单轮收益 = (卖出价 - 买入价) × 数量
+                BigDecimal roundProfit = sellPrice.subtract(buyPrice).multiply(quantity);
                 totalActualProfit = totalActualProfit.add(roundProfit);
             }
 
             // 设置真实累计收益（所有轮次收益总和）
             BigDecimal newProfit = totalActualProfit.setScale(2, RoundingMode.HALF_UP);
 
-            // 计算预计收益：网格理论预期收益（成功卖出时能获得的收益）
+            // 计算预计收益：(卖出价 - 买入价) × 数量
+            // 没有实际卖出价用建议卖出价，没有实际买入价用建议买入价
             BigDecimal expectedProfit = BigDecimal.ZERO;
-            if (gridLine.getState() == GridLineState.BOUGHT) {
-                // 已买入：(建议卖出价 - 实际买入价) × 持仓数量 - 预估手续费
-                BigDecimal sellPrice = gridLine.getSellPrice();
-                BigDecimal actualBuyPrice = gridLine.getActualBuyPrice() != null ? gridLine.getActualBuyPrice() : gridLine.getBuyPrice();
-                BigDecimal quantity = gridLine.getBuyQuantity();
-                // 预估卖出手续费按万分之0.5计算，可根据实际费率调整
-                BigDecimal estimatedSellFee = sellPrice.multiply(quantity).multiply(new BigDecimal("0.00005"));
-                BigDecimal totalSellFee = estimatedSellFee.add(
-                        buyRecords.stream()
-                                .map(TradeRecord::getFee)
-                                .filter(Objects::nonNull)
-                                .reduce(BigDecimal.ZERO, BigDecimal::add)
-                );
+            BigDecimal sellPrice = gridLine.getActualSellPrice() != null
+                ? gridLine.getActualSellPrice()
+                : gridLine.getSellPrice();
+            BigDecimal buyPrice = gridLine.getActualBuyPrice() != null
+                ? gridLine.getActualBuyPrice()
+                : gridLine.getBuyPrice();
+            BigDecimal quantity = gridLine.getBuyQuantity() != null
+                ? gridLine.getBuyQuantity()
+                : BigDecimal.ZERO;
 
-                expectedProfit = sellPrice.multiply(quantity)
-                        .subtract(actualBuyPrice.multiply(quantity))
-                        .subtract(totalSellFee)
-                        .setScale(2, RoundingMode.HALF_UP);
-            } else if (gridLine.getState() == GridLineState.WAIT_BUY) {
-                // 未买入：(建议卖出价 - 建议买入价) × 每网数量 - 预估手续费
-                BigDecimal sellPrice = gridLine.getSellPrice();
-                BigDecimal buyPrice = gridLine.getBuyPrice();
-                BigDecimal quantity = gridLine.getBuyQuantity();
-                // 预估买卖手续费合计万分之1
-                BigDecimal estimatedFee = sellPrice.multiply(quantity).multiply(new BigDecimal("0.0001"));
-
-                expectedProfit = sellPrice.multiply(quantity)
-                        .subtract(buyPrice.multiply(quantity))
-                        .subtract(estimatedFee)
-                        .setScale(2, RoundingMode.HALF_UP);
+            if (sellPrice != null && buyPrice != null && quantity != null) {
+                expectedProfit = sellPrice.subtract(buyPrice).multiply(quantity)
+                    .setScale(2, RoundingMode.HALF_UP);
             }
 
             // ✅ 优化：只在收益变化时才记录日志和标记更新

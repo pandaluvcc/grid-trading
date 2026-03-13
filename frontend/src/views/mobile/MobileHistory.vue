@@ -20,7 +20,7 @@
       </div>
       <div class="stat-divider"></div>
       <div class="stat-item">
-        <div class="stat-value profit" :class="{ negative: totalProfit < 0 }">
+        <div class="stat-value" :class="getProfitClass(totalProfit)">
           {{ formatProfit(totalProfit) }}
         </div>
         <div class="stat-label">总收益</div>
@@ -29,8 +29,8 @@
 
     <!-- 策略选择（如果有多个） -->
     <div class="filter-bar" v-if="strategies.length > 1">
-      <div 
-        v-for="s in strategies" 
+      <div
+        v-for="s in strategies"
         :key="s.id"
         class="filter-chip"
         :class="{ active: selectedStrategyId === s.id }"
@@ -47,18 +47,10 @@
         <span>暂无成交记录</span>
       </div>
 
-      <div 
-        v-for="(group, date) in groupedRecords" 
-        :key="date"
-        class="record-group"
-      >
+      <div v-for="(group, date) in groupedRecords" :key="date" class="record-group">
         <div class="group-date">{{ date }}</div>
         <div class="group-items">
-          <div
-            v-for="record in group"
-            :key="record.id"
-            class="record-item"
-          >
+          <div v-for="record in group" :key="record.id" class="record-item">
             <div class="record-icon" :class="getRecordIconClass(record.type)">
               <el-icon v-if="isBuyType(record.type)"><Bottom /></el-icon>
               <el-icon v-else><Top /></el-icon>
@@ -72,7 +64,9 @@
             </div>
             <div class="record-amount">
               <div class="amount-value">¥{{ formatPrice(record.price) }}</div>
-              <div class="amount-qty">{{ formatQuantity(record.quantity) }}股 · {{ formatAmount(record.amount) }}元</div>
+              <div class="amount-qty">
+                {{ formatQuantity(record.quantity) }}股 · {{ formatAmount(record.amount) }}元
+              </div>
             </div>
           </div>
         </div>
@@ -108,10 +102,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { 
-  ArrowLeft, HomeFilled, Plus, List, 
-  Document, Bottom, Top, Loading 
-} from '@element-plus/icons-vue'
+import { ArrowLeft, HomeFilled, Plus, List, Document, Bottom, Top, Loading } from '@element-plus/icons-vue'
 import { getAllStrategies, getTradeRecords } from '../../api'
 
 const router = useRouter()
@@ -122,15 +113,13 @@ const records = ref([])
 const loading = ref(false)
 
 // 统计
-const totalBuy = computed(() => records.value.filter(r => r.type === 'BUY' || r.type === 'OPENING_BUY').length)
-const totalSell = computed(() => records.value.filter(r => r.type === 'SELL').length)
+const totalBuy = computed(() => records.value.filter((r) => r.type === 'BUY' || r.type === 'OPENING_BUY').length)
+const totalSell = computed(() => records.value.filter((r) => r.type === 'SELL').length)
 const totalProfit = computed(() => {
   // 简化计算：卖出金额 - 买入金额
-  const sellAmount = records.value
-    .filter(r => r.type === 'SELL')
-    .reduce((sum, r) => sum + Number(r.amount || 0), 0)
+  const sellAmount = records.value.filter((r) => r.type === 'SELL').reduce((sum, r) => sum + Number(r.amount || 0), 0)
   const buyAmount = records.value
-    .filter(r => r.type === 'BUY' || r.type === 'OPENING_BUY')
+    .filter((r) => r.type === 'BUY' || r.type === 'OPENING_BUY')
     .reduce((sum, r) => sum + Number(r.amount || 0), 0)
   return sellAmount - buyAmount
 })
@@ -138,18 +127,16 @@ const totalProfit = computed(() => {
 // 按日期分组
 const groupedRecords = computed(() => {
   const groups = {}
-  const sorted = [...records.value].sort((a, b) => 
-    new Date(b.tradeTime) - new Date(a.tradeTime)
-  )
-  
-  sorted.forEach(record => {
+  const sorted = [...records.value].sort((a, b) => new Date(b.tradeTime) - new Date(a.tradeTime))
+
+  sorted.forEach((record) => {
     const date = formatDate(record.tradeTime)
     if (!groups[date]) {
       groups[date] = []
     }
     groups[date].push(record)
   })
-  
+
   return groups
 })
 
@@ -159,7 +146,7 @@ const loadData = async () => {
   try {
     const res = await getAllStrategies()
     strategies.value = res.data
-    
+
     if (strategies.value.length > 0) {
       selectedStrategyId.value = strategies.value[0].id
       await loadRecords()
@@ -174,7 +161,7 @@ const loadData = async () => {
 // 加载记录
 const loadRecords = async () => {
   if (!selectedStrategyId.value) return
-  
+
   try {
     const res = await getTradeRecords(selectedStrategyId.value)
     records.value = res.data || []
@@ -199,21 +186,30 @@ const goToRecord = () => {
 }
 
 // 格式化
-const formatPrice = (val) => val == null ? '-' : Number(val).toFixed(3)
-const formatAmount = (val) => val == null ? '0' : Math.round(Number(val)).toString()
-const formatQuantity = (val) => val == null ? '0' : Math.round(Number(val)).toString()
+const formatPrice = (val) => (val == null ? '-' : Number(val).toFixed(3))
+const formatAmount = (val) => (val == null ? '0' : Math.round(Number(val)).toString())
+const formatQuantity = (val) => (val == null ? '0' : Math.round(Number(val)).toString())
 const formatProfit = (val) => {
   if (val == null) return '0.00'
   const num = Number(val)
   return (num >= 0 ? '+' : '') + num.toFixed(2)
 }
+
+// 获取盈亏颜色类：正数红色，负数绿色，零值灰色
+const getProfitClass = (val) => {
+  if (val === null || val === undefined || val === '') return 'profit-zero'
+  const num = Number(val)
+  if (isNaN(num) || num === 0) return 'profit-zero'
+  return num > 0 ? 'profit-positive' : 'profit-negative'
+}
+
 const formatDate = (dateStr) => {
   if (!dateStr) return ''
   const d = new Date(dateStr)
   const today = new Date()
   const yesterday = new Date(today)
   yesterday.setDate(yesterday.getDate() - 1)
-  
+
   if (d.toDateString() === today.toDateString()) return '今天'
   if (d.toDateString() === yesterday.toDateString()) return '昨天'
   return `${d.getMonth() + 1}月${d.getDate()}日`
@@ -227,9 +223,9 @@ const formatTime = (dateStr) => {
 // 格式化交易类型
 const formatRecordType = (type) => {
   const typeMap = {
-    'OPENING_BUY': '建仓-买入',
-    'BUY': '买入',
-    'SELL': '卖出'
+    OPENING_BUY: '建仓-买入',
+    BUY: '买入',
+    SELL: '卖出'
   }
   return typeMap[type] || type
 }
@@ -296,7 +292,7 @@ onMounted(() => {
   padding: 20px;
   display: flex;
   align-items: center;
-  box-shadow: 0 4px 20px rgba(0,0,0,0.06);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
 }
 
 .stat-item {
@@ -308,14 +304,6 @@ onMounted(() => {
   font-size: 22px;
   font-weight: 700;
   color: #303133;
-}
-
-.stat-value.profit {
-  color: #f56c6c;
-}
-
-.stat-value.profit.negative {
-  color: #67c23a;
 }
 
 .stat-label {
@@ -407,7 +395,7 @@ onMounted(() => {
   background: #fff;
   border-radius: 12px;
   padding: 14px 16px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
 }
 
 .record-icon {
@@ -493,7 +481,7 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: space-around;
-  box-shadow: 0 -2px 10px rgba(0,0,0,0.06);
+  box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.06);
   padding-bottom: env(safe-area-inset-bottom);
   z-index: 100;
 }

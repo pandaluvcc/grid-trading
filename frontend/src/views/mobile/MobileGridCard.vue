@@ -24,9 +24,7 @@
             {{ formatPrice(grid.buyPrice) }}
           </span>
           <!-- 偏差提示 -->
-          <span v-if="hasBuyDeviation" class="price-diff-badge">
-            偏差{{ buyDeviation }}
-          </span>
+          <span v-if="hasBuyDeviation" class="price-diff-badge"> 偏差{{ buyDeviation }} </span>
         </div>
       </div>
 
@@ -44,9 +42,7 @@
             {{ formatPrice(grid.sellPrice) }}
           </span>
           <!-- 偏差提示 -->
-          <span v-if="hasSellDeviation" class="price-diff-badge">
-            偏差{{ sellDeviation }}
-          </span>
+          <span v-if="hasSellDeviation" class="price-diff-badge"> 偏差{{ sellDeviation }} </span>
         </div>
       </div>
     </div>
@@ -57,11 +53,11 @@
         {{ cycleText }}
       </div>
       <!-- 实际收益（已实现） -->
-      <div class="profit actual-profit" :class="{ negative: actualProfit < 0 }">
+      <div class="profit actual-profit" :class="getProfitClass(actualProfit)">
         实:{{ actualProfit >= 0 ? '+' : '' }}{{ formatAmount(actualProfit) }}
       </div>
       <!-- 预计收益（浮动） -->
-      <div class="profit expected-profit" :class="{ negative: expectedProfit < 0 }">
+      <div class="profit expected-profit" :class="getProfitClass(expectedProfit)">
         预:{{ expectedProfit >= 0 ? '+' : '' }}{{ formatAmount(expectedProfit) }}
       </div>
     </div>
@@ -137,8 +133,11 @@ const displayBuyPrice = computed(() => {
   return props.grid.actualBuyPrice || props.grid.buyPrice
 })
 
-// 显示的卖出价（优先真实价格）
+// 显示的卖出价（状态为WAIT_BUY时直接用sellPrice，不使用actualSellPrice）
 const displaySellPrice = computed(() => {
+  if (props.grid.state === 'WAIT_BUY') {
+    return props.grid.sellPrice
+  }
   return props.grid.actualSellPrice || props.grid.sellPrice
 })
 
@@ -150,8 +149,9 @@ const hasBuyDeviation = computed(() => {
   return diff > DEVIATION_THRESHOLD
 })
 
-// 卖出价是否有偏差
+// 卖出价是否有偏差（WAIT_BUY状态不显示偏差）
 const hasSellDeviation = computed(() => {
+  if (props.grid.state === 'WAIT_BUY') return false
   if (!props.grid.actualSellPrice) return false // 没有真实价格，无偏差
   if (!props.grid.sellPrice) return false
   const diff = Math.abs(Number(props.grid.actualSellPrice) - Number(props.grid.sellPrice))
@@ -214,6 +214,14 @@ const formatAmount = (val) => {
   // 保留2位小数，去掉末尾的0
   return num.toFixed(2).replace(/\.?0+$/, '')
 }
+
+// 获取盈亏颜色类：正数红色，负数绿色，零值灰色
+const getProfitClass = (val) => {
+  if (val === null || val === undefined || val === '') return 'profit-zero'
+  const num = Number(val)
+  if (isNaN(num) || num === 0) return 'profit-zero'
+  return num > 0 ? 'profit-positive' : 'profit-negative'
+}
 </script>
 
 <style scoped>
@@ -223,7 +231,7 @@ const formatAmount = (val) => {
   background: #fff;
   border-radius: 10px;
   padding: 12px 14px;
-  box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
   border-left: 4px solid #dcdfe6;
 }
 
@@ -396,14 +404,10 @@ const formatAmount = (val) => {
 }
 
 .profit.actual-profit {
-  color: #67c23a; /* 实际收益用绿色 */
+  /* 实际收益默认绿色（正收益），通过动态类覆盖 */
 }
 
 .profit.expected-profit {
-  color: #909399; /* 预计收益用灰色 */
-}
-
-.profit.negative {
-  color: #f56c6c; /* 负数用红色 */
+  /* 预计收益默认灰色，通过动态类覆盖 */
 }
 </style>
