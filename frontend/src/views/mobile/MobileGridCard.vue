@@ -1,64 +1,50 @@
 <template>
   <div class="grid-card" :class="[gridTypeClass, stateClass]">
-    <!-- 左侧序号和类型 -->
-    <div class="card-left">
-      <div class="level">{{ grid.level }}</div>
-      <div class="type-badge" :class="gridTypeClass">
-        {{ typeLabel }}
+    <!-- 第一行：序号+类型 | 轮次+数量 -->
+    <div class="row row-header">
+      <div class="left-info">
+        <span class="level-badge">{{ grid.level }}</span>
+        <span class="type-tag" :class="gridTypeClass">{{ typeLabel }}</span>
+      </div>
+      <div class="right-info">
+        <span class="cycle-tag" :class="cycleClass">{{ cycleText }}</span>
+        <span class="quantity-tag">{{ formatQuantity(grid.quantity) }}股</span>
       </div>
     </div>
 
-    <!-- 中间价格信息 -->
-    <div class="card-center">
-      <!-- 买入价 -->
-      <div class="price-row">
+    <!-- 第二行：买入价 | 实际收益 -->
+    <div class="row row-price">
+      <div class="price-item">
         <span class="price-label">买</span>
-        <div class="price-value-wrapper">
-          <!-- 主显示：真实价格（如果有）或建议价格 -->
-          <span class="price-value buy" :class="{ 'price-deviation': hasBuyDeviation }">
-            {{ formatPrice(displayBuyPrice) }}
-            <span v-if="showBuyCheck" class="check-mark">✅</span>
-          </span>
-          <!-- 副显示：当真实价格与建议价格不同时，显示建议价格（删除线） -->
-          <span v-if="hasBuyDeviation" class="price-original">
-            {{ formatPrice(grid.buyPrice) }}
-          </span>
-          <!-- 偏差提示 -->
-          <span v-if="hasBuyDeviation" class="price-diff-badge"> 偏差{{ buyDeviation }} </span>
-        </div>
+        <span class="price-value buy" :class="{ 'price-deviation': hasBuyDeviation }">
+          {{ formatPrice(displayBuyPrice) }}
+          <span v-if="showBuyCheck" class="check-mark">✅</span>
+        </span>
+        <span v-if="hasBuyDeviation" class="deviation-badge">{{ buyDeviation }}</span>
       </div>
-
-      <!-- 卖出价 -->
-      <div class="price-row">
-        <span class="price-label">卖</span>
-        <div class="price-value-wrapper">
-          <!-- 主显示：真实价格（如果有）或建议价格 -->
-          <span class="price-value sell" :class="{ 'price-deviation': hasSellDeviation }">
-            {{ formatPrice(displaySellPrice) }}
-            <span v-if="showSellCheck" class="check-mark">✅</span>
-          </span>
-          <!-- 副显示：当真实价格与建议价格不同时，显示建议价格（删除线） -->
-          <span v-if="hasSellDeviation" class="price-original">
-            {{ formatPrice(grid.sellPrice) }}
-          </span>
-          <!-- 偏差提示 -->
-          <span v-if="hasSellDeviation" class="price-diff-badge"> 偏差{{ sellDeviation }} </span>
-        </div>
+      <div class="profit-item">
+        <span class="profit-label">实</span>
+        <span class="profit-value" :class="getProfitClass(actualProfit)">
+          {{ actualProfit >= 0 ? '+' : '' }}{{ formatAmount(actualProfit) }}
+        </span>
       </div>
     </div>
 
-    <!-- 右侧状态和收益 -->
-    <div class="card-right">
-      <div class="cycle-tag" :class="cycleClass">
-        {{ cycleText }}
+    <!-- 第三行：卖出价 | 预计收益 -->
+    <div class="row row-price">
+      <div class="price-item">
+        <span class="price-label">卖</span>
+        <span class="price-value sell" :class="{ 'price-deviation': hasSellDeviation }">
+          {{ formatPrice(displaySellPrice) }}
+          <span v-if="showSellCheck" class="check-mark">✅</span>
+        </span>
+        <span v-if="hasSellDeviation" class="deviation-badge">{{ sellDeviation }}</span>
       </div>
-      <!-- 实际收益（已实现） -->
-      <div class="profit actual-profit" :class="getProfitClass(actualProfit)">
-        实:{{ actualProfit >= 0 ? '+' : '' }}{{ formatAmount(actualProfit) }}
-      </div>
-      <!-- 预计收益（浮动） -->
-      <div class="profit expected-profit" :class="getProfitClass(expectedProfit)">
-        预:{{ expectedProfit >= 0 ? '+' : '' }}{{ formatAmount(expectedProfit) }}
+      <div class="profit-item">
+        <span class="profit-label">预</span>
+        <span class="profit-value" :class="getProfitClass(expectedProfit)">
+          {{ expectedProfit >= 0 ? '+' : '' }}{{ formatAmount(expectedProfit) }}
+        </span>
       </div>
     </div>
   </div>
@@ -87,11 +73,11 @@ const gridTypeClass = computed(() => {
 // 网格类型文字
 const typeLabel = computed(() => {
   const map = {
-    SMALL: '小',
-    MEDIUM: '中',
-    LARGE: '大'
+    SMALL: '小网',
+    MEDIUM: '中网',
+    LARGE: '大网'
   }
-  return map[props.grid.gridType] || '小'
+  return map[props.grid.gridType] || '小网'
 })
 
 // 状态样式
@@ -113,27 +99,24 @@ const sellCount = computed(() => {
   return props.grid.sellCount || 0
 })
 
-// 完成轮次（一轮 = 一次买入 + 一次卖出）
+// 完成轮次
 const completedCycles = computed(() => {
   return Math.min(buyCount.value, sellCount.value)
 })
 
-// ✅ 显示逻辑：表示"当前有未配对的交易"
-// 买✅：buyCount > sellCount（当前持仓待卖）
-// 卖✅：sellCount > buyCount（理论情况，网格交易一般不会出现）
+// 显示买入✅
 const showBuyCheck = computed(() => buyCount.value > sellCount.value)
 const showSellCheck = computed(() => sellCount.value > buyCount.value)
 
-// ===== ✅ 新增：价格显示和偏差计算 =====
-// 偏差阈值：超过此值时标红提示
-const DEVIATION_THRESHOLD = 0.01 // 0.01 = 1分
+// 偏差阈值
+const DEVIATION_THRESHOLD = 0.01
 
-// 显示的买入价（优先真实价格）
+// 显示的买入价
 const displayBuyPrice = computed(() => {
   return props.grid.actualBuyPrice || props.grid.buyPrice
 })
 
-// 显示的卖出价（状态为WAIT_BUY时直接用sellPrice，不使用actualSellPrice）
+// 显示的卖出价
 const displaySellPrice = computed(() => {
   if (props.grid.state === 'WAIT_BUY') {
     return props.grid.sellPrice
@@ -143,22 +126,22 @@ const displaySellPrice = computed(() => {
 
 // 买入价是否有偏差
 const hasBuyDeviation = computed(() => {
-  if (!props.grid.actualBuyPrice) return false // 没有真实价格，无偏差
+  if (!props.grid.actualBuyPrice) return false
   if (!props.grid.buyPrice) return false
   const diff = Math.abs(Number(props.grid.actualBuyPrice) - Number(props.grid.buyPrice))
   return diff > DEVIATION_THRESHOLD
 })
 
-// 卖出价是否有偏差（WAIT_BUY状态不显示偏差）
+// 卖出价是否有偏差
 const hasSellDeviation = computed(() => {
   if (props.grid.state === 'WAIT_BUY') return false
-  if (!props.grid.actualSellPrice) return false // 没有真实价格，无偏差
+  if (!props.grid.actualSellPrice) return false
   if (!props.grid.sellPrice) return false
   const diff = Math.abs(Number(props.grid.actualSellPrice) - Number(props.grid.sellPrice))
   return diff > DEVIATION_THRESHOLD
 })
 
-// 买入价偏差（格式化显示）
+// 买入价偏差
 const buyDeviation = computed(() => {
   if (!hasBuyDeviation.value) return ''
   const actual = Number(props.grid.actualBuyPrice)
@@ -168,7 +151,7 @@ const buyDeviation = computed(() => {
   return `${sign}${diff.toFixed(3)}`
 })
 
-// 卖出价偏差（格式化显示）
+// 卖出价偏差
 const sellDeviation = computed(() => {
   if (!hasSellDeviation.value) return ''
   const actual = Number(props.grid.actualSellPrice)
@@ -178,12 +161,12 @@ const sellDeviation = computed(() => {
   return `${sign}${diff.toFixed(3)}`
 })
 
-// 轮次文字（简洁显示）
+// 轮次文字
 const cycleText = computed(() => {
   return `${completedCycles.value}轮`
 })
 
-// 轮次标签样式（根据轮次数量显示不同颜色）
+// 轮次标签样式
 const cycleClass = computed(() => {
   const cycles = completedCycles.value
   if (cycles > 0) {
@@ -192,12 +175,12 @@ const cycleClass = computed(() => {
   return 'no-cycles'
 })
 
-// 实际收益（已实现落袋收益）
+// 实际收益
 const actualProfit = computed(() => {
   return props.grid.actualProfit ?? 0
 })
 
-// 预计收益（按买卖价计算的理论收益）
+// 预计收益
 const expectedProfit = computed(() => {
   return props.grid.expectedProfit ?? props.grid.profit ?? 0
 })
@@ -211,11 +194,16 @@ const formatPrice = (val) => {
 const formatAmount = (val) => {
   if (val == null) return '0'
   const num = Number(val)
-  // 保留2位小数，去掉末尾的0
   return num.toFixed(2).replace(/\.?0+$/, '')
 }
 
-// 获取盈亏颜色类：正数红色，负数绿色，零值灰色
+const formatQuantity = (val) => {
+  if (val == null) return '0'
+  const num = Number(val)
+  return Math.floor(num).toLocaleString()
+}
+
+// 获取盈亏颜色类
 const getProfitClass = (val) => {
   if (val === null || val === undefined || val === '') return 'profit-zero'
   const num = Number(val)
@@ -226,16 +214,21 @@ const getProfitClass = (val) => {
 
 <style scoped>
 .grid-card {
-  display: flex;
-  align-items: center;
   background: #fff;
-  border-radius: 10px;
-  padding: 12px 14px;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
-  border-left: 4px solid #dcdfe6;
+  border-radius: 12px;
+  padding: 14px 16px;
+  margin-bottom: 10px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  border-left: 4px solid transparent;
+  transition: all 0.25s ease;
 }
 
-/* 按网格类型设置左边框颜色 */
+.grid-card:hover {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+  transform: translateY(-1px);
+}
+
+/* 网格类型左边框颜色 */
 .grid-card.type-small {
   border-left-color: #409eff;
 }
@@ -250,142 +243,80 @@ const getProfitClass = (val) => {
 
 /* 已买入状态背景 */
 .grid-card.state-bought {
-  background: linear-gradient(90deg, #fff9e6 0%, #fff 100%);
+  background: linear-gradient(135deg, #fff 0%, #fffbe6 100%);
 }
 
-/* 左侧 */
-.card-left {
+/* 行布局 */
+.row {
   display: flex;
-  flex-direction: column;
+  justify-content: space-between;
   align-items: center;
-  width: 36px;
-  margin-right: 12px;
 }
 
-.level {
-  font-size: 18px;
-  font-weight: 700;
-  color: #303133;
+.row-header {
+  margin-bottom: 12px;
 }
 
-.type-badge {
-  font-size: 10px;
-  padding: 2px 6px;
-  border-radius: 4px;
-  margin-top: 4px;
-  color: #fff;
+.row-price {
+  margin-bottom: 8px;
 }
 
-.type-badge.type-small {
-  background: #409eff;
+.row-price:last-child {
+  margin-bottom: 0;
 }
 
-.type-badge.type-medium {
-  background: #e6a23c;
-}
-
-.type-badge.type-large {
-  background: #f56c6c;
-}
-
-/* 中间 */
-.card-center {
-  flex: 1;
+/* 第一行左侧 */
+.left-info {
   display: flex;
-  flex-direction: column;
-  gap: 6px; /* 增加间距以容纳偏差提示 */
-}
-
-.price-row {
-  display: flex;
-  align-items: flex-start; /* 改为flex-start以支持多行 */
+  align-items: center;
   gap: 8px;
 }
 
-.price-label {
+.level-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #f0f2f5;
+  color: #606266;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.type-tag {
+  padding: 3px 10px;
+  border-radius: 6px;
   font-size: 12px;
-  color: #909399;
-  width: 16px;
-  margin-top: 2px; /* 与价格对齐 */
-}
-
-.price-value-wrapper {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.price-value {
-  font-size: 15px;
   font-weight: 600;
-  font-family: 'SF Mono', 'Monaco', monospace;
+  color: #fff;
+}
+
+.type-tag.type-small {
+  background: linear-gradient(135deg, #409eff 0%, #66b1ff 100%);
+}
+
+.type-tag.type-medium {
+  background: linear-gradient(135deg, #e6a23c 0%, #ebb563 100%);
+}
+
+.type-tag.type-large {
+  background: linear-gradient(135deg, #f56c6c 0%, #f78989 100%);
+}
+
+/* 第一行右侧 */
+.right-info {
   display: flex;
   align-items: center;
-  gap: 4px;
-}
-
-.price-value.buy {
-  color: #f56c6c;
-}
-
-.price-value.sell {
-  color: #67c23a;
-}
-
-/* ✅ 新增：价格偏差标红 */
-.price-value.price-deviation {
-  font-weight: 700;
-  position: relative;
-}
-
-.price-value.price-deviation.buy {
-  color: #f56c6c;
-  text-shadow: 0 0 1px rgba(245, 108, 108, 0.3);
-}
-
-.price-value.price-deviation.sell {
-  color: #e6a23c; /* 卖出价偏差用橙色警告 */
-  text-shadow: 0 0 1px rgba(230, 162, 60, 0.3);
-}
-
-/* ✅ 新增：原始价格（删除线） */
-.price-original {
-  font-size: 11px;
-  color: #909399;
-  text-decoration: line-through;
-  font-family: 'SF Mono', 'Monaco', monospace;
-}
-
-/* ✅ 新增：偏差标签 */
-.price-diff-badge {
-  display: inline-block;
-  font-size: 10px;
-  color: #e6a23c;
-  background: #fdf6ec;
-  border: 1px solid #f5dab1;
-  border-radius: 3px;
-  padding: 1px 4px;
-  font-weight: 500;
-  margin-left: 4px;
-}
-
-.check-mark {
-  font-size: 12px;
-}
-
-/* 右侧 */
-.card-right {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 4px;
+  gap: 6px;
 }
 
 .cycle-tag {
-  font-size: 12px;
-  font-weight: 600;
   padding: 3px 8px;
   border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
 }
 
 .cycle-tag.no-cycles {
@@ -398,16 +329,93 @@ const getProfitClass = (val) => {
   color: #67c23a;
 }
 
-.profit {
+.quantity-tag {
   font-size: 12px;
-  font-weight: 600;
+  color: #909399;
+  font-weight: 500;
 }
 
-.profit.actual-profit {
-  /* 实际收益默认绿色（正收益），通过动态类覆盖 */
+/* 价格行 */
+.price-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
-.profit.expected-profit {
-  /* 预计收益默认灰色，通过动态类覆盖 */
+.price-label {
+  font-size: 12px;
+  color: #909399;
+  font-weight: 500;
+}
+
+.price-value {
+  font-size: 15px;
+  font-weight: 700;
+  font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.price-value.buy {
+  color: #f56c6c;
+}
+
+.price-value.sell {
+  color: #409eff;
+}
+
+.price-value.price-deviation {
+  text-shadow: 0 0 2px currentColor;
+}
+
+.check-mark {
+  font-size: 11px;
+}
+
+.deviation-badge {
+  font-size: 10px;
+  color: #e6a23c;
+  background: #fdf6ec;
+  border: 1px solid #f5dab1;
+  border-radius: 3px;
+  padding: 1px 4px;
+  font-weight: 500;
+}
+
+/* 收益行 */
+.profit-item {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  min-width: 80px;
+}
+
+.profit-label {
+  font-size: 12px;
+  color: #909399;
+  font-weight: 500;
+  width: 18px;
+  flex-shrink: 0;
+}
+
+.profit-value {
+  font-size: 14px;
+  font-weight: 700;
+  font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
+  min-width: 60px;
+  text-align: right;
+}
+
+.profit-value.profit-zero {
+  color: #909399;
+}
+
+.profit-value.profit-positive {
+  color: #f56c6c;
+}
+
+.profit-value.profit-negative {
+  color: #67c23a;
 }
 </style>

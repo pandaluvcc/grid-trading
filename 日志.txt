@@ -1,55 +1,5 @@
-D:\01-develop\00-soft\03-Java\01-jdk-17.0.10\bin\java.exe -XX:TieredStopAtLevel=1 -Dspring.output.ansi.enabled=always -Dcom.sun.management.jmxremote -Dspring.jmx.enabled=true -Dspring.liveBeansView.mbeanDomain -Dspring.application.admin.enabled=true "-Dmanagement.endpoints.jmx.exposure.include=*" "-javaagent:D:\01-develop\00-soft\08-JetBrains\IntelliJ IDEA 2025.1.3\lib\idea_rt.jar=59034" -Dfile.encoding=UTF-8 -classpath D:\01-develop\02-project\panda\grid-trading\backend\target\classes;D:\01-develop\01-resource\repo\org\springframework\boot\spring-boot-starter-web\3.2.2\spring-boot-starter-web-3.2.2.jar;D:\01-develop\01-resource\repo\org\springframework\boot\spring-boot-starter\3.2.2\spring-boot-starter-3.2.2.jar;D:\01-develop\01-resource\repo\org\springframework\boot\spring-boot\3.2.2\spring-boot-3.2.2.jar;D:\01-develop\01-resource\repo\org\springframework\boot\spring-boot-autoconfigure\3.2.2\spring-boot-autoconfigure-3.2.2.jar;D:\01-develop\01-resource\repo\org\springframework\boot\spring-boot-starter-logging\3.2.2\spring-boot-starter-logging-3.2.2.jar;D:\01-develop\01-resource\repo\ch\qos\logback\logback-classic\1.4.14\logback-classic-1.4.14.jar;D:\01-develop\01-resource\repo\ch\qos\logback\logback-core\1.4.14\logback-core-1.4.14.jar;D:\01-develop\01-resource\repo\org\apache\logging\log4j\log4j-to-slf4j\2.21.1\log4j-to-slf4j-2.21.1.jar;D:\01-develop\01-resource\repo\org\slf4j\jul-to-slf4j\2.0.11\jul-to-slf4j-2.0.11.jar;D:\01-develop\01-resource\repo\jakarta\annotation\jakarta.annotation-api\2.1.1\jakarta.annotation-api-2.1.1.jar;D:\01-develop\01-resource\repo\org\yaml\snakeyaml\2.2\snakeyaml-2.2.jar;D:\01-develop\01-resource\repo\org\springframework\boot\spring-boot-starter-json\3.2.2\spring-boot-starter-json-3.2.2.jar;D:\01-develop\01-resource\repo\com\fasterxml\jackson\core\jackson-databind\2.15.3\jackson-databind-2.15.3.jar;D:\01-develop\01-resource\repo\com\fasterxml\jackson\core\jackson-annotations\2.15.3\jackson-annotations-2.15.3.jar;D:\01-develop\01-resource\repo\com\fasterxml\jackson\core\jackson-core\2.15.3\jackson-core-2.15.3.jar;D:\01-develop\01-resource\repo\com\fasterxml\jackson\datatype\jackson-datatype-jdk8\2.15.3\jackson-datatype-jdk8-2.15.3.jar;D:\01-develop\01-resource\repo\com\fasterxml\jackson\datatype\jackson-datatype-jsr310\2.15.3\jackson-datatype-jsr310-2.15.3.jar;D:\01-develop\01-resource\repo\com\fasterxml\jackson\module\jackson-module-parameter-names\2.15.3\jackson-module-parameter-names-2.15.3.jar;D:\01-develop\01-resource\repo\org\springframework\boot\spring-boot-starter-tomcat\3.2.2\spring-boot-starter-tomcat-3.2.2.jar;D:\01-develop\01-resource\repo\org\apache\tomcat\embed\tomcat-embed-core\10.1.18\tomcat-embed-core-10.1.18.jar;D:\01-develop\01-resource\repo\org\apache\tomcat\embed\tomcat-embed-el\10.1.18\tomcat-embed-el-10.1.18.jar;D:\01-develop\01-resource\repo\org\apache\tomcat\embed\tomcat-embed-websocket\10.1.18\tomcat-embed-websocket-10.1.18.jar;D:\01-develop\01-resource\repo\org\springframework\spring-web\6.1.3\spring-web-6.1.3.jar;D:\01-develop\01-resource\repo\org\springframework\spring-beans\6.1.3\spring-beans-6.1.3.jar;D:\01-develop\01-resource\repo\io\micrometer\micrometer-observation\1.12.2\micrometer-observation-1.12.2.jar;D:\01-develop\01-resource\repo\io\micrometer\micrometer-commons\1.12.2\micrometer-commons-1.12.2.jar;D:\01-develop\01-resource\repo\org\springframework\spring-webmvc\6.1.3\spring-webmvc-6.1.3.jar;D:\01-develop\01-resource\repo\org\springframework\spring-aop\6.1.3\spring-aop-6.1.3.jar;D:\01-develop\01-resource\repo\org\springframework\spring-context\6.1.3\spring-context-6.1.3.jar;D:\01-develop\01-resource\repo\org\springframework\spring-expression\6.1.3\spring-expression-6.1.3.jar;D:\01-develop\01-resource\repo\org\springframework\boot\spring-boot-starter-data-jpa\3.2.2\spring-boot-starter-data-jpa-3.2.2.jar;D:\01-develop\01-resource\repo\org\springframework\boot\spring-boot-starter-aop\3.2.2\spring-boot-starter-aop-3.2.2.jar;D:\01-develop\01-resource\repo\org\aspectj\aspectjweaver\1.9.21\aspectjweaver-1.9.21.jar;D:\01-develop\01-resource\repo\org\springframework\boot\spring-boot-starter-jdbc\3.2.2\spring-boot-starter-jdbc-3.2.2.jar;D:\01-develop\01-resource\repo\com\zaxxer\HikariCP\5.0.1\HikariCP-5.0.1.jar;D:\01-develop\01-resource\repo\org\springframework\spring-jdbc\6.1.3\spring-jdbc-6.1.3.jar;D:\01-develop\01-resource\repo\org\hibernate\orm\hibernate-core\6.4.1.Final\hibernate-core-6.4.1.Final.jar;D:\01-develop\01-resource\repo\jakarta\persistence\jakarta.persistence-api\3.1.0\jakarta.persistence-api-3.1.0.jar;D:\01-develop\01-resource\repo\jakarta\transaction\jakarta.transaction-api\2.0.1\jakarta.transaction-api-2.0.1.jar;D:\01-develop\01-resource\repo\org\jboss\logging\jboss-logging\3.5.3.Final\jboss-logging-3.5.3.Final.jar;D:\01-develop\01-resource\repo\org\hibernate\common\hibernate-commons-annotations\6.0.6.Final\hibernate-commons-annotations-6.0.6.Final.jar;D:\01-develop\01-resource\repo\io\smallrye\jandex\3.1.2\jandex-3.1.2.jar;D:\01-develop\01-resource\repo\com\fasterxml\classmate\1.6.0\classmate-1.6.0.jar;D:\01-develop\01-resource\repo\net\bytebuddy\byte-buddy\1.14.11\byte-buddy-1.14.11.jar;D:\01-develop\01-resource\repo\org\glassfish\jaxb\jaxb-runtime\4.0.4\jaxb-runtime-4.0.4.jar;D:\01-develop\01-resource\repo\org\glassfish\jaxb\jaxb-core\4.0.4\jaxb-core-4.0.4.jar;D:\01-develop\01-resource\repo\org\eclipse\angus\angus-activation\2.0.1\angus-activation-2.0.1.jar;D:\01-develop\01-resource\repo\org\glassfish\jaxb\txw2\4.0.4\txw2-4.0.4.jar;D:\01-develop\01-resource\repo\com\sun\istack\istack-commons-runtime\4.1.2\istack-commons-runtime-4.1.2.jar;D:\01-develop\01-resource\repo\jakarta\inject\jakarta.inject-api\2.0.1\jakarta.inject-api-2.0.1.jar;D:\01-develop\01-resource\repo\org\antlr\antlr4-runtime\4.13.0\antlr4-runtime-4.13.0.jar;D:\01-develop\01-resource\repo\org\springframework\data\spring-data-jpa\3.2.2\spring-data-jpa-3.2.2.jar;D:\01-develop\01-resource\repo\org\springframework\data\spring-data-commons\3.2.2\spring-data-commons-3.2.2.jar;D:\01-develop\01-resource\repo\org\springframework\spring-orm\6.1.3\spring-orm-6.1.3.jar;D:\01-develop\01-resource\repo\org\springframework\spring-tx\6.1.3\spring-tx-6.1.3.jar;D:\01-develop\01-resource\repo\org\springframework\spring-aspects\6.1.3\spring-aspects-6.1.3.jar;D:\01-develop\01-resource\repo\com\mysql\mysql-connector-j\8.3.0\mysql-connector-j-8.3.0.jar;D:\01-develop\01-resource\repo\com\h2database\h2\2.2.224\h2-2.2.224.jar;D:\01-develop\01-resource\repo\org\projectlombok\lombok\1.18.30\lombok-1.18.30.jar;D:\01-develop\01-resource\repo\jakarta\xml\bind\jakarta.xml.bind-api\4.0.1\jakarta.xml.bind-api-4.0.1.jar;D:\01-develop\01-resource\repo\jakarta\activation\jakarta.activation-api\2.1.2\jakarta.activation-api-2.1.2.jar;D:\01-develop\01-resource\repo\org\springframework\spring-core\6.1.3\spring-core-6.1.3.jar;D:\01-develop\01-resource\repo\org\springframework\spring-jcl\6.1.3\spring-jcl-6.1.3.jar;D:\01-develop\01-resource\repo\com\baidu\aip\java-sdk\4.16.18\java-sdk-4.16.18.jar;D:\01-develop\01-resource\repo\org\json\json\20160810\json-20160810.jar;D:\01-develop\01-resource\repo\org\slf4j\slf4j-api\2.0.11\slf4j-api-2.0.11.jar;D:\01-develop\01-resource\repo\org\slf4j\slf4j-simple\2.0.11\slf4j-simple-2.0.11.jar;D:\01-develop\01-resource\repo\com\google\guava\guava\23.0\guava-23.0.jar;D:\01-develop\01-resource\repo\com\google\code\findbugs\jsr305\1.3.9\jsr305-1.3.9.jar;D:\01-develop\01-resource\repo\com\google\errorprone\error_prone_annotations\2.0.18\error_prone_annotations-2.0.18.jar;D:\01-develop\01-resource\repo\com\google\j2objc\j2objc-annotations\1.1\j2objc-annotations-1.1.jar;D:\01-develop\01-resource\repo\org\codehaus\mojo\animal-sniffer-annotations\1.14\animal-sniffer-annotations-1.14.jar;D:\01-develop\01-resource\repo\org\apache\poi\poi-ooxml\5.2.3\poi-ooxml-5.2.3.jar;D:\01-develop\01-resource\repo\org\apache\poi\poi\5.2.3\poi-5.2.3.jar;D:\01-develop\01-resource\repo\commons-codec\commons-codec\1.16.0\commons-codec-1.16.0.jar;D:\01-develop\01-resource\repo\org\apache\commons\commons-math3\3.6.1\commons-math3-3.6.1.jar;D:\01-develop\01-resource\repo\com\zaxxer\SparseBitSet\1.2\SparseBitSet-1.2.jar;D:\01-develop\01-resource\repo\org\apache\poi\poi-ooxml-lite\5.2.3\poi-ooxml-lite-5.2.3.jar;D:\01-develop\01-resource\repo\org\apache\xmlbeans\xmlbeans\5.1.1\xmlbeans-5.1.1.jar;D:\01-develop\01-resource\repo\org\apache\commons\commons-compress\1.21\commons-compress-1.21.jar;D:\01-develop\01-resource\repo\commons-io\commons-io\2.11.0\commons-io-2.11.0.jar;D:\01-develop\01-resource\repo\com\github\virtuald\curvesapi\1.07\curvesapi-1.07.jar;D:\01-develop\01-resource\repo\org\apache\logging\log4j\log4j-api\2.21.1\log4j-api-2.21.1.jar;D:\01-develop\01-resource\repo\org\apache\commons\commons-collections4\4.4\commons-collections4-4.4.jar com.gridtrading.GridTradingApplication
-SLF4J(W): Class path contains multiple SLF4J providers.
-SLF4J(W): Found provider [ch.qos.logback.classic.spi.LogbackServiceProvider@130f889]
-SLF4J(W): Found provider [org.slf4j.simple.SimpleServiceProvider@1188e820]
-SLF4J(W): See https://www.slf4j.org/codes.html#multiple_bindings for an explanation.
-SLF4J(I): Actual provider is of type [ch.qos.logback.classic.spi.LogbackServiceProvider@130f889]
-
-  .   ____          _            __ _ _
- /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
-( ( )\___ | '_ | '_| | '_ \/ _` | \ \ \ \
- \\/  ___)| |_)| | | | | || (_| |  ) ) ) )
-  '  |____| .__|_| |_|_| |_\__, | / / / /
- =========|_|==============|___/=/_/_/_/
- :: Spring Boot ::                (v3.2.2)
-
-2026-03-13T17:57:43.267+08:00  INFO 27612 --- [grid-trading] [           main] com.gridtrading.GridTradingApplication   : Starting GridTradingApplication using Java 17.0.10 with PID 27612 (D:\01-develop\02-project\panda\grid-trading\backend\target\classes started by Administrator in D:\01-develop\02-project\panda\grid-trading)
-2026-03-13T17:57:43.269+08:00  INFO 27612 --- [grid-trading] [           main] com.gridtrading.GridTradingApplication   : No active profile set, falling back to 1 default profile: "default"
-2026-03-13T17:57:43.590+08:00  INFO 27612 --- [grid-trading] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Bootstrapping Spring Data JPA repositories in DEFAULT mode.
-2026-03-13T17:57:43.627+08:00  INFO 27612 --- [grid-trading] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Finished Spring Data repository scanning in 31 ms. Found 3 JPA repository interfaces.
-2026-03-13T17:57:44.023+08:00  INFO 27612 --- [grid-trading] [           main] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat initialized with port 8080 (http)
-2026-03-13T17:57:44.029+08:00  INFO 27612 --- [grid-trading] [           main] o.apache.catalina.core.StandardService   : Starting service [Tomcat]
-2026-03-13T17:57:44.029+08:00  INFO 27612 --- [grid-trading] [           main] o.apache.catalina.core.StandardEngine    : Starting Servlet engine: [Apache Tomcat/10.1.18]
-2026-03-13T17:57:44.064+08:00  INFO 27612 --- [grid-trading] [           main] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring embedded WebApplicationContext
-2026-03-13T17:57:44.064+08:00  INFO 27612 --- [grid-trading] [           main] w.s.c.ServletWebServerApplicationContext : Root WebApplicationContext: initialization completed in 759 ms
-2026-03-13T17:57:44.160+08:00  INFO 27612 --- [grid-trading] [           main] o.hibernate.jpa.internal.util.LogHelper  : HHH000204: Processing PersistenceUnitInfo [name: default]
-2026-03-13T17:57:44.200+08:00  INFO 27612 --- [grid-trading] [           main] org.hibernate.Version                    : HHH000412: Hibernate ORM core version 6.4.1.Final
-2026-03-13T17:57:44.220+08:00  INFO 27612 --- [grid-trading] [           main] o.h.c.internal.RegionFactoryInitiator    : HHH000026: Second-level cache disabled
-2026-03-13T17:57:44.381+08:00  INFO 27612 --- [grid-trading] [           main] o.s.o.j.p.SpringPersistenceUnitInfo      : No LoadTimeWeaver setup: ignoring JPA class transformer
-2026-03-13T17:57:44.402+08:00  INFO 27612 --- [grid-trading] [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Starting...
-2026-03-13T17:57:44.521+08:00  INFO 27612 --- [grid-trading] [           main] com.zaxxer.hikari.pool.HikariPool        : HikariPool-1 - Added connection conn0: url=jdbc:h2:mem:grid_trading user=SA
-2026-03-13T17:57:44.522+08:00  INFO 27612 --- [grid-trading] [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Start completed.
-2026-03-13T17:57:45.161+08:00  INFO 27612 --- [grid-trading] [           main] o.h.e.t.j.p.i.JtaPlatformInitiator       : HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
-Hibernate: drop table if exists grid_line cascade
-Hibernate: drop table if exists strategy cascade
-Hibernate: drop table if exists trade_record cascade
-Hibernate: create table grid_line (actual_buy_price numeric(20,3), actual_profit numeric(20,3), actual_sell_price numeric(20,3), buy_amount numeric(20,3) not null, buy_count integer not null, buy_price numeric(20,3) not null, buy_quantity numeric(20,3) not null, buy_trigger_price numeric(20,3) not null, deferred boolean, expected_profit numeric(20,3), level integer not null, profit numeric(20,3) not null, profit_rate numeric(10,3) not null, sell_amount numeric(20,3) not null, sell_count integer not null, sell_price numeric(20,3) not null, sell_trigger_price numeric(20,3) not null, deferred_at timestamp(6), id bigint generated by default as identity, strategy_id bigint not null, grid_type varchar(20) not null check (grid_type in ('SMALL','MEDIUM','LARGE')), state varchar(20) not null check (state in ('WAIT_BUY','BOUGHT','SOLD','WAIT_SELL')), deferred_reason varchar(100), primary key (id))
-Hibernate: create table strategy (amount_per_grid numeric(20,3) not null, available_cash numeric(20,3) not null, avg_buy_price numeric(20,3), base_price numeric(20,3) not null, cost_price numeric(20,3), grid_count_down integer not null, grid_count_up integer not null, grid_percent numeric(10,4) not null, holding_days integer, invested_amount numeric(20,3) not null, large_gap numeric(20,3), last_price numeric(20,3), max_capital numeric(20,3) not null, max_position_ratio numeric(5,4), medium_gap numeric(20,3), position numeric(20,3) not null, position_profit numeric(20,3), position_profit_percent numeric(10,3), position_ratio numeric(10,3), quantity_per_grid numeric(20,3), realized_profit numeric(20,3) not null, small_gap numeric(20,3), total_buy_amount numeric(20,3), total_buy_quantity numeric(20,3), total_fee numeric(20,3), total_sell_amount numeric(20,3), total_sell_quantity numeric(20,3), created_at timestamp(6) not null, first_buy_time timestamp(6), id bigint generated by default as identity, grid_calculation_mode varchar(20), grid_model_version varchar(20), status varchar(20) not null check (status in ('RUNNING','STOPPED')), symbol varchar(50) not null, grid_summary varchar(100), name varchar(100) not null, primary key (id))
-Hibernate: create table trade_record (amount numeric(20,3) not null, fee numeric(20,3), price numeric(20,3) not null, quantity numeric(20,3) not null, grid_line_id bigint not null, id bigint generated by default as identity, strategy_id bigint not null, trade_time timestamp(6) not null, type varchar(20) not null check (type in ('OPENING_BUY','BUY','SELL')), primary key (id))
-Hibernate: alter table if exists grid_line add constraint FKq2dbhhv8rh8vc0dcxpy4g17at foreign key (strategy_id) references strategy
-Hibernate: alter table if exists trade_record add constraint FKhxurp9kobkgjk04fmql984fxx foreign key (grid_line_id) references grid_line
-Hibernate: alter table if exists trade_record add constraint FKh94we79k9wxcun4h33m8corrj foreign key (strategy_id) references strategy
-2026-03-13T17:57:45.199+08:00  INFO 27612 --- [grid-trading] [           main] j.LocalContainerEntityManagerFactoryBean : Initialized JPA EntityManagerFactory for persistence unit 'default'
-2026-03-13T17:57:45.366+08:00  INFO 27612 --- [grid-trading] [           main] o.s.d.j.r.query.QueryEnhancerFactory     : Hibernate is in classpath; If applicable, HQL parser will be used.
-2026-03-13T17:57:45.710+08:00  WARN 27612 --- [grid-trading] [           main] JpaBaseConfiguration$JpaWebConfiguration : spring.jpa.open-in-view is enabled by default. Therefore, database queries may be performed during view rendering. Explicitly configure spring.jpa.open-in-view to disable this warning
-2026-03-13T17:57:45.894+08:00  INFO 27612 --- [grid-trading] [           main] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat started on port 8080 (http) with context path ''
-2026-03-13T17:57:45.899+08:00  INFO 27612 --- [grid-trading] [           main] com.gridtrading.GridTradingApplication   : Started GridTradingApplication in 3.013 seconds (process running for 3.428)
-2026-03-13T17:57:50.435+08:00  INFO 27612 --- [grid-trading] [nio-8080-exec-1] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring DispatcherServlet 'dispatcherServlet'
-2026-03-13T17:57:50.435+08:00  INFO 27612 --- [grid-trading] [nio-8080-exec-1] o.s.web.servlet.DispatcherServlet        : Initializing Servlet 'dispatcherServlet'
-2026-03-13T17:57:50.437+08:00  INFO 27612 --- [grid-trading] [nio-8080-exec-1] o.s.web.servlet.DispatcherServlet        : Completed initialization in 2 ms
-Hibernate: select s1_0.id,s1_0.amount_per_grid,s1_0.available_cash,s1_0.avg_buy_price,s1_0.base_price,s1_0.cost_price,s1_0.created_at,s1_0.first_buy_time,s1_0.grid_calculation_mode,s1_0.grid_count_down,s1_0.grid_count_up,s1_0.grid_model_version,s1_0.grid_percent,s1_0.grid_summary,s1_0.holding_days,s1_0.invested_amount,s1_0.large_gap,s1_0.last_price,s1_0.max_capital,s1_0.max_position_ratio,s1_0.medium_gap,s1_0.name,s1_0.position,s1_0.position_profit,s1_0.position_profit_percent,s1_0.position_ratio,s1_0.quantity_per_grid,s1_0.realized_profit,s1_0.small_gap,s1_0.status,s1_0.symbol,s1_0.total_buy_amount,s1_0.total_buy_quantity,s1_0.total_fee,s1_0.total_sell_amount,s1_0.total_sell_quantity from strategy s1_0
-2026-03-13T17:57:58.950+08:00  INFO 27612 --- [grid-trading] [nio-8080-exec-2] com.baidu.aip.client.BaseClient          : get access_token success. current state: STATE_AIP_AUTH_OK
-[OCR原始文本] 文件: 恒指科技1.jpg
+2026-03-14T23:56:24.909+08:00  INFO 19708 --- [grid-trading] [nio-8080-exec-2] com.baidu.aip.client.BaseClient          : get access_token success. current state: STATE_AIP_AUTH_OK
+[OCR原始文本] 文件: 中概互联1.jpg
 [OCR原始文本] 内容:
 10:41
 58
@@ -57,81 +7,166 @@ Hibernate: select s1_0.id,s1_0.amount_per_grid,s1_0.available_cash,s1_0.avg_buy_
 东方
 财富
 持仓明细
-恒指科技513180
-恒生科技指数ETF
-持仓盈亏
-当日参考盈亏
--555.75
-42.70
--12.150%
-1.075%
-持股天数
-152
-现价
-0.658
-个股仓位
-27.56%
-成本价
-0.749>
-税费合计
-0
-2.75
-买入均价
-0.743>
-交易记录
-历史清仓记录>
-买入
-2026-02-26
-13:39:26
 数量
-100
+1000
 金额
-66.80
+1466.00
 价格
-0.668
-费用
-0.02
-买入
-2026-02-03
-10:46:29
-数量
-2000
-金额
-1408.00
-价格
-0.704
-费用
-0.35
-买入
-2026-02-02
-09:31:05
-数量
-2000
-金额
-1482.00
-价格
-0.741
+1.466
 费用
 0.37
 卖出
-2026-01-1309:30:29
+2026-01-0609:54:03
 数量
-2000
+1000
 金额
-1580.00
+1544.00
 价格
-0.790
+1.544
 费用
-0.40
+0.39
+买入
+2025-12-1613:37:12
+数量
+1000
+金额
+1467.00
+价格
+1.467
+费用
+0.37
+买入
+2025-11-2010:18:29
+数量
+1000
+金额
+1544.00
+价格
+1.544
+费用
+0.39
+买入
+2025-10-13
+11:20:20
+数量
+500
+金额
+812.50
+价格
+1.625
+费用
+0.20
+买入
+2025-10-13
+09:30:40
+数量
+500
+金额
+812.50
+价格
+1.625
+费用
+0.20
+建仓-买入
+2025-10-1009:56:05
+数量
+1000
+金额
+1710.00
+价格
+1.710
+费用
+0.43
+共有11条交易记录
 K
+买入
+卖出
+行情
+>
+[OCR原始文本] 文件: 中概互联2.jpg
+[OCR原始文本] 内容:
+10:41
+58
+<
+东方
+财富
+持仓明细
+中概互联
+513050
+中概互联网ETF易方达
+持仓盈亏
+当日参考盈亏
+-1297.06
+75.00
+-11.721%
+0.773%
+持股天数
+0
+152
+现价
+1.303
+个股仓位
+67.08%
+成本价
+1.476>
+税费合计
+0
+3.56
+买入均价
+1.470>
+交易记录
+历史清仓记录>
+买入
+2026-03-02
+14:03:59
+数量
+1000
+金额
+1275.00
+价格
+1.275
+费用
+0.32
+买入
+2026-02-26
+09:52:34
+数量
+500
+金额
+662.00
+价格
+1.324
+费用
+0.17
+买入
+2026-02-12
+10:32:13
+数量
+1000
+金额
+1394.00
+价格
+1.394
+费用
+0.35
+买入
+2026-02-0310:15:07
+数量
+1000
+金额
+1467.00
+价格
+1.467
+费用
+0.37
 买入
 卖出
 行情
 >|
 [OCR解析] 发现现价标签，等待下一行解析数值
-[OCR解析] 发现现价(多行格式): 0.658
-[OCR解析] 已将现价 0.658 设置到 4 条记录中
-[OCR原始文本] 文件: 恒指科技2.jpg
+[OCR解析] 发现现价(多行格式): 1.303
+[OCR解析] 已将现价 1.303 设置到 4 条记录中
+[OCR原始文本] 文件: 中概互联3.jpg
 [OCR原始文本] 内容:
 10:41
 58
@@ -139,82 +174,82 @@ K
 东方
 财富
 持仓明细
-数量
-2000
-金额
-1482.00
-价格
-0.741
-费用
-0.37
-卖出
-2026-01-1309:30:29
-数量
-2000
-金额
-1580.00
-价格
-0.790
-费用
-0.40
 买入
-2025-11-2114:18:58
-数量
-2000
-金额
-1478.00
-价格
-0.739
-费用
-0.37
-卖出
-2025-11-1314:52:59
-数量
-2000
-金额
-1624.00
-价格
-0.812
-费用
-0.41
-买入
-2025-10-14
-13:40:33
+2026-02-0310:15:07
 数量
 1000
 金额
-813.00
+1467.00
 价格
-0.813
+1.467
 费用
-0.20
+0.37
 买入
-2025-10-14
-13:05:58
+2026-02-0310:15:13
 数量
 1000
 金额
-813.00
+1466.00
 价格
-0.813
+1.466
+费用
+0.37
+卖出
+2026-01-0609:54:03
+数量
+1000
+金额
+1544.00
+价格
+1.544
+费用
+0.39
+买入
+2025-12-16
+13:37:12
+数量
+1000
+金额
+1467.00
+价格
+1.467
+费用
+0.37
+买入
+2025-11-20
+10:18:29
+数量
+1000
+金额
+1544.00
+价格
+1.544
+费用
+0.39
+买入
+2025-10-1311:20:20
+数量
+500
+金额
+812.50
+价格
+1.625
 费用
 0.20
-建仓-买入
-2025-10-1013:39:18
+买入
+2025-10-1309:30:40
 数量
-2000
+500
 金额
-1710.00
+812.50
 价格
-0.855
+1.625
 费用
-0.43
-共有9条交易记录
-K
+0.20
 买入
 卖出
 行情
->1
+>
 Hibernate: insert into strategy (amount_per_grid,available_cash,avg_buy_price,base_price,cost_price,created_at,first_buy_time,grid_calculation_mode,grid_count_down,grid_count_up,grid_model_version,grid_percent,grid_summary,holding_days,invested_amount,large_gap,last_price,max_capital,max_position_ratio,medium_gap,name,position,position_profit,position_profit_percent,position_ratio,quantity_per_grid,realized_profit,small_gap,status,symbol,total_buy_amount,total_buy_quantity,total_fee,total_sell_amount,total_sell_quantity,id) values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,default)
 Hibernate: insert into grid_line (actual_buy_price,actual_profit,actual_sell_price,buy_amount,buy_count,buy_price,buy_quantity,buy_trigger_price,deferred,deferred_at,deferred_reason,expected_profit,grid_type,level,profit,profit_rate,sell_amount,sell_count,sell_price,sell_trigger_price,state,strategy_id,id) values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,default)
 Hibernate: insert into grid_line (actual_buy_price,actual_profit,actual_sell_price,buy_amount,buy_count,buy_price,buy_quantity,buy_trigger_price,deferred,deferred_at,deferred_reason,expected_profit,grid_type,level,profit,profit_rate,sell_amount,sell_count,sell_price,sell_trigger_price,state,strategy_id,id) values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,default)
@@ -235,81 +270,123 @@ Hibernate: insert into grid_line (actual_buy_price,actual_profit,actual_sell_pri
 Hibernate: insert into grid_line (actual_buy_price,actual_profit,actual_sell_price,buy_amount,buy_count,buy_price,buy_quantity,buy_trigger_price,deferred,deferred_at,deferred_reason,expected_profit,grid_type,level,profit,profit_rate,sell_amount,sell_count,sell_price,sell_trigger_price,state,strategy_id,id) values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,default)
 Hibernate: insert into grid_line (actual_buy_price,actual_profit,actual_sell_price,buy_amount,buy_count,buy_price,buy_quantity,buy_trigger_price,deferred,deferred_at,deferred_reason,expected_profit,grid_type,level,profit,profit_rate,sell_amount,sell_count,sell_price,sell_trigger_price,state,strategy_id,id) values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,default)
 Hibernate: insert into grid_line (actual_buy_price,actual_profit,actual_sell_price,buy_amount,buy_count,buy_price,buy_quantity,buy_trigger_price,deferred,deferred_at,deferred_reason,expected_profit,grid_type,level,profit,profit_rate,sell_amount,sell_count,sell_price,sell_trigger_price,state,strategy_id,id) values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,default)
-[OCR导入] 开始按时间顺序匹配记录，共 9 条记录
-[OCR导入] 建仓-买入记录: 时间=2025-10-10T13:39:18 价格=0.855 → 匹配网格 1
+[OCR导入] 开始按时间顺序匹配记录，共 11 条记录
+[OCR导入] 建仓-买入记录: 时间=2025-10-10T09:56:05 价格=1.710 → 匹配网格 1
 [OCR-BUY] 网格1 buyCount -> 1
-2026-03-13T17:58:00.753+08:00  INFO 27612 --- [grid-trading] [nio-8080-exec-2] com.gridtrading.service.GridService      : [UPDATE-SELL-PRICE] level=1, sellPrice=0.898, 收益率=5.0%
-[OCR-BUY] 网格1 更新卖出价为: 0.898
-[独立计算] 网格1 SMALL: 买0.855 → 卖0.898 (5.0%)
+2026-03-14T23:56:26.548+08:00  INFO 19708 --- [grid-trading] [nio-8080-exec-2] com.gridtrading.service.GridService      : [UPDATE-SELL-PRICE] level=1, sellPrice=1.796, 收益率=5.0%
+[OCR-BUY] 网格1 更新卖出价为: 1.796
+[独立计算] 网格1 SMALL: 买1.710 → 卖1.796 (5.0%)
 Hibernate: insert into trade_record (amount,fee,grid_line_id,price,quantity,strategy_id,trade_time,type,id) values (?,?,?,?,?,?,?,?,default)
 Hibernate: update grid_line set actual_buy_price=?,actual_profit=?,actual_sell_price=?,buy_amount=?,buy_count=?,buy_price=?,buy_quantity=?,buy_trigger_price=?,deferred=?,deferred_at=?,deferred_reason=?,expected_profit=?,grid_type=?,level=?,profit=?,profit_rate=?,sell_amount=?,sell_count=?,sell_price=?,sell_trigger_price=?,state=?,strategy_id=? where id=?
-[OCR导入] 买入记录: 时间=2025-10-14T13:05:58 价格=0.813 → 匹配网格 2
+[OCR导入] 买入记录: 时间=2025-10-13T09:30:40 价格=1.625 → 匹配网格 2
 [OCR-BUY] 网格2 buyCount -> 1
-2026-03-13T17:58:00.765+08:00  INFO 27612 --- [grid-trading] [nio-8080-exec-2] com.gridtrading.service.GridService      : [UPDATE-SELL-PRICE] level=2, sellPrice=0.855, 收益率=5.2%
-[OCR-BUY] 网格2 更新卖出价为: 0.855
-[独立计算] 网格2 SMALL: 买0.813 → 卖0.856 (5.3%)
+2026-03-14T23:56:26.571+08:00  INFO 19708 --- [grid-trading] [nio-8080-exec-2] com.gridtrading.service.GridService      : [UPDATE-SELL-PRICE] level=2, sellPrice=1.710, 收益率=5.2%
+[OCR-BUY] 网格2 更新卖出价为: 1.710
+[独立计算] 网格2 SMALL: 买1.625 → 卖1.711 (5.3%)
 Hibernate: insert into trade_record (amount,fee,grid_line_id,price,quantity,strategy_id,trade_time,type,id) values (?,?,?,?,?,?,?,?,default)
 Hibernate: update grid_line set actual_buy_price=?,actual_profit=?,actual_sell_price=?,buy_amount=?,buy_count=?,buy_price=?,buy_quantity=?,buy_trigger_price=?,deferred=?,deferred_at=?,deferred_reason=?,expected_profit=?,grid_type=?,level=?,profit=?,profit_rate=?,sell_amount=?,sell_count=?,sell_price=?,sell_trigger_price=?,state=?,strategy_id=? where id=?
-[OCR导入] 买入记录: 时间=2025-10-14T13:40:33 价格=0.813 → 匹配网格 2 (相同价格连续买入，合并计数)
+[OCR导入] 买入记录: 时间=2025-10-13T11:20:20 价格=1.625 → 匹配网格 2 (相同价格连续买入，合并计数)
 [OCR-BUY] 网格2 连续同价买入，buyCount保持不变: 1
-2026-03-13T17:58:00.767+08:00  INFO 27612 --- [grid-trading] [nio-8080-exec-2] com.gridtrading.service.GridService      : [UPDATE-SELL-PRICE] level=2, sellPrice=0.855, 收益率=5.2%
-[OCR-BUY] 网格2 更新卖出价为: 0.855
-[独立计算] 网格2 SMALL: 买0.813 → 卖0.857 (5.4%)
+2026-03-14T23:56:26.576+08:00  INFO 19708 --- [grid-trading] [nio-8080-exec-2] com.gridtrading.service.GridService      : [UPDATE-SELL-PRICE] level=2, sellPrice=1.710, 收益率=5.2%
+[OCR-BUY] 网格2 更新卖出价为: 1.710
+[独立计算] 网格2 SMALL: 买1.625 → 卖1.711 (5.3%)
 Hibernate: insert into trade_record (amount,fee,grid_line_id,price,quantity,strategy_id,trade_time,type,id) values (?,?,?,?,?,?,?,?,default)
-Hibernate: update grid_line set actual_buy_price=?,actual_profit=?,actual_sell_price=?,buy_amount=?,buy_count=?,buy_price=?,buy_quantity=?,buy_trigger_price=?,deferred=?,deferred_at=?,deferred_reason=?,expected_profit=?,grid_type=?,level=?,profit=?,profit_rate=?,sell_amount=?,sell_count=?,sell_price=?,sell_trigger_price=?,state=?,strategy_id=? where id=?
-[OCR导入] 卖出记录: 时间=2025-11-13T14:52:59 价格=0.812 → 匹配网格 2
-[OCR-SELL] 网格2 sellCount -> 1
-[OCR-SELL] 网格2 重置卖出价为: 0.855
-Hibernate: insert into trade_record (amount,fee,grid_line_id,price,quantity,strategy_id,trade_time,type,id) values (?,?,?,?,?,?,?,?,default)
-Hibernate: update grid_line set actual_buy_price=?,actual_profit=?,actual_sell_price=?,buy_amount=?,buy_count=?,buy_price=?,buy_quantity=?,buy_trigger_price=?,deferred=?,deferred_at=?,deferred_reason=?,expected_profit=?,grid_type=?,level=?,profit=?,profit_rate=?,sell_amount=?,sell_count=?,sell_price=?,sell_trigger_price=?,state=?,strategy_id=? where id=?
-[OCR导入] 买入记录: 时间=2025-11-21T14:18:58 价格=0.739 → 匹配网格 3
+[OCR导入] 买入记录: 时间=2025-11-20T10:18:29 价格=1.544 → 匹配网格 3
 [OCR-BUY] 网格3 buyCount -> 1
-2026-03-13T17:58:00.771+08:00  INFO 27612 --- [grid-trading] [nio-8080-exec-2] com.gridtrading.service.GridService      : [UPDATE-SELL-PRICE] level=3, sellPrice=0.813, 收益率=10.0%
-[OCR-BUY] 网格3 更新卖出价为: 0.813
-[独立计算] 网格3 SMALL: 买0.739 → 卖0.778 (5.3%)
+2026-03-14T23:56:26.580+08:00  INFO 19708 --- [grid-trading] [nio-8080-exec-2] com.gridtrading.service.GridService      : [UPDATE-SELL-PRICE] level=3, sellPrice=1.625, 收益率=5.3%
+[OCR-BUY] 网格3 更新卖出价为: 1.625
+[独立计算] 网格3 SMALL: 买1.544 → 卖1.626 (5.3%)
 Hibernate: insert into trade_record (amount,fee,grid_line_id,price,quantity,strategy_id,trade_time,type,id) values (?,?,?,?,?,?,?,?,default)
 Hibernate: update grid_line set actual_buy_price=?,actual_profit=?,actual_sell_price=?,buy_amount=?,buy_count=?,buy_price=?,buy_quantity=?,buy_trigger_price=?,deferred=?,deferred_at=?,deferred_reason=?,expected_profit=?,grid_type=?,level=?,profit=?,profit_rate=?,sell_amount=?,sell_count=?,sell_price=?,sell_trigger_price=?,state=?,strategy_id=? where id=?
-[OCR导入] 卖出记录: 时间=2026-01-13T09:30:29 价格=0.790 → 匹配网格 3
-[OCR-SELL] 网格3 sellCount -> 1
-[OCR-SELL] 网格3 重置卖出价为: 0.813
-Hibernate: insert into trade_record (amount,fee,grid_line_id,price,quantity,strategy_id,trade_time,type,id) values (?,?,?,?,?,?,?,?,default)
-Hibernate: update grid_line set actual_buy_price=?,actual_profit=?,actual_sell_price=?,buy_amount=?,buy_count=?,buy_price=?,buy_quantity=?,buy_trigger_price=?,deferred=?,deferred_at=?,deferred_reason=?,expected_profit=?,grid_type=?,level=?,profit=?,profit_rate=?,sell_amount=?,sell_count=?,sell_price=?,sell_trigger_price=?,state=?,strategy_id=? where id=?
-[OCR导入] 买入记录: 时间=2026-02-02T09:31:05 价格=0.741 → 匹配网格 4
+[OCR导入] 买入记录: 时间=2025-12-16T13:37:12 价格=1.467 → 匹配网格 4
 [OCR-BUY] 网格4 buyCount -> 1
-2026-03-13T17:58:00.774+08:00  INFO 27612 --- [grid-trading] [nio-8080-exec-2] com.gridtrading.service.GridService      : [UPDATE-SELL-PRICE] level=4, sellPrice=0.778, 收益率=5.0%
-[OCR-BUY] 网格4 更新卖出价为: 0.778
-[独立计算] 网格4 SMALL: 买0.741 → 卖0.780 (5.3%)
-[同步更新] 网格5 MEDIUM: 买0.741 → 卖0.866 (16.8%)
+2026-03-14T23:56:26.585+08:00  INFO 19708 --- [grid-trading] [nio-8080-exec-2] com.gridtrading.service.GridService      : [UPDATE-SELL-PRICE] level=4, sellPrice=1.544, 收益率=5.3%
+[OCR-BUY] 网格4 更新卖出价为: 1.544
+[独立计算] 网格4 SMALL: 买1.467 → 卖1.545 (5.3%)
+[同步更新] 网格5 MEDIUM: 买1.467 → 卖1.714 (16.8%)
 Hibernate: insert into trade_record (amount,fee,grid_line_id,price,quantity,strategy_id,trade_time,type,id) values (?,?,?,?,?,?,?,?,default)
 Hibernate: update grid_line set actual_buy_price=?,actual_profit=?,actual_sell_price=?,buy_amount=?,buy_count=?,buy_price=?,buy_quantity=?,buy_trigger_price=?,deferred=?,deferred_at=?,deferred_reason=?,expected_profit=?,grid_type=?,level=?,profit=?,profit_rate=?,sell_amount=?,sell_count=?,sell_price=?,sell_trigger_price=?,state=?,strategy_id=? where id=?
 Hibernate: update grid_line set actual_buy_price=?,actual_profit=?,actual_sell_price=?,buy_amount=?,buy_count=?,buy_price=?,buy_quantity=?,buy_trigger_price=?,deferred=?,deferred_at=?,deferred_reason=?,expected_profit=?,grid_type=?,level=?,profit=?,profit_rate=?,sell_amount=?,sell_count=?,sell_price=?,sell_trigger_price=?,state=?,strategy_id=? where id=?
-[OCR导入] 买入记录: 时间=2026-02-03T10:46:29 价格=0.704 → 匹配网格 5
+[OCR导入] 卖出记录: 时间=2026-01-06T09:54:03 价格=1.544 → 匹配网格 4
+[OCR-SELL] 网格4 sellCount -> 1
+[OCR-SELL] 网格4 完成一轮买卖，重置为初始状态: buyPrice=1.466, sellPrice=1.544
+Hibernate: insert into trade_record (amount,fee,grid_line_id,price,quantity,strategy_id,trade_time,type,id) values (?,?,?,?,?,?,?,?,default)
+Hibernate: update grid_line set actual_buy_price=?,actual_profit=?,actual_sell_price=?,buy_amount=?,buy_count=?,buy_price=?,buy_quantity=?,buy_trigger_price=?,deferred=?,deferred_at=?,deferred_reason=?,expected_profit=?,grid_type=?,level=?,profit=?,profit_rate=?,sell_amount=?,sell_count=?,sell_price=?,sell_trigger_price=?,state=?,strategy_id=? where id=?
+[OCR导入] 买入记录: 时间=2026-02-03T10:15:07 价格=1.467 → 匹配网格 5
 [OCR-BUY] 网格5 buyCount -> 1
-2026-03-13T17:58:00.776+08:00  INFO 27612 --- [grid-trading] [nio-8080-exec-2] com.gridtrading.service.GridService      : [UPDATE-SELL-PRICE] level=5, sellPrice=0.855, 收益率=21.5%
-[OCR-BUY] 网格5 更新卖出价为: 0.855
-[独立计算] 网格5 MEDIUM: 买0.704 → 卖0.833 (18.3%)
+2026-03-14T23:56:26.596+08:00  INFO 19708 --- [grid-trading] [nio-8080-exec-2] com.gridtrading.service.GridService      : [UPDATE-SELL-PRICE] level=5, sellPrice=1.710, 收益率=16.6%
+[OCR-BUY] 网格5 更新卖出价为: 1.710
+[独立计算] 网格5 MEDIUM: 买1.467 → 卖1.718 (17.1%)
 Hibernate: insert into trade_record (amount,fee,grid_line_id,price,quantity,strategy_id,trade_time,type,id) values (?,?,?,?,?,?,?,?,default)
 Hibernate: update grid_line set actual_buy_price=?,actual_profit=?,actual_sell_price=?,buy_amount=?,buy_count=?,buy_price=?,buy_quantity=?,buy_trigger_price=?,deferred=?,deferred_at=?,deferred_reason=?,expected_profit=?,grid_type=?,level=?,profit=?,profit_rate=?,sell_amount=?,sell_count=?,sell_price=?,sell_trigger_price=?,state=?,strategy_id=? where id=?
-[OCR导入] 买入记录: 时间=2026-02-26T13:39:26 价格=0.668 → 匹配网格 6
+[OCR导入] 买入记录: 时间=2026-02-03T10:15:13 价格=1.466 → 匹配网格 4 (重新买入已卖出网格)
+[OCR-BUY] 网格4 buyCount -> 2
+2026-03-14T23:56:26.601+08:00  INFO 19708 --- [grid-trading] [nio-8080-exec-2] com.gridtrading.service.GridService      : [UPDATE-SELL-PRICE] level=4, sellPrice=1.544, 收益率=5.3%
+[OCR-BUY] 网格4 更新卖出价为: 1.544
+[独立计算] 网格4 SMALL: 买1.466 → 卖1.544 (5.3%)
+[同步更新] 网格5 MEDIUM: 买1.466 → 卖1.717 (17.1%)
+Hibernate: insert into trade_record (amount,fee,grid_line_id,price,quantity,strategy_id,trade_time,type,id) values (?,?,?,?,?,?,?,?,default)
+Hibernate: update grid_line set actual_buy_price=?,actual_profit=?,actual_sell_price=?,buy_amount=?,buy_count=?,buy_price=?,buy_quantity=?,buy_trigger_price=?,deferred=?,deferred_at=?,deferred_reason=?,expected_profit=?,grid_type=?,level=?,profit=?,profit_rate=?,sell_amount=?,sell_count=?,sell_price=?,sell_trigger_price=?,state=?,strategy_id=? where id=?
+Hibernate: update grid_line set actual_buy_price=?,actual_profit=?,actual_sell_price=?,buy_amount=?,buy_count=?,buy_price=?,buy_quantity=?,buy_trigger_price=?,deferred=?,deferred_at=?,deferred_reason=?,expected_profit=?,grid_type=?,level=?,profit=?,profit_rate=?,sell_amount=?,sell_count=?,sell_price=?,sell_trigger_price=?,state=?,strategy_id=? where id=?
+[OCR导入] 买入记录: 时间=2026-02-12T10:32:13 价格=1.394 → 匹配网格 6
 [OCR-BUY] 网格6 buyCount -> 1
-2026-03-13T17:58:00.778+08:00  INFO 27612 --- [grid-trading] [nio-8080-exec-2] com.gridtrading.service.GridService      : [UPDATE-SELL-PRICE] level=6, sellPrice=0.741, 收益率=10.9%
-[OCR-BUY] 网格6 更新卖出价为: 0.741
-[独立计算] 网格6 SMALL: 买0.668 → 卖0.704 (5.3%)
+2026-03-14T23:56:26.605+08:00  INFO 19708 --- [grid-trading] [nio-8080-exec-2] com.gridtrading.service.GridService      : [UPDATE-SELL-PRICE] level=6, sellPrice=1.466, 收益率=5.2%
+[OCR-BUY] 网格6 更新卖出价为: 1.466
+[独立计算] 网格6 SMALL: 买1.394 → 卖1.468 (5.3%)
 Hibernate: insert into trade_record (amount,fee,grid_line_id,price,quantity,strategy_id,trade_time,type,id) values (?,?,?,?,?,?,?,?,default)
 Hibernate: update grid_line set actual_buy_price=?,actual_profit=?,actual_sell_price=?,buy_amount=?,buy_count=?,buy_price=?,buy_quantity=?,buy_trigger_price=?,deferred=?,deferred_at=?,deferred_reason=?,expected_profit=?,grid_type=?,level=?,profit=?,profit_rate=?,sell_amount=?,sell_count=?,sell_price=?,sell_trigger_price=?,state=?,strategy_id=? where id=?
+[OCR导入] 买入记录: 时间=2026-02-26T09:52:34 价格=1.324 → 匹配网格 7
+[OCR-BUY] 网格7 buyCount -> 1
+2026-03-14T23:56:26.609+08:00  INFO 19708 --- [grid-trading] [nio-8080-exec-2] com.gridtrading.service.GridService      : [UPDATE-SELL-PRICE] level=7, sellPrice=1.394, 收益率=5.3%
+[OCR-BUY] 网格7 更新卖出价为: 1.394
+[独立计算] 网格7 SMALL: 买1.324 → 卖1.394 (5.3%)
+Hibernate: insert into trade_record (amount,fee,grid_line_id,price,quantity,strategy_id,trade_time,type,id) values (?,?,?,?,?,?,?,?,default)
+Hibernate: update grid_line set actual_buy_price=?,actual_profit=?,actual_sell_price=?,buy_amount=?,buy_count=?,buy_price=?,buy_quantity=?,buy_trigger_price=?,deferred=?,deferred_at=?,deferred_reason=?,expected_profit=?,grid_type=?,level=?,profit=?,profit_rate=?,sell_amount=?,sell_count=?,sell_price=?,sell_trigger_price=?,state=?,strategy_id=? where id=?
+[OCR导入] 买入记录: 时间=2026-03-02T14:03:59 价格=1.275 → 匹配网格 8
+[OCR-BUY] 网格8 buyCount -> 1
+2026-03-14T23:56:26.614+08:00  INFO 19708 --- [grid-trading] [nio-8080-exec-2] com.gridtrading.service.GridService      : [UPDATE-SELL-PRICE] level=8, sellPrice=1.339, 收益率=5.0%
+[OCR-BUY] 网格8 更新卖出价为: 1.339
+[独立计算] 网格8 SMALL: 买1.275 → 卖1.342 (5.3%)
+[同步更新] 网格9 MEDIUM: 买1.275 → 卖1.489 (16.7%)
+[同步更新] 网格10 LARGE: 买1.275 → 卖1.739 (36.4%)
+Hibernate: insert into trade_record (amount,fee,grid_line_id,price,quantity,strategy_id,trade_time,type,id) values (?,?,?,?,?,?,?,?,default)
+Hibernate: update grid_line set actual_buy_price=?,actual_profit=?,actual_sell_price=?,buy_amount=?,buy_count=?,buy_price=?,buy_quantity=?,buy_trigger_price=?,deferred=?,deferred_at=?,deferred_reason=?,expected_profit=?,grid_type=?,level=?,profit=?,profit_rate=?,sell_amount=?,sell_count=?,sell_price=?,sell_trigger_price=?,state=?,strategy_id=? where id=?
+Hibernate: update grid_line set actual_buy_price=?,actual_profit=?,actual_sell_price=?,buy_amount=?,buy_count=?,buy_price=?,buy_quantity=?,buy_trigger_price=?,deferred=?,deferred_at=?,deferred_reason=?,expected_profit=?,grid_type=?,level=?,profit=?,profit_rate=?,sell_amount=?,sell_count=?,sell_price=?,sell_trigger_price=?,state=?,strategy_id=? where id=?
+Hibernate: update grid_line set actual_buy_price=?,actual_profit=?,actual_sell_price=?,buy_amount=?,buy_count=?,buy_price=?,buy_quantity=?,buy_trigger_price=?,deferred=?,deferred_at=?,deferred_reason=?,expected_profit=?,grid_type=?,level=?,profit=?,profit_rate=?,sell_amount=?,sell_count=?,sell_price=?,sell_trigger_price=?,state=?,strategy_id=? where id=?
+[价格重算] 最后被交易的网格: 8，开始重算后续网格价格
+[价格重算] 网格9 MEDIUM: 买1.275 → 卖1.467
+[价格重算] 网格10 LARGE: 买1.275 → 卖1.710
+[价格重算] 网格11 SMALL: 买1.211 → 卖1.275
+[价格重算] 网格12 SMALL: 买1.150 → 卖1.211
+[价格重算] 网格13 SMALL: 买1.092 → 卖1.150
+[价格重算] 网格14 MEDIUM: 买1.092 → 卖1.275
+[价格重算] 网格15 SMALL: 买1.037 → 卖1.092
+[价格重算] 网格16 SMALL: 买0.985 → 卖1.037
+[价格重算] 网格17 SMALL: 买0.935 → 卖0.985
+[价格重算] 网格18 MEDIUM: 买0.935 → 卖1.092
+[价格重算] 网格19 LARGE: 买0.935 → 卖1.275
 Hibernate: select tr1_0.id,tr1_0.amount,tr1_0.fee,tr1_0.grid_line_id,gl1_0.id,gl1_0.actual_buy_price,gl1_0.actual_profit,gl1_0.actual_sell_price,gl1_0.buy_amount,gl1_0.buy_count,gl1_0.buy_price,gl1_0.buy_quantity,gl1_0.buy_trigger_price,gl1_0.deferred,gl1_0.deferred_at,gl1_0.deferred_reason,gl1_0.expected_profit,gl1_0.grid_type,gl1_0.level,gl1_0.profit,gl1_0.profit_rate,gl1_0.sell_amount,gl1_0.sell_count,gl1_0.sell_price,gl1_0.sell_trigger_price,gl1_0.state,gl1_0.strategy_id,tr1_0.price,tr1_0.quantity,tr1_0.strategy_id,tr1_0.trade_time,tr1_0.type from trade_record tr1_0 join grid_line gl1_0 on gl1_0.id=tr1_0.grid_line_id where tr1_0.strategy_id=? order by tr1_0.trade_time
-[收益更新] 网格2 完成1轮交易，已实现收益=-2.00元，预计收益=-4.11元
-[收益更新] 网格3 完成1轮交易，已实现收益=102.00元，预计收益=215.11元
+[收益更新] 网格4 完成1轮交易，已实现收益=77.00元，预计收益=78.00元
 Hibernate: update grid_line set actual_buy_price=?,actual_profit=?,actual_sell_price=?,buy_amount=?,buy_count=?,buy_price=?,buy_quantity=?,buy_trigger_price=?,deferred=?,deferred_at=?,deferred_reason=?,expected_profit=?,grid_type=?,level=?,profit=?,profit_rate=?,sell_amount=?,sell_count=?,sell_price=?,sell_trigger_price=?,state=?,strategy_id=? where id=?
 Hibernate: update grid_line set actual_buy_price=?,actual_profit=?,actual_sell_price=?,buy_amount=?,buy_count=?,buy_price=?,buy_quantity=?,buy_trigger_price=?,deferred=?,deferred_at=?,deferred_reason=?,expected_profit=?,grid_type=?,level=?,profit=?,profit_rate=?,sell_amount=?,sell_count=?,sell_price=?,sell_trigger_price=?,state=?,strategy_id=? where id=?
-[收益计算] 共更新2个网格的实际收益
+Hibernate: update grid_line set actual_buy_price=?,actual_profit=?,actual_sell_price=?,buy_amount=?,buy_count=?,buy_price=?,buy_quantity=?,buy_trigger_price=?,deferred=?,deferred_at=?,deferred_reason=?,expected_profit=?,grid_type=?,level=?,profit=?,profit_rate=?,sell_amount=?,sell_count=?,sell_price=?,sell_trigger_price=?,state=?,strategy_id=? where id=?
+Hibernate: update grid_line set actual_buy_price=?,actual_profit=?,actual_sell_price=?,buy_amount=?,buy_count=?,buy_price=?,buy_quantity=?,buy_trigger_price=?,deferred=?,deferred_at=?,deferred_reason=?,expected_profit=?,grid_type=?,level=?,profit=?,profit_rate=?,sell_amount=?,sell_count=?,sell_price=?,sell_trigger_price=?,state=?,strategy_id=? where id=?
+Hibernate: update grid_line set actual_buy_price=?,actual_profit=?,actual_sell_price=?,buy_amount=?,buy_count=?,buy_price=?,buy_quantity=?,buy_trigger_price=?,deferred=?,deferred_at=?,deferred_reason=?,expected_profit=?,grid_type=?,level=?,profit=?,profit_rate=?,sell_amount=?,sell_count=?,sell_price=?,sell_trigger_price=?,state=?,strategy_id=? where id=?
+Hibernate: update grid_line set actual_buy_price=?,actual_profit=?,actual_sell_price=?,buy_amount=?,buy_count=?,buy_price=?,buy_quantity=?,buy_trigger_price=?,deferred=?,deferred_at=?,deferred_reason=?,expected_profit=?,grid_type=?,level=?,profit=?,profit_rate=?,sell_amount=?,sell_count=?,sell_price=?,sell_trigger_price=?,state=?,strategy_id=? where id=?
+Hibernate: update grid_line set actual_buy_price=?,actual_profit=?,actual_sell_price=?,buy_amount=?,buy_count=?,buy_price=?,buy_quantity=?,buy_trigger_price=?,deferred=?,deferred_at=?,deferred_reason=?,expected_profit=?,grid_type=?,level=?,profit=?,profit_rate=?,sell_amount=?,sell_count=?,sell_price=?,sell_trigger_price=?,state=?,strategy_id=? where id=?
+Hibernate: update grid_line set actual_buy_price=?,actual_profit=?,actual_sell_price=?,buy_amount=?,buy_count=?,buy_price=?,buy_quantity=?,buy_trigger_price=?,deferred=?,deferred_at=?,deferred_reason=?,expected_profit=?,grid_type=?,level=?,profit=?,profit_rate=?,sell_amount=?,sell_count=?,sell_price=?,sell_trigger_price=?,state=?,strategy_id=? where id=?
+Hibernate: update grid_line set actual_buy_price=?,actual_profit=?,actual_sell_price=?,buy_amount=?,buy_count=?,buy_price=?,buy_quantity=?,buy_trigger_price=?,deferred=?,deferred_at=?,deferred_reason=?,expected_profit=?,grid_type=?,level=?,profit=?,profit_rate=?,sell_amount=?,sell_count=?,sell_price=?,sell_trigger_price=?,state=?,strategy_id=? where id=?
+Hibernate: update grid_line set actual_buy_price=?,actual_profit=?,actual_sell_price=?,buy_amount=?,buy_count=?,buy_price=?,buy_quantity=?,buy_trigger_price=?,deferred=?,deferred_at=?,deferred_reason=?,expected_profit=?,grid_type=?,level=?,profit=?,profit_rate=?,sell_amount=?,sell_count=?,sell_price=?,sell_trigger_price=?,state=?,strategy_id=? where id=?
+Hibernate: update grid_line set actual_buy_price=?,actual_profit=?,actual_sell_price=?,buy_amount=?,buy_count=?,buy_price=?,buy_quantity=?,buy_trigger_price=?,deferred=?,deferred_at=?,deferred_reason=?,expected_profit=?,grid_type=?,level=?,profit=?,profit_rate=?,sell_amount=?,sell_count=?,sell_price=?,sell_trigger_price=?,state=?,strategy_id=? where id=?
+Hibernate: update grid_line set actual_buy_price=?,actual_profit=?,actual_sell_price=?,buy_amount=?,buy_count=?,buy_price=?,buy_quantity=?,buy_trigger_price=?,deferred=?,deferred_at=?,deferred_reason=?,expected_profit=?,grid_type=?,level=?,profit=?,profit_rate=?,sell_amount=?,sell_count=?,sell_price=?,sell_trigger_price=?,state=?,strategy_id=? where id=?
+[收益计算] 共更新1个网格的实际收益
 Hibernate: select tr1_0.id,tr1_0.amount,tr1_0.fee,tr1_0.grid_line_id,tr1_0.price,tr1_0.quantity,tr1_0.strategy_id,tr1_0.trade_time,tr1_0.type from trade_record tr1_0 left join strategy s1_0 on s1_0.id=tr1_0.strategy_id where s1_0.id=? order by tr1_0.trade_time
 Hibernate: update strategy set amount_per_grid=?,available_cash=?,avg_buy_price=?,base_price=?,cost_price=?,first_buy_time=?,grid_calculation_mode=?,grid_count_down=?,grid_count_up=?,grid_model_version=?,grid_percent=?,grid_summary=?,holding_days=?,invested_amount=?,large_gap=?,last_price=?,max_capital=?,max_position_ratio=?,medium_gap=?,name=?,position=?,position_profit=?,position_profit_percent=?,position_ratio=?,quantity_per_grid=?,realized_profit=?,small_gap=?,status=?,symbol=?,total_buy_amount=?,total_buy_quantity=?,total_fee=?,total_sell_amount=?,total_sell_quantity=? where id=?
-[OCR导入] 使用截图中的现价: 0.658
+[OCR导入] 使用截图中的现价: 1.303
 Hibernate: update strategy set amount_per_grid=?,available_cash=?,avg_buy_price=?,base_price=?,cost_price=?,first_buy_time=?,grid_calculation_mode=?,grid_count_down=?,grid_count_up=?,grid_model_version=?,grid_percent=?,grid_summary=?,holding_days=?,invested_amount=?,large_gap=?,last_price=?,max_capital=?,max_position_ratio=?,medium_gap=?,name=?,position=?,position_profit=?,position_profit_percent=?,position_ratio=?,quantity_per_grid=?,realized_profit=?,small_gap=?,status=?,symbol=?,total_buy_amount=?,total_buy_quantity=?,total_fee=?,total_sell_amount=?,total_sell_quantity=? where id=?
+Hibernate: select distinct s1_0.id,s1_0.amount_per_grid,s1_0.available_cash,s1_0.avg_buy_price,s1_0.base_price,s1_0.cost_price,s1_0.created_at,s1_0.first_buy_time,s1_0.grid_calculation_mode,s1_0.grid_count_down,s1_0.grid_count_up,gl1_0.strategy_id,gl1_0.id,gl1_0.actual_buy_price,gl1_0.actual_profit,gl1_0.actual_sell_price,gl1_0.buy_amount,gl1_0.buy_count,gl1_0.buy_price,gl1_0.buy_quantity,gl1_0.buy_trigger_price,gl1_0.deferred,gl1_0.deferred_at,gl1_0.deferred_reason,gl1_0.expected_profit,gl1_0.grid_type,gl1_0.level,gl1_0.profit,gl1_0.profit_rate,gl1_0.sell_amount,gl1_0.sell_count,gl1_0.sell_price,gl1_0.sell_trigger_price,gl1_0.state,s1_0.grid_model_version,s1_0.grid_percent,s1_0.grid_summary,s1_0.holding_days,s1_0.invested_amount,s1_0.large_gap,s1_0.last_price,s1_0.max_capital,s1_0.max_position_ratio,s1_0.medium_gap,s1_0.name,s1_0.position,s1_0.position_profit,s1_0.position_profit_percent,s1_0.position_ratio,s1_0.quantity_per_grid,s1_0.realized_profit,s1_0.small_gap,s1_0.status,s1_0.symbol,s1_0.total_buy_amount,s1_0.total_buy_quantity,s1_0.total_fee,s1_0.total_sell_amount,s1_0.total_sell_quantity from strategy s1_0 left join grid_line gl1_0 on s1_0.id=gl1_0.strategy_id where s1_0.id=?
+Hibernate: select distinct s1_0.id,s1_0.amount_per_grid,s1_0.available_cash,s1_0.avg_buy_price,s1_0.base_price,s1_0.cost_price,s1_0.created_at,s1_0.first_buy_time,s1_0.grid_calculation_mode,s1_0.grid_count_down,s1_0.grid_count_up,gl1_0.strategy_id,gl1_0.id,gl1_0.actual_buy_price,gl1_0.actual_profit,gl1_0.actual_sell_price,gl1_0.buy_amount,gl1_0.buy_count,gl1_0.buy_price,gl1_0.buy_quantity,gl1_0.buy_trigger_price,gl1_0.deferred,gl1_0.deferred_at,gl1_0.deferred_reason,gl1_0.expected_profit,gl1_0.grid_type,gl1_0.level,gl1_0.profit,gl1_0.profit_rate,gl1_0.sell_amount,gl1_0.sell_count,gl1_0.sell_price,gl1_0.sell_trigger_price,gl1_0.state,s1_0.grid_model_version,s1_0.grid_percent,s1_0.grid_summary,s1_0.holding_days,s1_0.invested_amount,s1_0.large_gap,s1_0.last_price,s1_0.max_capital,s1_0.max_position_ratio,s1_0.medium_gap,s1_0.name,s1_0.position,s1_0.position_profit,s1_0.position_profit_percent,s1_0.position_ratio,s1_0.quantity_per_grid,s1_0.realized_profit,s1_0.small_gap,s1_0.status,s1_0.symbol,s1_0.total_buy_amount,s1_0.total_buy_quantity,s1_0.total_fee,s1_0.total_sell_amount,s1_0.total_sell_quantity from strategy s1_0 left join grid_line gl1_0 on s1_0.id=gl1_0.strategy_id where s1_0.id=?
 Hibernate: select s1_0.id,s1_0.amount_per_grid,s1_0.available_cash,s1_0.avg_buy_price,s1_0.base_price,s1_0.cost_price,s1_0.created_at,s1_0.first_buy_time,s1_0.grid_calculation_mode,s1_0.grid_count_down,s1_0.grid_count_up,s1_0.grid_model_version,s1_0.grid_percent,s1_0.grid_summary,s1_0.holding_days,s1_0.invested_amount,s1_0.large_gap,s1_0.last_price,s1_0.max_capital,s1_0.max_position_ratio,s1_0.medium_gap,s1_0.name,s1_0.position,s1_0.position_profit,s1_0.position_profit_percent,s1_0.position_ratio,s1_0.quantity_per_grid,s1_0.realized_profit,s1_0.small_gap,s1_0.status,s1_0.symbol,s1_0.total_buy_amount,s1_0.total_buy_quantity,s1_0.total_fee,s1_0.total_sell_amount,s1_0.total_sell_quantity from strategy s1_0 where s1_0.id=?
-Hibernate: select distinct s1_0.id,s1_0.amount_per_grid,s1_0.available_cash,s1_0.avg_buy_price,s1_0.base_price,s1_0.cost_price,s1_0.created_at,s1_0.first_buy_time,s1_0.grid_calculation_mode,s1_0.grid_count_down,s1_0.grid_count_up,gl1_0.strategy_id,gl1_0.id,gl1_0.actual_buy_price,gl1_0.actual_profit,gl1_0.actual_sell_price,gl1_0.buy_amount,gl1_0.buy_count,gl1_0.buy_price,gl1_0.buy_quantity,gl1_0.buy_trigger_price,gl1_0.deferred,gl1_0.deferred_at,gl1_0.deferred_reason,gl1_0.expected_profit,gl1_0.grid_type,gl1_0.level,gl1_0.profit,gl1_0.profit_rate,gl1_0.sell_amount,gl1_0.sell_count,gl1_0.sell_price,gl1_0.sell_trigger_price,gl1_0.state,s1_0.grid_model_version,s1_0.grid_percent,s1_0.grid_summary,s1_0.holding_days,s1_0.invested_amount,s1_0.large_gap,s1_0.last_price,s1_0.max_capital,s1_0.max_position_ratio,s1_0.medium_gap,s1_0.name,s1_0.position,s1_0.position_profit,s1_0.position_profit_percent,s1_0.position_ratio,s1_0.quantity_per_grid,s1_0.realized_profit,s1_0.small_gap,s1_0.status,s1_0.symbol,s1_0.total_buy_amount,s1_0.total_buy_quantity,s1_0.total_fee,s1_0.total_sell_amount,s1_0.total_sell_quantity from strategy s1_0 left join grid_line gl1_0 on s1_0.id=gl1_0.strategy_id where s1_0.id=?
-Hibernate: select distinct s1_0.id,s1_0.amount_per_grid,s1_0.available_cash,s1_0.avg_buy_price,s1_0.base_price,s1_0.cost_price,s1_0.created_at,s1_0.first_buy_time,s1_0.grid_calculation_mode,s1_0.grid_count_down,s1_0.grid_count_up,gl1_0.strategy_id,gl1_0.id,gl1_0.actual_buy_price,gl1_0.actual_profit,gl1_0.actual_sell_price,gl1_0.buy_amount,gl1_0.buy_count,gl1_0.buy_price,gl1_0.buy_quantity,gl1_0.buy_trigger_price,gl1_0.deferred,gl1_0.deferred_at,gl1_0.deferred_reason,gl1_0.expected_profit,gl1_0.grid_type,gl1_0.level,gl1_0.profit,gl1_0.profit_rate,gl1_0.sell_amount,gl1_0.sell_count,gl1_0.sell_price,gl1_0.sell_trigger_price,gl1_0.state,s1_0.grid_model_version,s1_0.grid_percent,s1_0.grid_summary,s1_0.holding_days,s1_0.invested_amount,s1_0.large_gap,s1_0.last_price,s1_0.max_capital,s1_0.max_position_ratio,s1_0.medium_gap,s1_0.name,s1_0.position,s1_0.position_profit,s1_0.position_profit_percent,s1_0.position_ratio,s1_0.quantity_per_grid,s1_0.realized_profit,s1_0.small_gap,s1_0.status,s1_0.symbol,s1_0.total_buy_amount,s1_0.total_buy_quantity,s1_0.total_fee,s1_0.total_sell_amount,s1_0.total_sell_quantity from strategy s1_0 left join grid_line gl1_0 on s1_0.id=gl1_0.strategy_id where s1_0.id=?
 Hibernate: select tr1_0.id,tr1_0.amount,tr1_0.fee,tr1_0.grid_line_id,tr1_0.price,tr1_0.quantity,tr1_0.strategy_id,tr1_0.trade_time,tr1_0.type from trade_record tr1_0 left join strategy s1_0 on s1_0.id=tr1_0.strategy_id where s1_0.id=? order by tr1_0.trade_time
 Hibernate: select tr1_0.id,tr1_0.amount,tr1_0.fee,tr1_0.grid_line_id,tr1_0.price,tr1_0.quantity,tr1_0.strategy_id,tr1_0.trade_time,tr1_0.type from trade_record tr1_0 where tr1_0.strategy_id=? order by tr1_0.trade_time desc
 Hibernate: update strategy set amount_per_grid=?,available_cash=?,avg_buy_price=?,base_price=?,cost_price=?,first_buy_time=?,grid_calculation_mode=?,grid_count_down=?,grid_count_up=?,grid_model_version=?,grid_percent=?,grid_summary=?,holding_days=?,invested_amount=?,large_gap=?,last_price=?,max_capital=?,max_position_ratio=?,medium_gap=?,name=?,position=?,position_profit=?,position_profit_percent=?,position_ratio=?,quantity_per_grid=?,realized_profit=?,small_gap=?,status=?,symbol=?,total_buy_amount=?,total_buy_quantity=?,total_fee=?,total_sell_amount=?,total_sell_quantity=? where id=?
@@ -320,13 +397,428 @@ Hibernate: select gl1_0.id,gl1_0.actual_buy_price,gl1_0.actual_profit,gl1_0.actu
 Hibernate: select gl1_0.id,gl1_0.actual_buy_price,gl1_0.actual_profit,gl1_0.actual_sell_price,gl1_0.buy_amount,gl1_0.buy_count,gl1_0.buy_price,gl1_0.buy_quantity,gl1_0.buy_trigger_price,gl1_0.deferred,gl1_0.deferred_at,gl1_0.deferred_reason,gl1_0.expected_profit,gl1_0.grid_type,gl1_0.level,gl1_0.profit,gl1_0.profit_rate,gl1_0.sell_amount,gl1_0.sell_count,gl1_0.sell_price,gl1_0.sell_trigger_price,gl1_0.state,gl1_0.strategy_id from grid_line gl1_0 where gl1_0.id=?
 Hibernate: select gl1_0.id,gl1_0.actual_buy_price,gl1_0.actual_profit,gl1_0.actual_sell_price,gl1_0.buy_amount,gl1_0.buy_count,gl1_0.buy_price,gl1_0.buy_quantity,gl1_0.buy_trigger_price,gl1_0.deferred,gl1_0.deferred_at,gl1_0.deferred_reason,gl1_0.expected_profit,gl1_0.grid_type,gl1_0.level,gl1_0.profit,gl1_0.profit_rate,gl1_0.sell_amount,gl1_0.sell_count,gl1_0.sell_price,gl1_0.sell_trigger_price,gl1_0.state,gl1_0.strategy_id from grid_line gl1_0 where gl1_0.id=?
 Hibernate: select gl1_0.id,gl1_0.actual_buy_price,gl1_0.actual_profit,gl1_0.actual_sell_price,gl1_0.buy_amount,gl1_0.buy_count,gl1_0.buy_price,gl1_0.buy_quantity,gl1_0.buy_trigger_price,gl1_0.deferred,gl1_0.deferred_at,gl1_0.deferred_reason,gl1_0.expected_profit,gl1_0.grid_type,gl1_0.level,gl1_0.profit,gl1_0.profit_rate,gl1_0.sell_amount,gl1_0.sell_count,gl1_0.sell_price,gl1_0.sell_trigger_price,gl1_0.state,gl1_0.strategy_id from grid_line gl1_0 where gl1_0.id=?
-2026-03-13T17:58:01.190+08:00  INFO 27612 --- [grid-trading] [nio-8080-exec-6] c.g.controller.SuggestionController      : 获取策略1的智能建议，当前价格：0.658
+Hibernate: select gl1_0.id,gl1_0.actual_buy_price,gl1_0.actual_profit,gl1_0.actual_sell_price,gl1_0.buy_amount,gl1_0.buy_count,gl1_0.buy_price,gl1_0.buy_quantity,gl1_0.buy_trigger_price,gl1_0.deferred,gl1_0.deferred_at,gl1_0.deferred_reason,gl1_0.expected_profit,gl1_0.grid_type,gl1_0.level,gl1_0.profit,gl1_0.profit_rate,gl1_0.sell_amount,gl1_0.sell_count,gl1_0.sell_price,gl1_0.sell_trigger_price,gl1_0.state,gl1_0.strategy_id from grid_line gl1_0 where gl1_0.id=?
+Hibernate: select gl1_0.id,gl1_0.actual_buy_price,gl1_0.actual_profit,gl1_0.actual_sell_price,gl1_0.buy_amount,gl1_0.buy_count,gl1_0.buy_price,gl1_0.buy_quantity,gl1_0.buy_trigger_price,gl1_0.deferred,gl1_0.deferred_at,gl1_0.deferred_reason,gl1_0.expected_profit,gl1_0.grid_type,gl1_0.level,gl1_0.profit,gl1_0.profit_rate,gl1_0.sell_amount,gl1_0.sell_count,gl1_0.sell_price,gl1_0.sell_trigger_price,gl1_0.state,gl1_0.strategy_id from grid_line gl1_0 where gl1_0.id=?
+2026-03-14T23:56:27.292+08:00  INFO 19708 --- [grid-trading] [nio-8080-exec-6] c.g.controller.SuggestionController      : 获取策略1的智能建议，当前价格：1.303
 Hibernate: select s1_0.id,s1_0.amount_per_grid,s1_0.available_cash,s1_0.avg_buy_price,s1_0.base_price,s1_0.cost_price,s1_0.created_at,s1_0.first_buy_time,s1_0.grid_calculation_mode,s1_0.grid_count_down,s1_0.grid_count_up,s1_0.grid_model_version,s1_0.grid_percent,s1_0.grid_summary,s1_0.holding_days,s1_0.invested_amount,s1_0.large_gap,s1_0.last_price,s1_0.max_capital,s1_0.max_position_ratio,s1_0.medium_gap,s1_0.name,s1_0.position,s1_0.position_profit,s1_0.position_profit_percent,s1_0.position_ratio,s1_0.quantity_per_grid,s1_0.realized_profit,s1_0.small_gap,s1_0.status,s1_0.symbol,s1_0.total_buy_amount,s1_0.total_buy_quantity,s1_0.total_fee,s1_0.total_sell_amount,s1_0.total_sell_quantity from strategy s1_0 where s1_0.id=?
 Hibernate: select gl1_0.id,gl1_0.actual_buy_price,gl1_0.actual_profit,gl1_0.actual_sell_price,gl1_0.buy_amount,gl1_0.buy_count,gl1_0.buy_price,gl1_0.buy_quantity,gl1_0.buy_trigger_price,gl1_0.deferred,gl1_0.deferred_at,gl1_0.deferred_reason,gl1_0.expected_profit,gl1_0.grid_type,gl1_0.level,gl1_0.profit,gl1_0.profit_rate,gl1_0.sell_amount,gl1_0.sell_count,gl1_0.sell_price,gl1_0.sell_trigger_price,gl1_0.state,gl1_0.strategy_id from grid_line gl1_0 left join strategy s1_0 on s1_0.id=gl1_0.strategy_id where s1_0.id=? order by gl1_0.level
 Hibernate: select tr1_0.id,tr1_0.amount,tr1_0.fee,tr1_0.grid_line_id,tr1_0.price,tr1_0.quantity,tr1_0.strategy_id,tr1_0.trade_time,tr1_0.type from trade_record tr1_0 left join strategy s1_0 on s1_0.id=tr1_0.strategy_id where s1_0.id=? order by tr1_0.trade_time desc
-[建议引擎] 最近买入网格: 6, 过滤后待建议网格数: 1
+Hibernate: select tr1_0.id,tr1_0.amount,tr1_0.fee,tr1_0.grid_line_id,tr1_0.price,tr1_0.quantity,tr1_0.strategy_id,tr1_0.trade_time,tr1_0.type from trade_record tr1_0 left join grid_line gl1_0 on gl1_0.id=tr1_0.grid_line_id where gl1_0.id=? order by tr1_0.trade_time
+Hibernate: select tr1_0.id,tr1_0.amount,tr1_0.fee,tr1_0.grid_line_id,tr1_0.price,tr1_0.quantity,tr1_0.strategy_id,tr1_0.trade_time,tr1_0.type from trade_record tr1_0 left join grid_line gl1_0 on gl1_0.id=tr1_0.grid_line_id where gl1_0.id=? order by tr1_0.trade_time
+Hibernate: select tr1_0.id,tr1_0.amount,tr1_0.fee,tr1_0.grid_line_id,tr1_0.price,tr1_0.quantity,tr1_0.strategy_id,tr1_0.trade_time,tr1_0.type from trade_record tr1_0 left join grid_line gl1_0 on gl1_0.id=tr1_0.grid_line_id where gl1_0.id=? order by tr1_0.trade_time
+Hibernate: select tr1_0.id,tr1_0.amount,tr1_0.fee,tr1_0.grid_line_id,tr1_0.price,tr1_0.quantity,tr1_0.strategy_id,tr1_0.trade_time,tr1_0.type from trade_record tr1_0 left join grid_line gl1_0 on gl1_0.id=tr1_0.grid_line_id where gl1_0.id=? order by tr1_0.trade_time
 Hibernate: select tr1_0.id,tr1_0.amount,tr1_0.fee,tr1_0.grid_line_id,tr1_0.price,tr1_0.quantity,tr1_0.strategy_id,tr1_0.trade_time,tr1_0.type from trade_record tr1_0 left join grid_line gl1_0 on gl1_0.id=tr1_0.grid_line_id where gl1_0.id=? order by tr1_0.trade_time
 Hibernate: select tr1_0.id,tr1_0.amount,tr1_0.fee,tr1_0.grid_line_id,tr1_0.price,tr1_0.quantity,tr1_0.strategy_id,tr1_0.trade_time,tr1_0.type from trade_record tr1_0 left join grid_line gl1_0 on gl1_0.id=tr1_0.grid_line_id where gl1_0.id=? order by tr1_0.trade_time
 Hibernate: select tr1_0.id,tr1_0.amount,tr1_0.fee,tr1_0.grid_line_id,tr1_0.price,tr1_0.quantity,tr1_0.strategy_id,tr1_0.trade_time,tr1_0.type from trade_record tr1_0 left join grid_line gl1_0 on gl1_0.id=tr1_0.grid_line_id where gl1_0.id=? order by tr1_0.trade_time
 Hibernate: select tr1_0.id,tr1_0.amount,tr1_0.fee,tr1_0.grid_line_id,tr1_0.price,tr1_0.quantity,tr1_0.strategy_id,tr1_0.trade_time,tr1_0.type from trade_record tr1_0 left join grid_line gl1_0 on gl1_0.id=tr1_0.grid_line_id where gl1_0.id=? order by tr1_0.trade_time
 Hibernate: select gl1_0.id,gl1_0.actual_buy_price,gl1_0.actual_profit,gl1_0.actual_sell_price,gl1_0.buy_amount,gl1_0.buy_count,gl1_0.buy_price,gl1_0.buy_quantity,gl1_0.buy_trigger_price,gl1_0.deferred,gl1_0.deferred_at,gl1_0.deferred_reason,gl1_0.expected_profit,gl1_0.grid_type,gl1_0.level,gl1_0.profit,gl1_0.profit_rate,gl1_0.sell_amount,gl1_0.sell_count,gl1_0.sell_price,gl1_0.sell_trigger_price,gl1_0.state,gl1_0.strategy_id from grid_line gl1_0 left join strategy s1_0 on s1_0.id=gl1_0.strategy_id where s1_0.id=? and gl1_0.deferred
+
+http://localhost:8080/api/strategies/1/grid-plans
+{
+    "strategy": {
+        "name": "中概互联",
+        "symbol": "513050",
+        "basePrice": 1.710
+    },
+    "gridPlans": [
+        {
+            "id": 1,
+            "gridType": "SMALL",
+            "level": 1,
+            "buyPrice": 1.710,
+            "sellPrice": 1.796,
+            "actualBuyPrice": 1.710,
+            "actualSellPrice": null,
+            "buyTriggerPrice": 1.712,
+            "sellTriggerPrice": 1.794,
+            "quantity": 1000.000,
+            "buyAmount": 1710.000,
+            "sellAmount": 1796.000,
+            "profit": "86.00",
+            "profitRate": 0.050,
+            "state": "BOUGHT",
+            "buyCount": 1,
+            "sellCount": 0,
+            "actualProfit": "0.00",
+            "expectedProfit": "86.00"
+        },
+        {
+            "id": 2,
+            "gridType": "SMALL",
+            "level": 2,
+            "buyPrice": 1.625,
+            "sellPrice": 1.711,
+            "actualBuyPrice": 1.625,
+            "actualSellPrice": null,
+            "buyTriggerPrice": 1.627,
+            "sellTriggerPrice": 1.709,
+            "quantity": 500.000,
+            "buyAmount": 812.500,
+            "sellAmount": 855.500,
+            "profit": "43.00",
+            "profitRate": 0.053,
+            "state": "BOUGHT",
+            "buyCount": 1,
+            "sellCount": 0,
+            "actualProfit": "0.00",
+            "expectedProfit": "43.00"
+        },
+        {
+            "id": 3,
+            "gridType": "SMALL",
+            "level": 3,
+            "buyPrice": 1.544,
+            "sellPrice": 1.626,
+            "actualBuyPrice": 1.544,
+            "actualSellPrice": null,
+            "buyTriggerPrice": 1.546,
+            "sellTriggerPrice": 1.624,
+            "quantity": 1000.000,
+            "buyAmount": 1544.000,
+            "sellAmount": 1626.000,
+            "profit": "82.00",
+            "profitRate": 0.053,
+            "state": "BOUGHT",
+            "buyCount": 1,
+            "sellCount": 0,
+            "actualProfit": "0.00",
+            "expectedProfit": "82.00"
+        },
+        {
+            "id": 4,
+            "gridType": "SMALL",
+            "level": 4,
+            "buyPrice": 1.466,
+            "sellPrice": 1.544,
+            "actualBuyPrice": 1.466,
+            "actualSellPrice": null,
+            "buyTriggerPrice": 1.468,
+            "sellTriggerPrice": 1.542,
+            "quantity": 1000.000,
+            "buyAmount": 1466.000,
+            "sellAmount": 1544.000,
+            "profit": "78.00",
+            "profitRate": 0.053,
+            "state": "BOUGHT",
+            "buyCount": 2,
+            "sellCount": 1,
+            "actualProfit": "77.00",
+            "expectedProfit": "78.00"
+        },
+        {
+            "id": 5,
+            "gridType": "MEDIUM",
+            "level": 5,
+            "buyPrice": 1.466,
+            "sellPrice": 1.717,
+            "actualBuyPrice": 1.467,
+            "actualSellPrice": null,
+            "buyTriggerPrice": 1.468,
+            "sellTriggerPrice": 1.715,
+            "quantity": 1000.000,
+            "buyAmount": 1467.000,
+            "sellAmount": 1717.000,
+            "profit": "250.00",
+            "profitRate": 0.170,
+            "state": "BOUGHT",
+            "buyCount": 1,
+            "sellCount": 0,
+            "actualProfit": "0.00",
+            "expectedProfit": "250.00"
+        },
+        {
+            "id": 6,
+            "gridType": "SMALL",
+            "level": 6,
+            "buyPrice": 1.394,
+            "sellPrice": 1.468,
+            "actualBuyPrice": 1.394,
+            "actualSellPrice": null,
+            "buyTriggerPrice": 1.396,
+            "sellTriggerPrice": 1.466,
+            "quantity": 1000.000,
+            "buyAmount": 1394.000,
+            "sellAmount": 1468.000,
+            "profit": "74.00",
+            "profitRate": 0.053,
+            "state": "BOUGHT",
+            "buyCount": 1,
+            "sellCount": 0,
+            "actualProfit": "0.00",
+            "expectedProfit": "74.00"
+        },
+        {
+            "id": 7,
+            "gridType": "SMALL",
+            "level": 7,
+            "buyPrice": 1.324,
+            "sellPrice": 1.394,
+            "actualBuyPrice": 1.324,
+            "actualSellPrice": null,
+            "buyTriggerPrice": 1.326,
+            "sellTriggerPrice": 1.392,
+            "quantity": 500.000,
+            "buyAmount": 662.000,
+            "sellAmount": 697.000,
+            "profit": "35.00",
+            "profitRate": 0.053,
+            "state": "BOUGHT",
+            "buyCount": 1,
+            "sellCount": 0,
+            "actualProfit": "0.00",
+            "expectedProfit": "35.00"
+        },
+        {
+            "id": 8,
+            "gridType": "SMALL",
+            "level": 8,
+            "buyPrice": 1.275,
+            "sellPrice": 1.342,
+            "actualBuyPrice": 1.275,
+            "actualSellPrice": null,
+            "buyTriggerPrice": 1.277,
+            "sellTriggerPrice": 1.340,
+            "quantity": 1000.000,
+            "buyAmount": 1275.000,
+            "sellAmount": 1342.000,
+            "profit": "67.00",
+            "profitRate": 0.053,
+            "state": "BOUGHT",
+            "buyCount": 1,
+            "sellCount": 0,
+            "actualProfit": "0.00",
+            "expectedProfit": "67.00"
+        },
+        {
+            "id": 9,
+            "gridType": "MEDIUM",
+            "level": 9,
+            "buyPrice": 1.275,
+            "sellPrice": 1.467,
+            "actualBuyPrice": null,
+            "actualSellPrice": null,
+            "buyTriggerPrice": 1.277,
+            "sellTriggerPrice": 1.465,
+            "quantity": 1000.000,
+            "buyAmount": 1254.000,
+            "sellAmount": 1467.000,
+            "profit": "213.00",
+            "profitRate": 0.170,
+            "state": "WAIT_BUY",
+            "buyCount": 0,
+            "sellCount": 0,
+            "actualProfit": "0.00",
+            "expectedProfit": "192.00"
+        },
+        {
+            "id": 10,
+            "gridType": "LARGE",
+            "level": 10,
+            "buyPrice": 1.275,
+            "sellPrice": 1.710,
+            "actualBuyPrice": null,
+            "actualSellPrice": null,
+            "buyTriggerPrice": 1.277,
+            "sellTriggerPrice": 1.708,
+            "quantity": 1000.000,
+            "buyAmount": 1254.000,
+            "sellAmount": 1710.000,
+            "profit": "456.00",
+            "profitRate": 0.364,
+            "state": "WAIT_BUY",
+            "buyCount": 0,
+            "sellCount": 0,
+            "actualProfit": "0.00",
+            "expectedProfit": "435.00"
+        },
+        {
+            "id": 11,
+            "gridType": "SMALL",
+            "level": 11,
+            "buyPrice": 1.211,
+            "sellPrice": 1.275,
+            "actualBuyPrice": null,
+            "actualSellPrice": null,
+            "buyTriggerPrice": 1.213,
+            "sellTriggerPrice": 1.273,
+            "quantity": 1000.000,
+            "buyAmount": 1191.000,
+            "sellAmount": 1275.000,
+            "profit": "84.00",
+            "profitRate": 0.071,
+            "state": "WAIT_BUY",
+            "buyCount": 0,
+            "sellCount": 0,
+            "actualProfit": "0.00",
+            "expectedProfit": "64.00"
+        },
+        {
+            "id": 12,
+            "gridType": "SMALL",
+            "level": 12,
+            "buyPrice": 1.150,
+            "sellPrice": 1.211,
+            "actualBuyPrice": null,
+            "actualSellPrice": null,
+            "buyTriggerPrice": 1.152,
+            "sellTriggerPrice": 1.209,
+            "quantity": 1000.000,
+            "buyAmount": 1131.000,
+            "sellAmount": 1211.000,
+            "profit": "80.00",
+            "profitRate": 0.071,
+            "state": "WAIT_BUY",
+            "buyCount": 0,
+            "sellCount": 0,
+            "actualProfit": "0.00",
+            "expectedProfit": "61.00"
+        },
+        {
+            "id": 13,
+            "gridType": "SMALL",
+            "level": 13,
+            "buyPrice": 1.092,
+            "sellPrice": 1.150,
+            "actualBuyPrice": null,
+            "actualSellPrice": null,
+            "buyTriggerPrice": 1.094,
+            "sellTriggerPrice": 1.148,
+            "quantity": 1000.000,
+            "buyAmount": 1074.000,
+            "sellAmount": 1150.000,
+            "profit": "76.00",
+            "profitRate": 0.071,
+            "state": "WAIT_BUY",
+            "buyCount": 0,
+            "sellCount": 0,
+            "actualProfit": "0.00",
+            "expectedProfit": "58.00"
+        },
+        {
+            "id": 14,
+            "gridType": "MEDIUM",
+            "level": 14,
+            "buyPrice": 1.092,
+            "sellPrice": 1.275,
+            "actualBuyPrice": null,
+            "actualSellPrice": null,
+            "buyTriggerPrice": 1.094,
+            "sellTriggerPrice": 1.273,
+            "quantity": 1000.000,
+            "buyAmount": 1074.000,
+            "sellAmount": 1275.000,
+            "profit": "201.00",
+            "profitRate": 0.187,
+            "state": "WAIT_BUY",
+            "buyCount": 0,
+            "sellCount": 0,
+            "actualProfit": "0.00",
+            "expectedProfit": "183.00"
+        },
+        {
+            "id": 15,
+            "gridType": "SMALL",
+            "level": 15,
+            "buyPrice": 1.037,
+            "sellPrice": 1.092,
+            "actualBuyPrice": null,
+            "actualSellPrice": null,
+            "buyTriggerPrice": 1.039,
+            "sellTriggerPrice": 1.090,
+            "quantity": 1000.000,
+            "buyAmount": 1020.000,
+            "sellAmount": 1092.000,
+            "profit": "72.00",
+            "profitRate": 0.071,
+            "state": "WAIT_BUY",
+            "buyCount": 0,
+            "sellCount": 0,
+            "actualProfit": "0.00",
+            "expectedProfit": "55.00"
+        },
+        {
+            "id": 16,
+            "gridType": "SMALL",
+            "level": 16,
+            "buyPrice": 0.985,
+            "sellPrice": 1.037,
+            "actualBuyPrice": null,
+            "actualSellPrice": null,
+            "buyTriggerPrice": 0.987,
+            "sellTriggerPrice": 1.035,
+            "quantity": 1000.000,
+            "buyAmount": 969.000,
+            "sellAmount": 1037.000,
+            "profit": "68.00",
+            "profitRate": 0.070,
+            "state": "WAIT_BUY",
+            "buyCount": 0,
+            "sellCount": 0,
+            "actualProfit": "0.00",
+            "expectedProfit": "52.00"
+        },
+        {
+            "id": 17,
+            "gridType": "SMALL",
+            "level": 17,
+            "buyPrice": 0.935,
+            "sellPrice": 0.985,
+            "actualBuyPrice": null,
+            "actualSellPrice": null,
+            "buyTriggerPrice": 0.937,
+            "sellTriggerPrice": 0.983,
+            "quantity": 1000.000,
+            "buyAmount": 920.000,
+            "sellAmount": 985.000,
+            "profit": "65.00",
+            "profitRate": 0.071,
+            "state": "WAIT_BUY",
+            "buyCount": 0,
+            "sellCount": 0,
+            "actualProfit": "0.00",
+            "expectedProfit": "50.00"
+        },
+        {
+            "id": 18,
+            "gridType": "MEDIUM",
+            "level": 18,
+            "buyPrice": 0.935,
+            "sellPrice": 1.092,
+            "actualBuyPrice": null,
+            "actualSellPrice": null,
+            "buyTriggerPrice": 0.937,
+            "sellTriggerPrice": 1.090,
+            "quantity": 1000.000,
+            "buyAmount": 920.000,
+            "sellAmount": 1092.000,
+            "profit": "172.00",
+            "profitRate": 0.187,
+            "state": "WAIT_BUY",
+            "buyCount": 0,
+            "sellCount": 0,
+            "actualProfit": "0.00",
+            "expectedProfit": "157.00"
+        },
+        {
+            "id": 19,
+            "gridType": "LARGE",
+            "level": 19,
+            "buyPrice": 0.935,
+            "sellPrice": 1.275,
+            "actualBuyPrice": null,
+            "actualSellPrice": null,
+            "buyTriggerPrice": 0.937,
+            "sellTriggerPrice": 1.273,
+            "quantity": 1000.000,
+            "buyAmount": 920.000,
+            "sellAmount": 1275.000,
+            "profit": "355.00",
+            "profitRate": 0.386,
+            "state": "WAIT_BUY",
+            "buyCount": 0,
+            "sellCount": 0,
+            "actualProfit": "0.00",
+            "expectedProfit": "340.00"
+        }
+    ]
+}

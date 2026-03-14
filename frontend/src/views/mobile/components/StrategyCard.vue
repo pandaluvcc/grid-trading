@@ -2,7 +2,10 @@
   <div class="strategy-card" :class="{ compact: layout === 'compact' }" @click="$emit('click', strategy)">
     <div class="card-top">
       <div class="card-title">
-        <div class="strategy-name">{{ strategy.name || strategy.symbol }}</div>
+        <div class="title-row">
+          <span class="strategy-name">{{ strategy.name || strategy.symbol }}</span>
+          <span class="market-value">市值 ¥{{ formatAmount(marketValue) }}</span>
+        </div>
         <div class="strategy-code" v-if="strategy.name">{{ strategy.symbol }}</div>
       </div>
       <div class="card-status">
@@ -46,10 +49,6 @@
       <div class="stat-item">
         <span class="stat-label">持仓</span>
         <span class="stat-value">{{ formatQuantity(strategy.position) }}股</span>
-      </div>
-      <div class="stat-item">
-        <span class="stat-label">市值</span>
-        <span class="stat-value">¥{{ formatAmount(marketValue) }}</span>
       </div>
       <div class="stat-item profit">
         <span class="stat-label">盈亏</span>
@@ -111,7 +110,7 @@ const priceChangeText = computed(() => {
   const change = lastPrice - costPrice
   const changePercent = (change / costPrice) * 100
   const sign = change >= 0 ? '+' : ''
-  return `${sign}${changePercent.toFixed(2)}%`
+  return `${sign}${changePercent.toFixed(3)}%`
 })
 
 const risksTooltip = computed(() => {
@@ -164,16 +163,28 @@ const getProfitClass = (val) => {
   flex: 1;
 }
 
+.title-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
 .strategy-name {
   font-size: 16px;
   font-weight: 600;
   color: #303133;
-  margin-bottom: 2px;
+}
+
+.market-value {
+  font-size: 12px;
+  color: #606266;
+  font-weight: 500;
 }
 
 .strategy-code {
   font-size: 12px;
   color: #909399;
+  margin-top: 2px;
 }
 
 .card-status {

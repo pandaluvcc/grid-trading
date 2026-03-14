@@ -56,7 +56,7 @@
     </div>
 
     <!-- 批量更新弹窗 -->
-    <BatchUpdateDialog v-model="showBatchUpdateDialog" :strategies="strategies" @success="loadHomeData" />
+    <BatchUpdateDialog v-model="showBatchUpdateDialog" :strategies="strategyStore.strategies" @success="loadHomeData" />
   </MobileLayout>
 </template>
 

@@ -102,7 +102,7 @@ import { useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { Loading } from '@element-plus/icons-vue'
 import { Upload } from '@element-plus/icons-vue'
-import { getStrategyDetail } from '@/services/strategy'
+import { getStrategyDetail, updateStrategyLastPrice } from '@/services/strategy'
 import { getGridLines, executeTick } from '@/services/grid'
 import { getTradeRecords, updateTradeFee } from '@/services/trade'
 import MobileLayout from './MobileLayout.vue'
@@ -145,13 +145,15 @@ const strategyTitle = computed(() => {
 const positionProfit = computed(() => strategy.value?.positionProfit || 0)
 const positionProfitPercent = computed(() => {
   const val = strategy.value?.positionProfitPercent || 0
-  return `${val >= 0 ? '+' : ''}${(val * 100).toFixed(2)}%`
+  // 后端已返回百分比值（如-13.752），无需再乘100
+  return `${val >= 0 ? '+' : ''}${val.toFixed(3)}%`
 })
 const positionProfitPercentValue = computed(() => strategy.value?.positionProfitPercent || 0)
 const todayProfit = computed(() => strategy.value?.todayProfit || 0)
 const todayProfitPercent = computed(() => {
   const val = strategy.value?.todayProfitPercent || 0
-  return `${val >= 0 ? '+' : ''}${(val * 100).toFixed(2)}%`
+  // 后端已返回百分比值，无需再乘100
+  return `${val >= 0 ? '+' : ''}${val.toFixed(3)}%`
 })
 const todayProfitPercentValue = computed(() => strategy.value?.todayProfitPercent || 0)
 const holdingDays = computed(() => strategy.value?.holdingDays || 0)
@@ -192,10 +194,22 @@ const loadStrategyDetail = async () => {
   }
 }
 
-// 价格变化时触发智能建议更新
-const onPriceChange = () => {
+// 价格变化时触发智能建议更新，并保存到后端
+const onPriceChange = async () => {
+  const price = parseFloat(priceInput.value)
+  if (price && !isNaN(price)) {
+    try {
+      // 保存现价到后端，并使用返回值更新本地数据
+      const res = await updateStrategyLastPrice(strategyId.value, price)
+      // 更新本地策略数据，刷新头部面板
+      strategy.value = res.data
+    } catch (e) {
+      console.error('保存现价失败:', e)
+    }
+  }
+  // 更新智能建议
   if (smartSuggestionRef.value) {
-    smartSuggestionRef.value.updateLastPrice(parseFloat(priceInput.value))
+    smartSuggestionRef.value.updateLastPrice(price)
   }
 }
 

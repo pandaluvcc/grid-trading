@@ -457,19 +457,21 @@ public class StrategyService {
         gridLine.setBuyTriggerPrice(GridConstants.calculateBuyTriggerPrice(buyPrice));
         gridLine.setSellTriggerPrice(GridConstants.calculateSellTriggerPrice(sellPrice));
 
-        gridLine.setBuyAmount(buyAmount);
+        // 使用每网默认数量（创建策略时必填，不考虑为空）
+        BigDecimal buyQuantity = strategy.getQuantityPerGrid();
+        BigDecimal actualBuyAmount = buyQuantity.multiply(buyPrice).setScale(2, RoundingMode.DOWN);
 
-        BigDecimal buyQuantity = buyAmount.divide(gridLine.getBuyPrice(), 8, RoundingMode.DOWN);
         gridLine.setBuyQuantity(buyQuantity);
+        gridLine.setBuyAmount(actualBuyAmount);
 
         BigDecimal sellAmount = buyQuantity.multiply(gridLine.getSellPrice())
                 .setScale(2, RoundingMode.DOWN);
         gridLine.setSellAmount(sellAmount);
 
-        BigDecimal profit = sellAmount.subtract(buyAmount);
+        BigDecimal profit = sellAmount.subtract(actualBuyAmount);
         gridLine.setProfit(profit);
 
-        BigDecimal profitRate = profit.divide(buyAmount, 6, RoundingMode.HALF_UP);
+        BigDecimal profitRate = profit.divide(actualBuyAmount, 6, RoundingMode.HALF_UP);
         gridLine.setProfitRate(profitRate);
 
         return gridLine;
@@ -527,10 +529,17 @@ public class StrategyService {
         BigDecimal actualProfit = gridLine.getActualProfit() != null ? gridLine.getActualProfit() : BigDecimal.ZERO;
         item.setActualProfit(actualProfit.setScale(2, RoundingMode.HALF_UP));
 
-        // 计算预计收益
-        BigDecimal sellPrice = gridLine.getActualSellPrice() != null ? gridLine.getActualSellPrice() : gridLine.getSellPrice();
-        BigDecimal buyPrice = gridLine.getActualBuyPrice() != null ? gridLine.getActualBuyPrice() : gridLine.getBuyPrice();
-        BigDecimal quantity = gridLine.getBuyQuantity() != null ? gridLine.getBuyQuantity() : BigDecimal.ZERO;
+        // 计算预计收益：(卖出价 - 买入价) × 数量
+        // 卖出价/买入价优先使用实际值
+        BigDecimal sellPrice = gridLine.getActualSellPrice() != null
+            ? gridLine.getActualSellPrice()
+            : gridLine.getSellPrice();
+        BigDecimal buyPrice = gridLine.getActualBuyPrice() != null
+            ? gridLine.getActualBuyPrice()
+            : gridLine.getBuyPrice();
+        BigDecimal quantity = gridLine.getBuyQuantity() != null
+            ? gridLine.getBuyQuantity()
+            : BigDecimal.ZERO;
         BigDecimal expectedProfit = sellPrice.subtract(buyPrice).multiply(quantity).setScale(2, RoundingMode.HALF_UP);
         item.setExpectedProfit(expectedProfit);
 
