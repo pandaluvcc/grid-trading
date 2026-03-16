@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cd D:/01-develop/02-project/panda/grid-trading/backend && mvn compile -q 2>&1 | head -50)",
+      "WebSearch",
+      "Bash(cd frontend/src && mkdir -p composables constants stores utils services styles types assets)",
+      "Bash(cd frontend/src && mkdir -p components/common)",
+      "Bash(cd frontend:*)",
+      "Bash(cd D:/01-develop/02-project/panda/grid-trading/frontend && npm install pinia)",
+      "Bash(cd D:/01-develop/02-project/panda/grid-trading/frontend && npm run build)",
+      "Bash(cd D:/01-develop/02-project/panda/grid-trading/frontend && npm install -D eslint eslint-plugin-vue prettier eslint-config-prettier eslint-plugin-prettier @vue/eslint-config-prettier)",
+      "Bash(cd D:/01-develop/02-project/panda/grid-trading/frontend && npm run format)",
+      "Bash(cd D:/01-develop/02-project/panda/grid-trading/frontend && npm run lint)",
+      "Bash(cd D:/01-develop/02-project/panda/grid-trading/frontend && rm .eslintrc.cjs .eslintignore)",
+      "Bash(cd D:/01-develop/02-project/panda/grid-trading/frontend && npm install -D @eslint/js)",
+      "Bash(find \"D:\\\\01-develop\\\\02-project\\\\panda\\\\grid-trading\\\\backend\" -name \"*.java\" | xargs grep -l \"class StrategyDetailDTO\")",
+      "Bash(cd \"D:\\\\01-develop\\\\02-project\\\\panda\\\\grid-trading\\\\backend\" && mvn compile -q 2>&1 | head -30)",
+      "Bash(cd \"D:\\\\01-develop\\\\02-project\\\\panda\\\\grid-trading\\\\backend\" && mvn compile -q 2>&1 | head -20)"
+    ]
+  }
+}

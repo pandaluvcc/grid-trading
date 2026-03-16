@@ -26,7 +26,7 @@
         <server.ip>your-server-ip</server.ip>
         <server.username>root</server.username>
         <server.password>your-password</server.password>
-        <deploy.path>/data/docker/grid-trading</deploy.path>
+        <deploy.path>/data/docker/platform/grid-trading</deploy.path>
     </properties>
 
     <dependencies>
@@ -87,12 +87,50 @@
         </extensions>
 
         <plugins>
+            <!-- 1. 复制依赖到 lib 目录 -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-dependency-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>copy-dependencies</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>copy-dependencies</goal>
+                        </goals>
+                        <configuration>
+                            <outputDirectory>${project.build.directory}/lib</outputDirectory>
+                            <includeScope>runtime</includeScope>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <!-- 2. Spring Boot 打包（ZIP layout，支持外部 lib 目录） -->
+            <!-- 配置放在 execution 中，不影响本地 spring-boot:run -->
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>repackage</id>
+                        <goals>
+                            <goal>repackage</goal>
+                        </goals>
+                        <configuration>
+                            <layout>ZIP</layout>
+                            <includes>
+                                <include>
+                                    <groupId>nothing</groupId>
+                                    <artifactId>nothing</artifactId>
+                                </include>
+                            </includes>
+                        </configuration>
+                    </execution>
+                </executions>
             </plugin>
 
-            <!-- Maven Wagon SSH 自动部署插件 -->
+            <!-- 3. Maven Wagon SSH 上传 jar 和 lib 目录 -->
             <plugin>
                 <groupId>org.codehaus.mojo</groupId>
                 <artifactId>wagon-maven-plugin</artifactId>
@@ -102,11 +140,12 @@
                         <id>upload-deploy</id>
                         <phase>install</phase>
                         <goals>
-                            <goal>upload-single</goal>
+                            <goal>upload</goal>
                             <goal>sshexec</goal>
                         </goals>
                         <configuration>
-                            <fromFile>target/${project.artifactId}-${project.version}.jar</fromFile>
+                            <fromDir>${project.build.directory}</fromDir>
+                            <includes>lib/**,${project.artifactId}-${project.version}.jar</includes>
                             <url>scp://${server.username}:${server.password}@${server.ip}${deploy.path}</url>
                             <commands>
                                 <command>cd ${deploy.path} &amp;&amp; sh deploy.sh</command>

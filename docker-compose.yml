@@ -1,9 +1,17 @@
-# docker-compose.yml - Grid Trading 生产环境部署
+# docker-compose.yml - Platform 平台服务编排
+# 位置: /data/docker/platform/docker-compose.yml
+#
 # 目录结构：
 # /data/docker/
-# ├── platform/grid-trading/    # 后端项目
-# ├── mysql/                    # MySQL 数据
-# └── openresty/nginx/content/grid-trading/  # 前端项目
+# ├── mysql/                      # MySQL
+# ├── openresty/                  # OpenResty
+# └── platform/
+#     ├── docker-compose.yml      # 本文件
+#     └── grid-trading/           # Grid Trading 项目
+#         ├── app.jar
+#         ├── lib/
+#         ├── Dockerfile
+#         └── deploy.sh
 
 version: '3.8'
 
@@ -14,13 +22,13 @@ services:
     container_name: mysql
     restart: always
     environment:
-      MYSQL_ROOT_PASSWORD: Root@2026!
+      MYSQL_ROOT_PASSWORD: ww2233ee
       MYSQL_DATABASE: grid_trading
       MYSQL_USER: grid_user
-      MYSQL_PASSWORD: GridTrading@2026
+      MYSQL_PASSWORD: ww2233ee
       TZ: Asia/Shanghai
     volumes:
-      - /data/docker/mysql:/var/lib/mysql
+      - /data/docker/mysql/data:/var/lib/mysql
       - /data/docker/platform/grid-trading/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
     command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
     healthcheck:
@@ -31,7 +39,7 @@ services:
     networks:
       - platform-network
 
-  # ==================== 后端服务 ====================
+  # ==================== Grid Trading 后端 ====================
   backend:
     build:
       context: /data/docker/platform/grid-trading
@@ -43,10 +51,11 @@ services:
         condition: service_healthy
     environment:
       - SPRING_PROFILES_ACTIVE=prod
-      - MYSQL_PASSWORD=GridTrading@2026
+      - MYSQL_PASSWORD=ww2233ee
       - TZ=Asia/Shanghai
     volumes:
       - /data/docker/platform/grid-trading/config:/app/config:ro
+      - /data/docker/platform/grid-trading/logs:/app/logs
     networks:
       - platform-network
 
