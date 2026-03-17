@@ -34,3 +34,10 @@ export function createStrategy(data) {
 export function updateStrategyLastPrice(strategyId, lastPrice) {
   return api.put(`/strategies/${strategyId}/last-price`, { lastPrice })
 }
+
+/**
+ * 删除策略
+ */
+export function deleteStrategy(id) {
+  return api.delete(`/strategies/${id}`)
+}

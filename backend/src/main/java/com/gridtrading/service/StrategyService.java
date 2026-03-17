@@ -126,7 +126,7 @@ public class StrategyService {
 
         // 计算 amountPerGrid
         BigDecimal amountPerGrid = calculateAmountPerGrid(request);
-        BigDecimal quantityPerGrid = request.getQuantityPerGrid();
+        BigDecimal quantityPerGrid = calculateQuantityPerGrid(request, amountPerGrid);
 
         // 创建策略实体
         Strategy strategy = buildStrategy(request, amountPerGrid, quantityPerGrid);
@@ -281,6 +281,28 @@ public class StrategyService {
         return buildGridSuggestion(bestMatch, suggestedType, price, minDiff);
     }
 
+    // ==================== 删除操作 ====================
+
+    /**
+     * 删除策略及其关联数据
+     */
+    @Transactional
+    public void deleteStrategy(Long id) {
+        Strategy strategy = findStrategyById(id);
+        log.info("删除策略: id={}, symbol={}", id, strategy.getSymbol());
+
+        // 删除关联的交易记录
+        tradeRecordRepository.deleteByStrategyId(id);
+
+        // 删除关联的网格线（JPA 会级联删除，但显式删除更清晰）
+        gridLineRepository.deleteByStrategyId(id);
+
+        // 删除策略
+        strategyRepository.deleteById(id);
+
+        log.info("策略删除成功: id={}", id);
+    }
+
     // ==================== 私有方法 ====================
 
     private Strategy findStrategyById(Long id) {
@@ -337,6 +359,14 @@ public class StrategyService {
             return request.getBasePrice().multiply(request.getQuantityPerGrid());
         }
         return request.getAmountPerGrid();
+    }
+
+    private BigDecimal calculateQuantityPerGrid(CreateStrategyRequest request, BigDecimal amountPerGrid) {
+        if (request.getQuantityPerGrid() != null && request.getQuantityPerGrid().compareTo(BigDecimal.ZERO) > 0) {
+            return request.getQuantityPerGrid();
+        }
+        // 当只有 amountPerGrid 时，根据基准价计算数量
+        return amountPerGrid.divide(request.getBasePrice(), 8, RoundingMode.DOWN);
     }
 
     private Strategy buildStrategy(CreateStrategyRequest request, BigDecimal amountPerGrid, BigDecimal quantityPerGrid) {

@@ -214,36 +214,35 @@ const getProfitClass = (val) => {
 
 <style scoped>
 .grid-card {
-  background: #fff;
+  background: var(--bg-card);
   border-radius: 12px;
   padding: 14px 16px;
   margin-bottom: 10px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-  border-left: 4px solid transparent;
-  transition: all 0.25s ease;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+  border-left: 3px solid transparent;
+  transition: all 0.2s ease;
 }
 
-.grid-card:hover {
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
-  transform: translateY(-1px);
+.grid-card:active {
+  transform: scale(0.99);
 }
 
 /* 网格类型左边框颜色 */
 .grid-card.type-small {
-  border-left-color: #409eff;
+  border-left-color: var(--primary-color);
 }
 
 .grid-card.type-medium {
-  border-left-color: #e6a23c;
+  border-left-color: var(--warning-color);
 }
 
 .grid-card.type-large {
-  border-left-color: #f56c6c;
+  border-left-color: var(--danger-color);
 }
 
 /* 已买入状态背景 */
 .grid-card.state-bought {
-  background: linear-gradient(135deg, #fff 0%, #fffbe6 100%);
+  background: linear-gradient(135deg, var(--bg-card) 0%, rgba(255, 230, 180, 0.55) 100%);
 }
 
 /* 行布局 */
@@ -276,33 +275,34 @@ const getProfitClass = (val) => {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  background: #f0f2f5;
-  color: #606266;
-  font-size: 13px;
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  background: var(--bg-light);
+  color: var(--text-primary);
+  font-size: 12px;
   font-weight: 700;
+  transition: background-color var(--transition-base);
 }
 
 .type-tag {
-  padding: 3px 10px;
-  border-radius: 6px;
-  font-size: 12px;
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-size: 11px;
   font-weight: 600;
-  color: #fff;
+  color: white;
 }
 
 .type-tag.type-small {
-  background: linear-gradient(135deg, #409eff 0%, #66b1ff 100%);
+  background: var(--primary-color);
 }
 
 .type-tag.type-medium {
-  background: linear-gradient(135deg, #e6a23c 0%, #ebb563 100%);
+  background: var(--warning-color);
 }
 
 .type-tag.type-large {
-  background: linear-gradient(135deg, #f56c6c 0%, #f78989 100%);
+  background: var(--danger-color);
 }
 
 /* 第一行右侧 */
@@ -313,25 +313,26 @@ const getProfitClass = (val) => {
 }
 
 .cycle-tag {
-  padding: 3px 8px;
+  padding: 2px 6px;
   border-radius: 4px;
-  font-size: 12px;
-  font-weight: 600;
+  font-size: 11px;
+  font-weight: 500;
 }
 
 .cycle-tag.no-cycles {
-  background: #f0f2f5;
-  color: #909399;
+  background: var(--bg-light);
+  color: var(--text-secondary);
+  transition: background-color var(--transition-base);
 }
 
 .cycle-tag.has-cycles {
-  background: #e1f3d8;
-  color: #67c23a;
+  background: rgba(103, 194, 58, 0.12);
+  color: var(--success-color);
 }
 
 .quantity-tag {
-  font-size: 12px;
-  color: #909399;
+  font-size: 11px;
+  color: var(--text-secondary);
   font-weight: 500;
 }
 
@@ -343,14 +344,15 @@ const getProfitClass = (val) => {
 }
 
 .price-label {
-  font-size: 12px;
-  color: #909399;
+  font-size: 11px;
+  color: var(--text-secondary);
   font-weight: 500;
+  width: 14px;
 }
 
 .price-value {
   font-size: 15px;
-  font-weight: 700;
+  font-weight: 600;
   font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
   display: flex;
   align-items: center;
@@ -358,11 +360,11 @@ const getProfitClass = (val) => {
 }
 
 .price-value.buy {
-  color: #f56c6c;
+  color: var(--profit-positive);
 }
 
 .price-value.sell {
-  color: #409eff;
+  color: var(--primary-color);
 }
 
 .price-value.price-deviation {
@@ -370,14 +372,14 @@ const getProfitClass = (val) => {
 }
 
 .check-mark {
-  font-size: 11px;
+  font-size: 10px;
 }
 
 .deviation-badge {
-  font-size: 10px;
-  color: #e6a23c;
-  background: #fdf6ec;
-  border: 1px solid #f5dab1;
+  font-size: 9px;
+  color: var(--warning-color);
+  background: rgba(230, 162, 60, 0.1);
+  border: 1px solid rgba(230, 162, 60, 0.2);
   border-radius: 3px;
   padding: 1px 4px;
   font-weight: 500;
@@ -392,30 +394,30 @@ const getProfitClass = (val) => {
 }
 
 .profit-label {
-  font-size: 12px;
-  color: #909399;
+  font-size: 11px;
+  color: var(--text-secondary);
   font-weight: 500;
-  width: 18px;
+  width: 14px;
   flex-shrink: 0;
 }
 
 .profit-value {
   font-size: 14px;
-  font-weight: 700;
+  font-weight: 600;
   font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
   min-width: 60px;
   text-align: right;
 }
 
 .profit-value.profit-zero {
-  color: #909399;
+  color: var(--text-secondary);
 }
 
 .profit-value.profit-positive {
-  color: #f56c6c;
+  color: var(--profit-positive);
 }
 
 .profit-value.profit-negative {
-  color: #67c23a;
+  color: var(--profit-negative);
 }
 </style>

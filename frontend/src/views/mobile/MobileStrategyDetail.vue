@@ -1,7 +1,50 @@
 <template>
-  <MobileLayout :title="strategyTitle" :show-back="true" :show-tab-bar="false">
-    <div v-if="loading" class="loading-container">
-      <el-icon class="is-loading"><Loading /></el-icon>
+  <MobileLayout :title="strategyTitle" :show-back="true" :show-tab-bar="false" :show-header="false">
+    <div v-if="loading" class="skeleton-container">
+      <!-- 头部骨架 -->
+      <div class="skeleton-header">
+        <div class="skeleton-row">
+          <div class="skeleton-box skeleton-title"></div>
+          <div class="skeleton-box skeleton-tag"></div>
+        </div>
+        <div class="skeleton-stats">
+          <div class="skeleton-stat-item">
+            <div class="skeleton-box skeleton-stat-label"></div>
+            <div class="skeleton-box skeleton-stat-value"></div>
+          </div>
+          <div class="skeleton-stat-item">
+            <div class="skeleton-box skeleton-stat-label"></div>
+            <div class="skeleton-box skeleton-stat-value"></div>
+          </div>
+          <div class="skeleton-stat-item">
+            <div class="skeleton-box skeleton-stat-label"></div>
+            <div class="skeleton-box skeleton-stat-value"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 智能建议骨架 -->
+      <div class="skeleton-card">
+        <div class="skeleton-box skeleton-card-title"></div>
+        <div class="skeleton-box skeleton-card-content"></div>
+      </div>
+
+      <!-- 价格触发卡片骨架 -->
+      <div class="skeleton-card skeleton-card-small">
+        <div class="skeleton-box skeleton-input"></div>
+        <div class="skeleton-box skeleton-btn"></div>
+      </div>
+
+      <!-- Tab 骨架 -->
+      <div class="skeleton-tabs">
+        <div class="skeleton-tab"></div>
+        <div class="skeleton-tab"></div>
+      </div>
+
+      <!-- 列表骨架 -->
+      <div class="skeleton-list">
+        <div class="skeleton-list-item" v-for="i in 3" :key="i"></div>
+      </div>
     </div>
 
     <div v-else-if="strategy">
@@ -27,7 +70,7 @@
 
       <!-- 智能建议 -->
       <SmartSuggestion
-        v-if="strategy"
+        v-if="strategy && hasSuggestions"
         :strategy-id="strategyId"
         :initial-last-price="parseFloat(priceInput) || strategy.lastPrice"
         ref="smartSuggestionRef"
@@ -65,7 +108,9 @@
     </div>
 
     <div v-else class="error-state">
-      <div class="error-icon">❌</div>
+      <div class="error-icon">
+        <el-icon :size="64" color="#f56c6c"><CircleCloseFilled /></el-icon>
+      </div>
       <div class="error-text">加载失败，请重试</div>
       <el-button type="primary" @click="loadStrategyDetail" class="retry-btn">
         重新加载
@@ -100,8 +145,7 @@
 import { ref, onMounted, computed, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { Loading } from '@element-plus/icons-vue'
-import { Upload } from '@element-plus/icons-vue'
+import { Upload, CircleCloseFilled } from '@element-plus/icons-vue'
 import { getStrategyDetail, updateStrategyLastPrice } from '@/services/strategy'
 import { getGridLines, executeTick } from '@/services/grid'
 import { getTradeRecords, updateTradeFee } from '@/services/trade'
@@ -161,6 +205,12 @@ const positionRatio = computed(() => strategy.value?.positionRatio || 0)
 const costPrice = computed(() => strategy.value?.costPrice || 0)
 const totalFee = computed(() => strategy.value?.totalFee || 0)
 const averageBuyPrice = computed(() => strategy.value?.avgBuyPrice || strategy.value?.averageBuyPrice || 0)
+
+// 是否有建议操作
+const hasSuggestions = computed(() => {
+  if (!currentSuggestion.value) return false
+  return currentSuggestion.value.type === 'BUY' || currentSuggestion.value.type === 'SELL'
+})
 
 onMounted(() => {
   loadStrategyDetail()
@@ -287,53 +337,191 @@ const handleOcrImportSuccess = () => {
 </script>
 
 <style scoped>
-.loading-container {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 300px;
+/* 骨架屏样式 */
+.skeleton-container {
+  padding: 0;
 }
 
-.loading-container .el-icon {
-  font-size: 32px;
-  color: #667eea;
+.skeleton-header {
+  background: var(--bg-card);
+  border-radius: 0 0 20px 20px;
+  padding: 16px;
+  transition: background-color var(--transition-base);
+}
+
+.skeleton-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.skeleton-box {
+  background: linear-gradient(90deg, var(--bg-light) 25%, var(--border-lighter) 50%, var(--bg-light) 75%);
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.5s infinite;
+  border-radius: 8px;
+  transition: background-color var(--transition-base);
+}
+
+.skeleton-title {
+  width: 100px;
+  height: 20px;
+}
+
+.skeleton-tag {
+  width: 50px;
+  height: 20px;
+  border-radius: 10px;
+}
+
+.skeleton-stats {
+  display: flex;
+  justify-content: space-between;
+  gap: 24px;
+  margin-top: 24px;
+  padding: 0 8px;
+}
+
+.skeleton-stat-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.skeleton-stat-label {
+  width: 40px;
+  height: 12px;
+}
+
+.skeleton-stat-value {
+  width: 60px;
+  height: 20px;
+}
+
+.skeleton-card {
+  background: var(--bg-card);
+  border-radius: 16px;
+  padding: 16px;
+  margin: 16px;
+  transition: background-color var(--transition-base);
+}
+
+.skeleton-card-small {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.skeleton-card-title {
+  width: 80px;
+  height: 14px;
+  margin-bottom: 12px;
+}
+
+.skeleton-card-content {
+  width: 100%;
+  height: 48px;
+}
+
+.skeleton-input {
+  flex: 1;
+  height: 48px;
+  border-radius: 12px;
+}
+
+.skeleton-btn {
+  width: 80px;
+  height: 48px;
+  border-radius: 12px;
+}
+
+.skeleton-tabs {
+  display: flex;
+  gap: 8px;
+  margin: 0 16px 16px;
+  padding: 4px;
+  background: var(--bg-light);
+  border-radius: 10px;
+  transition: background-color var(--transition-base);
+}
+
+.skeleton-tab {
+  flex: 1;
+  height: 40px;
+  background: var(--bg-card);
+  border-radius: 8px;
+  transition: background-color var(--transition-base);
+}
+
+.skeleton-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 0 16px;
+}
+
+.skeleton-list-item {
+  height: 80px;
+  background: var(--bg-card);
+  border-radius: 14px;
+  transition: background-color var(--transition-base);
+}
+
+@keyframes skeleton-shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
 }
 
 .grid-list {
-  margin-top: 16px;
+  margin-top: 0;
+  padding: 0 16px;
 }
 
 .tab-content {
-  margin-top: 16px;
+  margin-top: 0;
 }
 
 .action-buttons {
-  margin-top: 20px;
+  margin: 24px 16px;
   display: flex;
   gap: 12px;
 }
 
 .action-buttons .el-button {
   flex: 1;
+  height: 48px;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 600;
 }
 
 .error-state {
   text-align: center;
-  padding: 60px 20px;
+  padding: 80px 20px;
 }
 
 .error-icon {
   font-size: 64px;
-  margin-bottom: 16px;
+  margin-bottom: 20px;
 }
 
 .error-text {
   font-size: 16px;
-  color: #909399;
-  margin-bottom: 20px;
+  color: var(--text-secondary);
+  margin-bottom: 24px;
 }
 
 .retry-btn {
   margin-top: 16px;
+  height: 48px;
+  padding: 0 32px;
+  border-radius: 12px;
+  font-weight: 600;
 }
 </style>

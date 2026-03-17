@@ -92,6 +92,17 @@ public class StrategyController {
         return strategyService.createStrategy(request);
     }
 
+    // ==================== 删除接口 ====================
+
+    /**
+     * 删除策略
+     */
+    @DeleteMapping("/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void deleteStrategy(@PathVariable Long id) {
+        strategyService.deleteStrategy(id);
+    }
+
     // ==================== 更新接口 ====================
 
     /**

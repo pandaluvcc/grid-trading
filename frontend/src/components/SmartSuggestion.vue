@@ -315,41 +315,37 @@ defineExpose({
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 600;
-  color: #303133;
+  color: var(--text-primary);
   margin-bottom: 12px;
   flex-wrap: wrap;
-  z-index: 10;
-  position: relative;
-  overflow: visible;
 }
 
 .section-title .el-icon {
   font-size: 18px;
   flex-shrink: 0;
-  z-index: 11;
-}
-
-.section-title span {
-  z-index: 11;
-  position: relative;
 }
 
 .page-indicator {
   font-size: 12px;
-  color: #909399;
-  margin-left: 8px;
+  color: var(--text-secondary);
+  margin-left: auto;
+  background: var(--bg-light);
+  padding: 4px 10px;
+  border-radius: 10px;
+  font-weight: 500;
+  transition: background-color var(--transition-base);
 }
 
 .nav-buttons {
   display: flex;
-  gap: 4px;
-  margin-left: auto;
+  gap: 6px;
 }
 
 .nav-buttons .el-button {
-  padding: 4px 8px;
+  padding: 6px 10px;
+  border-radius: 8px;
 }
 
 .suggestion-fade-enter-active,
@@ -366,67 +362,71 @@ defineExpose({
 .suggestions-section,
 .deferred-section {
   margin-top: 16px;
-  background: white;
-  border-radius: 16px;
-  padding: 16px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  background: var(--bg-card);
+  border-radius: 14px;
+  padding: 14px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+  transition: background-color var(--transition-base);
 }
 
 .suggestion-list {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
 }
 
 .deferred-list {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
 }
 
 .deferred-item {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 12px;
-  background: #f5f7fa;
-  border-radius: 8px;
+  padding: 12px 14px;
+  background: var(--bg-light);
+  border-radius: 10px;
+  transition: background-color var(--transition-base);
 }
 
 .deferred-info {
   flex: 1;
-  font-size: 14px;
-  color: #606266;
+  font-size: 13px;
+  color: var(--text-regular);
 }
 
 .deferred-grid {
-  font-weight: 500;
-  color: #303133;
+  font-weight: 600;
+  color: var(--text-primary);
 }
 
 .deferred-reason {
-  color: #909399;
+  color: var(--text-secondary);
   margin-left: 4px;
 }
 
 .no-suggestions {
   text-align: center;
   padding: 40px 20px;
-  color: #909399;
-  background: white;
-  border-radius: 16px;
+  color: var(--text-secondary);
+  background: var(--bg-card);
+  border-radius: 14px;
   margin-top: 16px;
+  transition: background-color var(--transition-base);
 }
 
 .no-suggestions .el-icon {
   font-size: 48px;
-  color: #67c23a;
+  color: var(--success-color);
   margin-bottom: 12px;
 }
 
 .no-suggestions p {
-  font-size: 14px;
+  font-size: 13px;
   margin: 0;
+  color: var(--text-secondary);
 }
 
 .execute-dialog-content {
@@ -434,10 +434,11 @@ defineExpose({
 }
 
 .suggestion-summary {
-  background: #f5f7fa;
-  border-radius: 8px;
-  padding: 16px;
-  margin-bottom: 20px;
+  background: var(--bg-light);
+  border-radius: 10px;
+  padding: 14px;
+  margin-bottom: 16px;
+  transition: background-color var(--transition-base);
 }
 
 .summary-item {
@@ -448,18 +449,18 @@ defineExpose({
 }
 
 .summary-item .label {
-  color: #909399;
+  color: var(--text-secondary);
 }
 
 .summary-item .value {
-  color: #303133;
-  font-weight: 500;
+  color: var(--text-primary);
+  font-weight: 600;
 }
 
 .input-section {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 14px;
 }
 
 .input-group {
@@ -470,7 +471,7 @@ defineExpose({
 
 .input-group label {
   font-size: 13px;
-  color: #606266;
-  font-weight: 500;
+  color: var(--text-regular);
+  font-weight: 600;
 }
 </style>

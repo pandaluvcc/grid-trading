@@ -1,9 +1,17 @@
 <template>
   <div class="tab-switcher">
-    <div class="tab-item" :class="{ active: activeTab === 'grids' }" @click="$emit('update:activeTab', 'grids')">
-      网格状态
+    <div
+      class="tab-item"
+      :class="{ active: activeTab === 'grids' }"
+      @click="$emit('update:activeTab', 'grids')"
+    >
+      网格计划
     </div>
-    <div class="tab-item" :class="{ active: activeTab === 'records' }" @click="$emit('update:activeTab', 'records')">
+    <div
+      class="tab-item"
+      :class="{ active: activeTab === 'records' }"
+      @click="$emit('update:activeTab', 'records')"
+    >
       成交记录
     </div>
   </div>
@@ -23,26 +31,29 @@ defineEmits(['update:activeTab'])
 <style scoped>
 .tab-switcher {
   display: flex;
-  background: white;
-  margin: 0 16px 12px;
-  border-radius: 8px;
-  overflow: hidden;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  margin: 0 16px 16px;
+  background: var(--bg-light);
+  border-radius: 10px;
+  padding: 4px;
+  transition: background-color var(--transition-base);
 }
 
 .tab-item {
   flex: 1;
   text-align: center;
-  padding: 12px 0;
+  padding: 10px 0;
   font-size: 14px;
-  color: #606266;
+  font-weight: 500;
+  color: var(--text-secondary);
   cursor: pointer;
-  transition: all 0.3s;
+  border-radius: 8px;
+  transition: all 0.2s ease;
 }
 
 .tab-item.active {
-  background: #409eff;
-  color: white;
-  font-weight: 500;
+  background: var(--bg-card);
+  color: var(--text-primary);
+  font-weight: 600;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
 }
 </style>

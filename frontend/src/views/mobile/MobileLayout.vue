@@ -1,7 +1,7 @@
 <template>
   <div class="mobile-layout">
     <!-- 顶部导航栏 -->
-    <header class="mobile-header">
+    <header v-if="showHeader" class="mobile-header">
       <div class="header-left">
         <el-icon v-if="showBack" class="back-btn" @click.stop="goBack"><ArrowLeft /></el-icon>
       </div>
@@ -12,7 +12,7 @@
     </header>
 
     <!-- 主内容区 -->
-    <main class="mobile-main">
+    <main class="mobile-main" :class="{ 'no-header': !showHeader }">
       <slot></slot>
     </main>
 
@@ -47,6 +47,10 @@ const props = defineProps({
   showTabBar: {
     type: Boolean,
     default: true
+  },
+  showHeader: {
+    type: Boolean,
+    default: true
   }
 })
 
@@ -76,7 +80,8 @@ const switchTab = (tab) => {
   display: flex;
   flex-direction: column;
   min-height: 100vh;
-  background: #f5f6fa;
+  background: var(--bg-color);
+  transition: background-color var(--transition-base);
 }
 
 /* 顶部导航 */
@@ -86,13 +91,16 @@ const switchTab = (tab) => {
   left: 0;
   right: 0;
   height: 50px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  padding-top: env(safe-area-inset-top);
+  background: var(--primary-gradient);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 12px;
+  padding-left: 12px;
+  padding-right: 12px;
+  padding-bottom: 0;
   z-index: 100;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow-sm);
 }
 
 .header-left,
@@ -107,6 +115,11 @@ const switchTab = (tab) => {
   font-size: 22px;
   color: #fff;
   cursor: pointer;
+  transition: opacity var(--transition-fast);
+}
+
+.back-btn:active {
+  opacity: 0.7;
 }
 
 .header-title {
@@ -121,11 +134,14 @@ const switchTab = (tab) => {
 /* 主内容区 */
 .mobile-main {
   flex: 1;
-  margin-top: 50px;
-  margin-bottom: 60px;
-  padding: 12px;
+  margin-top: calc(50px + env(safe-area-inset-top));
+  margin-bottom: calc(60px + env(safe-area-inset-bottom));
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
+}
+
+.mobile-main.no-header {
+  margin-top: 0;
 }
 
 /* 底部Tab栏 */
@@ -135,11 +151,12 @@ const switchTab = (tab) => {
   left: 0;
   right: 0;
   height: 60px;
-  background: #fff;
+  background: var(--bg-card);
   display: flex;
   box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.08);
   z-index: 100;
   padding-bottom: env(safe-area-inset-bottom);
+  transition: background-color var(--transition-base);
 }
 
 .tab-item {
@@ -149,10 +166,10 @@ const switchTab = (tab) => {
   align-items: center;
   justify-content: center;
   gap: 4px;
-  color: #909399;
+  color: var(--text-secondary);
   font-size: 11px;
   cursor: pointer;
-  transition: color 0.2s;
+  transition: color var(--transition-fast);
 }
 
 .tab-item .el-icon {
@@ -160,10 +177,10 @@ const switchTab = (tab) => {
 }
 
 .tab-item.active {
-  color: #667eea;
+  color: var(--primary-color);
 }
 
 .tab-item.active .el-icon {
-  color: #667eea;
+  color: var(--primary-color);
 }
 </style>

@@ -1,18 +1,27 @@
 <template>
   <div class="profit-card">
-    <div class="profit-row">
-      <div class="profit-col">
+    <!-- 核心数据：持仓盈亏 -->
+    <div class="profit-main">
+      <div class="profit-label">持仓盈亏</div>
+      <div class="profit-big-value" :class="getProfitClass(totalPositionProfit)">
+        {{ formatProfit(totalPositionProfit) }}
+      </div>
+    </div>
+
+    <!-- 分隔线 -->
+    <div class="profit-divider"></div>
+
+    <!-- 次要数据 -->
+    <div class="profit-sub">
+      <div class="sub-item">
+        <div class="profit-label">今日盈亏</div>
+        <div class="profit-value" :class="getProfitClass(todayProfit)">
+          {{ formatProfit(todayProfit) }}
+        </div>
+      </div>
+      <div class="sub-item">
         <div class="profit-label">证券市值</div>
         <div class="profit-value market-value">¥{{ formatAmount(totalMarketValue) }}</div>
-      </div>
-      <div class="profit-col">
-        <div class="profit-label">已实现收益</div>
-        <div class="profit-value" :class="getProfitClass(totalPositionProfit)">
-          {{ formatProfit(totalPositionProfit) }}
-        </div>
-        <div class="profit-sub" :class="getProfitClass(todayProfit)">
-          <span>今日 {{ formatProfit(todayProfit) }}</span>
-        </div>
       </div>
     </div>
   </div>
@@ -53,40 +62,65 @@ const getProfitClass = (val) => {
 
 <style scoped>
 .profit-card {
-  background: rgba(255, 255, 255, 0.15);
-  backdrop-filter: blur(10px);
-  border-radius: 12px;
-  padding: 20px;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-}
-
-.profit-row {
   display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px 24px;
   gap: 40px;
 }
 
-.profit-col {
-  flex: 1;
+.profit-main {
+  text-align: center;
 }
 
 .profit-label {
   font-size: 12px;
-  opacity: 0.8;
+  color: var(--text-secondary);
   margin-bottom: 8px;
 }
 
-.profit-value {
-  font-size: 24px;
-  font-weight: bold;
-  margin-bottom: 4px;
+.profit-big-value {
+  font-size: 28px;
+  font-weight: 700;
+  font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
+  letter-spacing: -0.5px;
 }
 
-.profit-value.market-value {
-  color: white;
+.profit-divider {
+  width: 1px;
+  height: 48px;
+  background: var(--border-light);
 }
 
 .profit-sub {
-  font-size: 12px;
-  opacity: 0.9;
+  display: flex;
+  gap: 24px;
+}
+
+.sub-item {
+  text-align: center;
+}
+
+.profit-value {
+  font-size: 16px;
+  font-weight: 600;
+  font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
+}
+
+.profit-value.market-value {
+  color: var(--text-primary);
+}
+
+/* 盈亏颜色 */
+.profit-positive {
+  color: var(--profit-positive);
+}
+
+.profit-negative {
+  color: var(--profit-negative);
+}
+
+.profit-zero {
+  color: var(--text-secondary);
 }
 </style>

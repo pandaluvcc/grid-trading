@@ -23,6 +23,7 @@
   --bg-color: #f5f7fa;
   --bg-white: #ffffff;
   --bg-light: #fafafa;
+  --bg-card: #ffffff;
 
   /* 边框色 */
   --border-color: #dcdfe6;
@@ -60,4 +61,43 @@
   --transition-fast: 0.15s ease;
   --transition-base: 0.2s ease;
   --transition-slow: 0.3s ease;
+
+  /* 页面过渡 */
+  --page-transition-duration: 0.25s;
+}
+
+/* 深色模式 */
+@media (prefers-color-scheme: dark) {
+  :root {
+    /* 主题色 - 深色模式下稍微调亮 */
+    --primary-color: #4da5ff;
+    --primary-gradient: linear-gradient(135deg, #7b8fed 0%, #8e5db3 100%);
+
+    /* 盈亏颜色 - 深色模式保持可读性 */
+    --profit-positive: #ff6b6b;
+    --profit-negative: #6dd580;
+    --profit-zero: #a0a0a0;
+
+    /* 文本颜色 */
+    --text-primary: #e5e5e5;
+    --text-regular: #b0b0b0;
+    --text-secondary: #808080;
+    --text-placeholder: #505050;
+
+    /* 背景色 */
+    --bg-color: #121212;
+    --bg-white: #1e1e1e;
+    --bg-light: #252525;
+    --bg-card: #1e1e1e;
+
+    /* 边框色 */
+    --border-color: #333333;
+    --border-light: #2a2a2a;
+    --border-lighter: #252525;
+
+    /* 阴影 - 深色模式使用更深的阴影 */
+    --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.3);
+    --shadow-md: 0 2px 12px rgba(0, 0, 0, 0.35);
+    --shadow-lg: 0 4px 16px rgba(0, 0, 0, 0.4);
+  }
 }

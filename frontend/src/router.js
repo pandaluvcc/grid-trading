@@ -22,39 +22,46 @@ const routes = [
   {
     path: '/m',
     name: 'MobileHome',
-    component: MobileHome
+    component: MobileHome,
+    meta: { transition: 'page-fade' }
   },
   {
     path: '/m/messages',
     name: 'MobileMessageCenter',
-    component: MobileMessageCenter
+    component: MobileMessageCenter,
+    meta: { transition: 'page-slide' }
   },
   {
     path: '/m/record',
     name: 'MobileRecord',
-    component: MobileRecord
+    component: MobileRecord,
+    meta: { transition: 'page-fade' }
   },
   {
     path: '/m/history',
     name: 'MobileHistory',
-    component: MobileHistory
+    component: MobileHistory,
+    meta: { transition: 'page-fade' }
   },
   {
     path: '/m/create',
     name: 'MobileStrategyCreate',
-    component: MobileStrategyCreate
+    component: MobileStrategyCreate,
+    meta: { transition: 'page-scale' }
   },
   {
     path: '/m/strategy/:id',
     name: 'MobileStrategyDetail',
-    component: MobileStrategyDetail
+    component: MobileStrategyDetail,
+    meta: { transition: 'page-slide' }
   },
 
   // ========== PC端工具路由 ==========
   {
     path: '/pc/apk-generator',
     name: 'ApkFolderGenerator',
-    component: ApkFolderGenerator
+    component: ApkFolderGenerator,
+    meta: { transition: 'page-fade' }
   }
 ]
 

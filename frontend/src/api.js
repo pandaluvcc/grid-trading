@@ -12,7 +12,8 @@ export {
   getStrategy,
   getStrategyDetail,
   createStrategy,
-  updateStrategyLastPrice
+  updateStrategyLastPrice,
+  deleteStrategy
 } from '@/services/strategy'
 
 // 网格相关

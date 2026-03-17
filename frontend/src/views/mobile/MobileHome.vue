@@ -10,19 +10,6 @@
       @batch-update="showBatchUpdateDialog = true"
     />
 
-    <!-- 布局切换按钮 -->
-    <div class="layout-switcher">
-      <div
-        v-for="layout in layouts"
-        :key="layout.id"
-        class="layout-btn"
-        :class="{ active: currentLayout === layout.id }"
-        @click="currentLayout = layout.id"
-      >
-        {{ layout.name }}
-      </div>
-    </div>
-
     <!-- 策略列表 -->
     <div class="strategy-section">
       <div class="section-header">
@@ -37,7 +24,9 @@
 
       <!-- 空状态 -->
       <div v-if="strategyStore.strategies.length === 0" class="empty-state">
-        <div class="empty-icon">📊</div>
+        <div class="empty-icon">
+          <el-icon :size="64" color="#c0c4cc"><DataLine /></el-icon>
+        </div>
         <div class="empty-text">暂无策略，点击右上角+创建</div>
       </div>
 
@@ -47,10 +36,10 @@
           v-for="s in strategyStore.strategies"
           :key="s.id"
           :strategy="s"
-          :layout="currentLayout"
           :suggestions="strategySuggestions[s.id]"
           :risks="getRisksForStrategy(s.id)"
           @click="goToDetail(s)"
+          @deleted="handleStrategyDeleted"
         />
       </div>
     </div>
@@ -64,7 +53,7 @@
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { Plus } from '@element-plus/icons-vue'
+import { Plus, DataLine } from '@element-plus/icons-vue'
 import { useStrategyStore } from '@/stores/strategy'
 import { useStrategySuggestions } from '@/composables/useStrategySuggestions'
 import { useStrategyRisks } from '@/composables/useStrategyRisks'
@@ -78,13 +67,7 @@ const strategyStore = useStrategyStore()
 const { strategySuggestions, totalSuggestionsCount, fetchSuggestions } = useStrategySuggestions()
 const { strategyRisks, getRisksForStrategy, fetchRisks } = useStrategyRisks()
 
-const currentLayout = ref('compact')
 const showBatchUpdateDialog = ref(false)
-
-const layouts = [
-  { id: 'compact', name: '紧凑' },
-  { id: 'detailed', name: '详细' }
-]
 
 onMounted(() => {
   loadHomeData()
@@ -112,38 +95,17 @@ const goToCreate = () => {
 const goToDetail = (strategy) => {
   router.push(`/m/strategy/${strategy.id}`)
 }
+
+// 处理策略删除
+const handleStrategyDeleted = (strategyId) => {
+  // 从 store 中移除
+  strategyStore.strategies = strategyStore.strategies.filter(s => s.id !== strategyId)
+}
 </script>
 
 <style scoped>
-.layout-switcher {
-  display: flex;
-  background: white;
-  margin: -30px 16px 16px;
-  border-radius: 8px;
-  overflow: hidden;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-  position: relative;
-  z-index: 10;
-}
-
-.layout-btn {
-  flex: 1;
-  text-align: center;
-  padding: 12px 0;
-  font-size: 14px;
-  color: #606266;
-  cursor: pointer;
-  transition: all 0.3s;
-}
-
-.layout-btn.active {
-  background: #409eff;
-  color: white;
-  font-weight: 500;
-}
-
 .strategy-section {
-  padding: 0 16px 20px;
+  padding: 20px 16px;
 }
 
 .section-header {
@@ -154,9 +116,9 @@ const goToDetail = (strategy) => {
 }
 
 .section-title {
-  font-size: 18px;
+  font-size: 17px;
   font-weight: 600;
-  color: #303133;
+  color: var(--text-primary);
 }
 
 .section-actions {
@@ -167,19 +129,25 @@ const goToDetail = (strategy) => {
 
 .section-count {
   font-size: 14px;
-  color: #909399;
+  color: var(--text-secondary);
 }
 
 .add-btn {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
-  background: #409eff;
+  width: 36px;
+  height: 36px;
+  background: var(--primary-color);
   color: white;
-  border-radius: 50%;
+  border-radius: 10px;
   cursor: pointer;
+  transition: transform 0.15s ease, opacity 0.15s ease;
+}
+
+.add-btn:active {
+  transform: scale(0.95);
+  opacity: 0.9;
 }
 
 .empty-state {
@@ -188,12 +156,11 @@ const goToDetail = (strategy) => {
 }
 
 .empty-icon {
-  font-size: 64px;
   margin-bottom: 16px;
 }
 
 .empty-text {
   font-size: 14px;
-  color: #909399;
+  color: var(--text-secondary);
 }
 </style>

@@ -57,4 +57,9 @@ public interface TradeRecordRepository extends JpaRepository<TradeRecord, Long> 
      * 查询策略的所有交易记录按时间倒序
      */
     List<TradeRecord> findByStrategyIdOrderByTradeTimeDesc(Long strategyId);
+
+    /**
+     * 删除策略的所有交易记录
+     */
+    void deleteByStrategyId(Long strategyId);
 }

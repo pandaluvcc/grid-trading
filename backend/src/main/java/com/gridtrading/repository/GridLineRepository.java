@@ -67,4 +67,9 @@ public interface GridLineRepository extends JpaRepository<GridLine, Long> {
      * 通过策略ID查询网格线并按level升序排序
      */
     List<GridLine> findByStrategyIdOrderByLevelAsc(Long strategyId);
+
+    /**
+     * 删除策略的所有网格线
+     */
+    void deleteByStrategyId(Long strategyId);
 }

@@ -288,11 +288,12 @@ const handleSubmit = async () => {
 <style scoped>
 .mobile-create {
   min-height: 100vh;
-  background: #fff;
-  padding: 24px 20px;
+  background: var(--bg-card);
+  padding: var(--spacing-xxl) var(--spacing-xl);
   padding-top: max(24px, env(safe-area-inset-top));
   padding-bottom: max(24px, env(safe-area-inset-bottom));
   box-sizing: border-box;
+  transition: background-color var(--transition-base);
 }
 
 .form-area {
@@ -301,191 +302,189 @@ const handleSubmit = async () => {
 }
 
 .form-group {
-  margin-bottom: 24px;
+  margin-bottom: var(--spacing-xxl);
 }
 
 .form-label {
   display: block;
   font-size: 15px;
   font-weight: 500;
-  color: #333;
+  color: var(--text-primary);
   margin-bottom: 10px;
 }
 
 .form-input {
   width: 100%;
   height: 50px;
-  padding: 0 16px;
-  font-size: 16px;
-  color: #333;
-  background: #f8f9fa;
+  padding: 0 var(--spacing-lg);
+  font-size: var(--font-size-lg);
+  color: var(--text-primary);
+  background: var(--bg-light);
   border: 1.5px solid transparent;
-  border-radius: 12px;
+  border-radius: var(--border-radius-lg);
   outline: none;
-  transition: all 0.2s;
+  transition: all var(--transition-base);
   box-sizing: border-box;
   -webkit-appearance: none;
   appearance: none;
 }
 
 .form-input:focus {
-  background: #fff;
-  border-color: #667eea;
+  background: var(--bg-card);
+  border-color: var(--primary-color);
   box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
 }
 
 .form-input::placeholder {
-  color: #aaa;
+  color: var(--text-placeholder);
 }
 
 .form-hint {
-  font-size: 12px;
-  color: #999;
-  margin-top: 8px;
-  padding-left: 4px;
+  font-size: var(--font-size-xs);
+  color: var(--text-secondary);
+  margin-top: var(--spacing-sm);
+  padding-left: var(--spacing-xs);
 }
 
 /* 模式切换 */
 .mode-switch {
   display: flex;
-  background: #f5f6fa;
+  background: var(--bg-color);
   border-radius: 10px;
-  padding: 4px;
+  padding: var(--spacing-xs);
 }
 
 .mode-item {
   flex: 1;
   text-align: center;
   padding: 10px 0;
-  font-size: 14px;
-  color: #666;
-  border-radius: 8px;
+  font-size: var(--font-size-base);
+  color: var(--text-regular);
+  border-radius: var(--border-radius-md);
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all var(--transition-base);
 }
 
 .mode-item.active {
-  background: #fff;
-  color: #667eea;
+  background: var(--bg-card);
+  color: var(--primary-color);
   font-weight: 600;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  box-shadow: var(--shadow-sm);
 }
 
 /* 计算结果 */
 .calc-section {
-  background: linear-gradient(135deg, #667eea10 0%, #764ba210 100%);
-  border-radius: 12px;
-  padding: 12px 16px;
-  margin-bottom: 24px;
+  background: linear-gradient(135deg, rgba(102, 126, 234, 0.06) 0%, rgba(118, 75, 162, 0.06) 100%);
+  border-radius: var(--border-radius-lg);
+  padding: var(--spacing-md) var(--spacing-lg);
+  margin-bottom: var(--spacing-xxl);
 }
 
 .calc-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 8px 0;
+  padding: var(--spacing-sm) 0;
 }
 
 .calc-row:not(:last-child) {
-  border-bottom: 1px dashed #e0e0e0;
+  border-bottom: 1px dashed var(--border-light);
 }
 
 .calc-label {
-  font-size: 14px;
-  color: #666;
+  font-size: var(--font-size-base);
+  color: var(--text-regular);
 }
 
 .calc-value {
-  font-size: 16px;
+  font-size: var(--font-size-lg);
   font-weight: 600;
-  color: #333;
+  color: var(--text-primary);
 }
 
 .calc-value.highlight {
-  font-size: 18px;
-  color: #667eea;
+  font-size: var(--font-size-xl);
+  color: var(--primary-color);
 }
 
 /* 导入区 */
 .import-section {
-  margin-bottom: 24px;
+  margin-bottom: var(--spacing-xxl);
 }
 
 .section-title {
-  font-size: 16px;
+  font-size: var(--font-size-lg);
   font-weight: 600;
-  color: #333;
+  color: var(--text-primary);
   margin-bottom: 6px;
 }
 
 .section-hint {
-  font-size: 12px;
-  color: #999;
-  margin-bottom: 12px;
+  font-size: var(--font-size-xs);
+  color: var(--text-secondary);
+  margin-bottom: var(--spacing-md);
 }
 
 .file-uploader {
-  margin-bottom: 12px;
+  margin-bottom: var(--spacing-md);
 }
 
 .file-uploader :deep(.el-upload-dragger) {
   width: 100%;
   height: 180px;
-  background: linear-gradient(135deg, #f8f9fa 0%, #f0f4ff 100%);
-  border: 2px dashed #d5d8e3;
-  border-radius: 16px;
-  transition: all 0.3s;
+  background: linear-gradient(135deg, var(--bg-light) 0%, rgba(102, 126, 234, 0.05) 100%);
+  border: 2px dashed var(--border-light);
+  border-radius: var(--border-radius-xl);
+  transition: all var(--transition-slow);
 }
 
 .file-uploader :deep(.el-upload-dragger:hover) {
-  border-color: #667eea;
-  background: linear-gradient(135deg, #f0f4ff 0%, #e8ecff 100%);
+  border-color: var(--primary-color);
+  background: linear-gradient(135deg, rgba(102, 126, 234, 0.05) 0%, rgba(102, 126, 234, 0.1) 100%);
 }
 
 .file-uploader :deep(.el-icon--upload) {
   font-size: 56px;
-  color: #667eea;
-  margin-bottom: 8px;
+  color: var(--primary-color);
+  margin-bottom: var(--spacing-sm);
 }
 
 .file-uploader :deep(.el-upload__text) {
   font-size: 15px;
-  color: #666;
+  color: var(--text-regular);
 }
 
 .file-uploader :deep(.el-upload__text em) {
-  color: #667eea;
+  color: var(--primary-color);
   font-style: normal;
   font-weight: 600;
 }
 
 .file-uploader :deep(.el-upload__tip) {
-  font-size: 12px;
-  color: #999;
-  margin-top: 8px;
+  font-size: var(--font-size-xs);
+  color: var(--text-secondary);
+  margin-top: var(--spacing-sm);
 }
 
 .file-count {
   font-size: 13px;
-  color: #667eea;
+  color: var(--primary-color);
   font-weight: 500;
-  margin-bottom: 12px;
+  margin-bottom: var(--spacing-md);
 }
 
 .import-btn {
   width: 100%;
   height: 48px;
-  margin-top: 12px;
+  margin-top: var(--spacing-md);
   font-size: 15px;
   font-weight: 600;
-  color: #667eea;
-  background: #eef1ff;
+  color: var(--primary-color);
+  background: rgba(102, 126, 234, 0.1);
   border: none;
   border-radius: 24px;
   cursor: pointer;
-  transition:
-    opacity 0.2s,
-    transform 0.1s;
+  transition: opacity var(--transition-base), transform var(--transition-fast);
 }
 
 .import-btn:active {
@@ -503,16 +502,16 @@ const handleSubmit = async () => {
 
 .section-divider {
   height: 1px;
-  background: #f0f1f5;
-  margin-top: 20px;
+  background: var(--border-lighter);
+  margin-top: var(--spacing-xl);
 }
 
 /* 按钮组 */
 .btn-group {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  margin-top: 16px;
+  gap: var(--spacing-md);
+  margin-top: var(--spacing-lg);
 }
 
 .submit-btn {
@@ -521,13 +520,11 @@ const handleSubmit = async () => {
   font-size: 17px;
   font-weight: 600;
   color: #fff;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: var(--primary-gradient);
   border: none;
   border-radius: 26px;
   cursor: pointer;
-  transition:
-    opacity 0.2s,
-    transform 0.1s;
+  transition: opacity var(--transition-base), transform var(--transition-fast);
 }
 
 .submit-btn:active {
@@ -546,15 +543,16 @@ const handleSubmit = async () => {
 .cancel-btn {
   width: 100%;
   height: 48px;
-  font-size: 16px;
+  font-size: var(--font-size-lg);
   font-weight: 500;
-  color: #666;
+  color: var(--text-regular);
   background: transparent;
   border: none;
   cursor: pointer;
+  transition: color var(--transition-fast);
 }
 
 .cancel-btn:active {
-  color: #333;
+  color: var(--text-primary);
 }
 </style>

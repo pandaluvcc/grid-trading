@@ -1,6 +1,8 @@
 import { createApp } from 'vue'
 import ElementPlus from 'element-plus'
 import 'element-plus/dist/index.css'
+import Vant from 'vant'
+import 'vant/lib/index.css'
 import './styles/variables.css'
 import './styles/reset.css'
 import './styles/profit.css'
@@ -19,6 +21,7 @@ for (const [key, component] of Object.entries(ElementPlusIconsVue)) {
 
 app.use(pinia)
 app.use(ElementPlus)
+app.use(Vant)
 app.use(router)
 app.use(CommonComponents)
 
